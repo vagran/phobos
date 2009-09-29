@@ -13,6 +13,16 @@ phbSource("$Id$");
 
 #ifndef ASSEMBLER
 #include <types.h>
+#include <mem.h>
+#include <specialreg.h>
+#include <cpu_instr.h>
+
+/* variable arguments */
+typedef u8* va_list;
+
+#define va_size(arg)		roundup2(sizeof(arg), sizeof(int))
+#define va_start(va, arg)	((va) = ((u8 *)&arg) + va_size(arg))
+#define va_arg(va, type)	((va) += va_size(type), *(type *)((va) - va_size(type)))
 
 #define panic(x, ...) //temp
 

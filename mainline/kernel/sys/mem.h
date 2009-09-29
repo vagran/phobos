@@ -1,17 +1,17 @@
 /*
- * /kernel/init/main.cpp
+ * /kernel/sys/mem.h
  * $Id$
  *
  * This file is a part of PhobOS operating system.
  * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
 
+#ifndef MEM_H_
+#define MEM_H_
 #include <sys.h>
 phbSource("$Id$");
 
-ASMCALL int
-main()
-{
+typedef u32		v_addr;
+typedef u64		p_addr;
 
-	return 0;
-}
+#endif /* MEM_H_ */

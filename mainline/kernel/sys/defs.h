@@ -37,5 +37,16 @@ public:
 
 phbSource("$Id$");
 
+#define min(x, y) ((x) <? (y))
+#define max(x, y) ((x) >? (y))
+
+#define roundup(size, balign)		(((size) + (balign) - 1) / (balign) * (balign))
+#define rounddown(size, balign)		((size) / (balign) * (balign))
+#define ispowerof2(balign)			((((balign) - 1) & (balign)) == 0)
+
+#define roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
+
+#define rounddown2(size, balign)	((size) & (~((balign) - 1)))
+
 
 #endif /* DEFS_H_ */

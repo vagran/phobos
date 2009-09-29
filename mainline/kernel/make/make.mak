@@ -10,7 +10,7 @@ CC= $(TOOLS_BIN)/$(TOOLS_TARGET)-gcc
 LD= $(TOOLS_BIN)/$(TOOLS_TARGET)-ld
 STRIP= $(TOOLS_BIN)/$TOOLS_TARGET)-strip
 
-COMPILE_FLAGS= -Werror -Wall -pipe \
+COMPILE_FLAGS= -Werror -Wall -pipe -DKERNEL \
 				-DLOAD_ADDRESS=$(LOAD_ADDRESS) \
 				-DKERNEL_ADDRESS=$(KERNEL_ADDRESS)
 COMPILE_FLAGS_CXX= -fno-exceptions -fno-rtti
@@ -19,7 +19,7 @@ COMPILE_FLAGS_ASM= -DASSEMBLER
 LINK_FLAGS= -static -nodefaultlibs -nostartfiles
 LINK_SCRIPT= $(KERNROOT)/make/link.ld
 
-INCLUDE_DIRS= $(KERNROOT)/sys
+INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
 INCLUDE_FLAGS= $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
 #TARGET variable must be either DEBUG or RELEASE

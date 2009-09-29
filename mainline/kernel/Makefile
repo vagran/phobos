@@ -10,6 +10,6 @@ MAKEIMAGE= 1
 LOAD_ADDRESS=	0x00100000
 KERNEL_ADDRESS=	0xc0000000
 
-SUBDIRS= init lib
+SUBDIRS= init lib dev mem
 
 include $(KERNROOT)/make/make.mak

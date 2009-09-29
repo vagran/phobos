@@ -25,7 +25,14 @@ _start:
 .long   -(MULTIBOOT_HEADER_MAGIC + MBH_FLAGS)
 
 boot_entry:
-	movl	$0x3f8, %edx
-	movl	$'S', %eax
-	outb	%al, %dx
-	hlt
+	movl	$boot_stack, %esp
+	pushl	%ebx 		/* boot info */
+	pushl	%eax		/* boot loader signature */
+	call	Bootstrap
+	addl	$8, %esp
+	ret
+
+	.align 4
+	.space	BOOT_STACK_SIZE
+boot_stack:
+	.long 0, 0, 0, 0

@@ -10,13 +10,17 @@ ENTRY(start)
 
 SECTIONS {
 	. = LOAD_ADDRESS;
-	.lotext : {
-		*/start.o(.text)
+	.boot : {
+		*/start.o(.text .data .rodata)
+		*/init.o(.text .data .rodata)
+		_bootbss = ABSOLUTE(.);
+		*/start.o(.bss)
+		*/init.o(.bss)
 	}
-	_elotext = ALIGN(0x1000);
+	_eboot = ALIGN(0x1000);
 	
-	. = KERNEL_ADDRESS + _elotext - LOAD_ADDRESS;
-	.text : AT(_elotext) {
+	. = KERNEL_ADDRESS + _eboot - LOAD_ADDRESS;
+	.text : AT(_eboot) {
 		_btext = ABSOLUTE(.);
 		*(.text)
 		*(.gnu.linkonce.t.*)
@@ -25,7 +29,7 @@ SECTIONS {
 	. = ALIGN(0x1000);
 	_etext = ABSOLUTE(.);
 	
-	.rodata : AT(_etext - _btext + _elotext) {
+	.rodata : AT(_etext - _btext + _eboot) {
 		*(.rodata)
 		*(.gnu.linkonce.r.*)
 		
@@ -47,28 +51,28 @@ SECTIONS {
 	. = ALIGN(0x1000);
 	_erodata = ABSOLUTE(.);
 	
-	.data : AT(_erodata - _btext + _elotext) {
+	.data : AT(_erodata - _btext + _eboot) {
 		*(.data)
 	}
 	
 	. = ALIGN(0x1000);
 	_edata = ABSOLUTE(.);
 	
-	.bss : AT(_edata - _btext + _elotext) {
+	.bss : AT(_edata - _btext + _eboot) {
 		*(.bss)
 	}
 	
 	. = ALIGN(0x1000);
 	_end = ABSOLUTE(.);
 	
-	.stab : AT(_end - _btext + _elotext) {
+	.stab : AT(_end - _btext + _eboot) {
 		*(.stab)
 	}
 	
 	. = ALIGN(0x1000);
 	_esym = ABSOLUTE(.);
 	
-	.stabstr : AT(_esym - _btext + _elotext) {
+	.stabstr : AT(_esym - _btext + _eboot) {
 		*(.stabstr)
 	}
 	

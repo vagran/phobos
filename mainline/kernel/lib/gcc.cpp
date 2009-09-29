@@ -22,6 +22,18 @@ __cxa_atexit(void (*func)(void *), void * arg, void *dso_handle)
 	return 0;
 }
 
+ASMCALL void
+__cxa_pure_virtual()
+{
+    panic("Pure virtual function called");
+}
+
+ASMCALL void
+__cxa_finalize(void *f)
+{
+
+}
+
 int
 CXA::ConstructStaticObjects()
 {
