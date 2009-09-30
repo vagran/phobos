@@ -86,4 +86,28 @@ typedef ListEntry *ListHead;
 	} \
 }
 
+#ifdef __cplusplus
+
+struct _TreeEntry;
+typedef struct _TreeEntry TreeEntry;
+struct _TreeEntry {
+	u32 key;
+	u32 mask; /* branch left when branching bit is clear */
+	TreeEntry *left, *right, *parent;
+};
+
+typedef TreeEntry *TreeHead;
+
+class Tree32
+{
+public:
+	static TreeEntry *FindNode(TreeHead head, u32 key);
+	static void AddNode(TreeHead &head,TreeEntry *node); /* key must be set in 'node' */
+	static void DeleteNode(TreeHead &head, TreeEntry *node);
+	static TreeEntry *GetNextNode(TreeHead head, TreeEntry *node);
+	static int CheckTree(TreeHead head);
+};
+
+#endif
+
 #endif /* QUEUE_H_ */

@@ -65,6 +65,7 @@ $(COMPILE_DIR):
 $(OBJ_DIR): $(COMPILE_DIR)
 	if [ ! -d $@ ]; then mkdir $@; fi
 
+
 $(OBJ_DIR)/%.o: %.c
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) -o $@ $<
 
@@ -73,6 +74,7 @@ $(OBJ_DIR)/%.o: %.cpp
 
 $(OBJ_DIR)/%.o: %.S
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -o $@ $<
+
 
 all: $(OBJ_DIR) $(OBJS) $(IMAGE) $(SUBDIRS_TARGET)
 

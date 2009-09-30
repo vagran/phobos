@@ -19,7 +19,7 @@
 
 #define ASMCALL extern "C" __attribute__((regparm(0)))
 
-#if defined(__cplusplus) && !defined(ASSEMBLER)
+#if defined(__cplusplus) && !defined(ASSEMBLER) && defined(KERNEL)
 /*
  * Source control system
  */
@@ -33,9 +33,9 @@ public:
 #define __phbSourceFileID	__CONCAT(__phbSourceFile, __COUNTER__)
 
 #define phbSource(id)		volatile static phbSourceFile __phbSourceFileID(id)
-#else /* defined(__cplusplus) && !defined(ASSEMBLER) */
+#else /* defined(__cplusplus) && !defined(ASSEMBLER) && defined(KERNEL) */
 #define phbSource(id)
-#endif /* defined(__cplusplus) && !defined(ASSEMBLER) */
+#endif /* defined(__cplusplus) && !defined(ASSEMBLER) && defined(KERNEL) */
 
 phbSource("$Id$");
 
