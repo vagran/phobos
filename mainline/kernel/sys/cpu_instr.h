@@ -132,6 +132,15 @@ cpuid(u32 op, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 		"a"(op));
 }
 
+static __inline u64
+rdtsc()
+{
+	u64 x;
+
+	__asm__ __volatile__ ("rdtsc" : "=A"(x));
+	return x;
+}
+
 #define hlt() __asm__ __volatile__ ("hlt")
 
 #define cli() __asm__ __volatile__ ("cli")

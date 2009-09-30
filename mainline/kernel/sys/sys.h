@@ -13,6 +13,7 @@ phbSource("$Id$");
 
 #ifndef ASSEMBLER
 #include <types.h>
+#include <queue.h>
 #include <mem.h>
 #include <specialreg.h>
 #include <cpu_instr.h>

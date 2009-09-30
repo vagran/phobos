@@ -15,6 +15,8 @@
 #define __STR2(x)			# x
 #define __STR(x)			__STR2(x)
 
+#define OFFSETOF(struc_name, field_name) ((unsigned int)&((struc_name *)0)->field_name)
+
 #define ASMCALL extern "C" __attribute__((regparm(0)))
 
 #if defined(__cplusplus) && !defined(ASSEMBLER)

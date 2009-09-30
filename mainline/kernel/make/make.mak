@@ -6,9 +6,9 @@
 
 TOOLS_BIN= /usr/local/phobos/bin
 TOOLS_TARGET= i786-elf
-CC= $(TOOLS_BIN)/$(TOOLS_TARGET)-gcc
-LD= $(TOOLS_BIN)/$(TOOLS_TARGET)-ld
-STRIP= $(TOOLS_BIN)/$TOOLS_TARGET)-strip
+export CC= $(TOOLS_BIN)/$(TOOLS_TARGET)-gcc
+export LD= $(TOOLS_BIN)/$(TOOLS_TARGET)-ld
+export STRIP= $(TOOLS_BIN)/$TOOLS_TARGET)-strip
 
 COMPILE_FLAGS= -Werror -Wall -pipe -DKERNEL \
 				-DLOAD_ADDRESS=$(LOAD_ADDRESS) \
