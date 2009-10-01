@@ -10,17 +10,17 @@
 phbSource("$Id$");
 
 void
-Tree32::AddNode(TreeHead &head, TreeEntry *node)
+Tree32::AddNode(TreeRoot &root, TreeEntry *node)
 {
-	if (!head) {
+	if (!root.rootnode) {
 		node->left = 0;
 		node->right = 0;
 		node->parent = 0;
 		node->mask = 1;
-		head = node;
+		root.rootnode = node;
 		return;
 	}
-	TreeEntry *p = head;
+	TreeEntry *p = root.rootnode;
 	while (1) {
 		if (p->key == node->key) {
 			return;
@@ -46,7 +46,7 @@ Tree32::AddNode(TreeHead &head, TreeEntry *node)
 }
 
 void
-Tree32::DeleteNode(TreeHead &head, TreeEntry *node)
+Tree32::DeleteNode(TreeRoot &root, TreeEntry *node)
 {
 	//find node to swap with
 	TreeEntry *p;
@@ -86,14 +86,14 @@ Tree32::DeleteNode(TreeHead &head, TreeEntry *node)
 				node->parent->right = p;
 			}
 	} else {
-		head = p;
+		root.rootnode = p;
 	}
 }
 
 TreeEntry *
-Tree32::FindNode(TreeHead head, u32 key)
+Tree32::FindNode(TreeRoot root, u32 key)
 {
-	TreeEntry *p = head;
+	TreeEntry *p = root.rootnode;
 	while (p && p->key != key) {
 		if (key & p->mask) {
 			p = p->right;
@@ -105,13 +105,13 @@ Tree32::FindNode(TreeHead head, u32 key)
 }
 
 TreeEntry *
-Tree32::GetNextNode(TreeHead head, TreeEntry *node)
+Tree32::GetNextNode(TreeRoot root, TreeEntry *node)
 {
-	if (!head) {
+	if (!root.rootnode) {
 		return 0;
 	}
 	if (!node) {
-		return head;
+		return root.rootnode;
 	}
 	if (node->left) {
 		return node->left;
@@ -137,10 +137,10 @@ Tree32::GetNextNode(TreeHead head, TreeEntry *node)
 }
 
 int
-Tree32::CheckTree(TreeHead head)
+Tree32::CheckTree(TreeRoot root)
 {
 	TreeEntry *p = 0;
-	while ((p = GetNextNode(head, p))) {
+	while ((p = GetNextNode(root, p))) {
 		if (!p->parent) {
 			continue;
 		}

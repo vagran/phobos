@@ -17,7 +17,24 @@
 
 #define OFFSETOF(struc_name, field_name) ((unsigned int)&((struc_name *)0)->field_name)
 
+#define BIN(x) ((x & 0x1) | ((x & 0x10) ? 0x2 : 0) | \
+	((x & 0x100) ? 0x4 : 0) | ((x & 0x1000) ? 0x8 : 0) | \
+	((x & 0x10000) ? 0x10 : 0) | ((x & 0x100000) ? 0x20 : 0) | \
+	((x & 0x1000000) ? 0x40 : 0) | ((x & 0x10000000) ? 0x80 : 0))
+
 #define ASMCALL extern "C" __attribute__((regparm(0)))
+
+#define min(x, y) ((x) <? (y))
+#define max(x, y) ((x) >? (y))
+
+#define roundup(size, balign)		(((size) + (balign) - 1) / (balign) * (balign))
+#define rounddown(size, balign)		((size) / (balign) * (balign))
+#define ispowerof2(balign)			((((balign) - 1) & (balign)) == 0)
+
+#define roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
+
+#define rounddown2(size, balign)	((size) & (~((balign) - 1)))
+
 
 #if defined(__cplusplus) && !defined(ASSEMBLER) && defined(KERNEL)
 /*
@@ -38,17 +55,5 @@ public:
 #endif /* defined(__cplusplus) && !defined(ASSEMBLER) && defined(KERNEL) */
 
 phbSource("$Id$");
-
-#define min(x, y) ((x) <? (y))
-#define max(x, y) ((x) >? (y))
-
-#define roundup(size, balign)		(((size) + (balign) - 1) / (balign) * (balign))
-#define rounddown(size, balign)		((size) / (balign) * (balign))
-#define ispowerof2(balign)			((((balign) - 1) & (balign)) == 0)
-
-#define roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
-
-#define rounddown2(size, balign)	((size) & (~((balign) - 1)))
-
 
 #endif /* DEFS_H_ */

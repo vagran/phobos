@@ -27,12 +27,31 @@ ut_free(void *p);
 
 #define UTFREE(p)	ut_free(p)
 
+char *
+ut_strdup(char *p, char *file, int line);
+
+#define UTSTRDUP(p)	ut_strdup(p, __FILE__, __LINE__)
+
+int
+ut_rand();
+
+extern int UT_RAND_MAX;
+
+void
+ut_memset(void *p, int fill, int size);
+
 class CTest {
 private:
 	CTest *next;
-
+	char *name, *desc;
 public:
 	CTest(char *name, char *desc);
+	virtual ~CTest();
+
+	static int ListTests();
+	static int RunTests();
+	static int RunTest(int idx);
+
 	virtual int Run() = 0;
 };
 

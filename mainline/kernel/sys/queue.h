@@ -17,71 +17,98 @@ struct _ListEntry {
 	ListEntry *next,*prev;
 };
 
-typedef ListEntry *ListHead;
+typedef struct {
+	ListEntry *first;
+} ListHead;
 
-#define XLIST_INIT(head) {(head)=0;}
+#define LIST_INIT(head) {(head).first = 0;}
 
-#define XLIST_INITENTRY(entry,value) {value->entry.next=&value->entry;value->entry.prev=&value->entry;}
-
-#define XLIST_SET(head,entry,value) {(head)=&value->entry;}
-
-#define XLIST_ISEMPTY(head) (!(head))
-
-#define XLIST_ISFIRST(entry,value,head) (&(value)->entry==(head))
-
-#define XLIST_ISLAST(entry,value,head) ((value)->entry.next==(head))
-
-#define XLIST_FIRST(type,entry,head) (XLIST_DATA(type,entry,head))
-
-#define XLIST_LAST(type,entry,head) (XLIST_DATA(type,entry,(head)->prev))
-
-#define XLIST_NEXT(type,entry,value,head) (XLIST_DATA(type,entry,(value)->entry.next))
-
-#define XLIST_PREV(type,entry,value,head) (XLIST_DATA(type,entry,(value)->entry.prev))
-
-#define XLIST_DATA(type,entry,value) ((value) ? ((type *)(((uint8_t *)(value))-OFFSETOF(type,entry))) : 0)
-
-#define XLIST_FOREACH(type,entry,var,head) for (var=(head ? XLIST_DATA(type,entry,head) : 0); \
-	var; var=(((var)->entry.next==(head) || !(head)) ? 0 : XLIST_DATA(type,entry,(var)->entry.next)))
-
-#define XLIST_FREE(type,entry,var,head) { if (head) { \
-	(var)=XLIST_DATA(type,entry,head); \
-	do { \
-		xListEntry *_xLF_next=(var)->entry.next;
-
-#define XLIST_FREE_END(type,entry,var,head) \
-		(var)=XLIST_DATA(type,entry,_xLF_next); \
-	} while (&(var)->entry!=(head) && (head)); \
-} \
+#define LIST_INITENTRY(entry, value) { \
+	(value)->entry.next = &(value)->entry; \
+	(value)->entry.prev = &(value)->entry; \
 }
 
-#define XLIST_ADD(entry,var,head) { \
-	if (head) { \
-		(var)->entry.next=(head); \
-		(var)->entry.prev=(head)->prev; \
-		(head)->prev->next=&(var)->entry; \
-		(head)->prev=&(var)->entry; \
+#define LIST_SET(head, entry, value) {(head).first = &(value)->entry;}
+
+#define LIST_ISEMPTY(head) (!(head).first)
+
+#define LIST_ISFIRST(entry, value, head) (&(value)->entry == (head).first)
+
+#define LIST_ISLAST(entry, value, head) ((value)->entry.next == (head).first)
+
+#define LIST_FIRST(type, entry, head) (LIST_DATA(type, entry, (head).first))
+
+#define LIST_LAST(type, entry, head) (LIST_DATA(type, entry, (head).first ? (head).first->prev : 0))
+
+#define LIST_NEXT(type, entry, value, head) (LIST_DATA(type, entry, (value)->entry.next))
+
+#define LIST_PREV(type, entry, value, head) (LIST_DATA(type, entry, (value)->entry.prev))
+
+#define LIST_DATA(type, entry, value) ((value) ? ((type *)(((u8 *)(value)) - OFFSETOF(type, entry))) : 0)
+
+#define LIST_FOREACH(type, entry, var, head) for ( \
+	(var) = LIST_DATA(type, entry, (head).first); \
+	(var); \
+	(var) = (((var)->entry.next == (head).first || !(head).first) ? 0 : LIST_DATA(type, entry, (var)->entry.next)))
+
+#define LIST_FOREACH_SAFE(type, entry, var, next, head) for ( \
+	(var) = LIST_DATA(type, entry, (head).first); \
+	((var) ? (next) = LIST_NEXT(type, entry, var, head) : (var), (var)); \
+	(var) = ((next) == LIST_DATA(type, entry, (head).first) || !(head).first) ? 0 : (next))
+
+#define LIST_FREE(type, entry, var, head) for ( \
+	(var) = LIST_LAST(type, entry, head); \
+	((var) ? LIST_DELETE(entry, var, head) : , (var)); \
+	(var) = LIST_LAST(type, entry, head))
+
+#define LIST_ADD(entry, var, head) { \
+	if ((head).first) { \
+		(var)->entry.next = (head).first; \
+		(var)->entry.prev = (head).first->prev; \
+		(head).first->prev->next = &(var)->entry; \
+		(head).first->prev = &(var)->entry; \
 	} else { \
-		(var)->entry.next=&(var)->entry; \
-		(var)->entry.prev=&(var)->entry; \
-		(head)=&(var)->entry; \
+		(var)->entry.next = &(var)->entry; \
+		(var)->entry.prev = &(var)->entry; \
+		(head).first = &(var)->entry; \
 	} \
 }
 
-#define XLIST_ADDFIRST(entry,var,head) {\
-	XLIST_ADD(entry,var,head); \
-	(head)=&(var)->entry; \
+#define LIST_ADDFIRST(entry, var, head) {\
+	LIST_ADD(entry, var, head); \
+	(head).first = &(var)->entry; \
 }
 
-#define XLIST_ADDLAST XLIST_ADD
 
-#define XLIST_DELETE(entry,var,head) { \
-	if (head) { \
-		if (&(var)->entry==(head)) (head)=(var)->entry.next; \
-		if (&(var)->entry==(head)) (head)=0; \
-		else { \
-			(var)->entry.next->prev=(var)->entry.prev; \
-			(var)->entry.prev->next=(var)->entry.next; \
+#define LIST_INSERTAFTER(entry, var, after) { \
+	(var)->entry.next = (after)->entry.next; \
+	(var)->entry.prev = &(after)->entry; \
+	(after)->entry.next->prev = &(var)->entry; \
+	(after)->entry.next = &(var)->entry; \
+}
+
+#define LIST_INSERTBEFORE(entry, var, head, before) { \
+	(var)->entry.next = &(before)->entry; \
+	(var)->entry.prev = (before)->entry.prev; \
+	(before)->entry.prev->next = &(var)->entry; \
+	(before)->entry.prev = &(var)->entry; \
+	if ((head).first == &(before)->entry) { \
+		(head).first = &(var)->entry; \
+	} \
+}
+
+#define LIST_ADDLAST LIST_ADD
+
+#define LIST_DELETE(entry, var, head) { \
+	if ((head).first) { \
+		if (&(var)->entry == (head).first) { \
+			(head).first = (var)->entry.next; \
+		} \
+		if (&(var)->entry == (head).first) {\
+			(head).first = 0; \
+		} else { \
+			(var)->entry.next->prev = (var)->entry.prev; \
+			(var)->entry.prev->next = (var)->entry.next; \
 		} \
 	} \
 }
@@ -96,18 +123,45 @@ struct _TreeEntry {
 	TreeEntry *left, *right, *parent;
 };
 
-typedef TreeEntry *TreeHead;
+typedef struct {
+	TreeEntry *rootnode;
+} TreeRoot;
 
 class Tree32
 {
 public:
-	static TreeEntry *FindNode(TreeHead head, u32 key);
-	static void AddNode(TreeHead &head,TreeEntry *node); /* key must be set in 'node' */
-	static void DeleteNode(TreeHead &head, TreeEntry *node);
-	static TreeEntry *GetNextNode(TreeHead head, TreeEntry *node);
-	static int CheckTree(TreeHead head);
+	static TreeEntry *FindNode(TreeRoot root, u32 key);
+	static void AddNode(TreeRoot &root,TreeEntry *node); /* key must be set in 'node' */
+	static void DeleteNode(TreeRoot &root, TreeEntry *node);
+	static TreeEntry *GetNextNode(TreeRoot root, TreeEntry *node);
+	static int CheckTree(TreeRoot root);
 };
 
-#endif
+#define TREE_INIT(root) {(root).rootnode = 0;}
+
+#define TREE_ISEMPTY(root) (!(root).rootnode)
+
+#define TREE_DATA(type, entry, value) ((value) ? ((type *)(((u8 *)(value)) - OFFSETOF(type, entry))) : 0)
+
+#define TREE_ROOT(type, entry, root) TREE_DATA(type, entry, (root).rootnode)
+
+#define TREE_LEFT(type, entry, value) ((value)->entry.left ? TREE_DATA(type, entry, (value)->entry.left) : 0)
+
+#define TREE_RIGHT(type, entry, value) ((value)->entry.right ? TREE_DATA(type, entry, (value)->entry.right) : 0)
+
+#define TREE_PARENT(type, entry, value) ((value)->entry.parent ? TREE_DATA(type, entry, (value)->entry.parent) : 0)
+
+#define TREE_FIND(key, type, entry, root) TREE_DATA(type, entry, Tree32::FindNode(root, key))
+
+#define TREE_ADD(entry, var, root) Tree32::AddNode((root), &(var)->entry)
+
+#define TREE_DELETE(entry, var, root) Tree32::DeleteNode((root), &(var)->entry)
+
+#define TREE_FOREACH(type, entry, var, root) for ( \
+	(var) = TREE_DATA(type, entry, Tree32::GetNextNode(root, 0)); \
+	(var); \
+	(var) = TREE_DATA(type, entry, Tree32::GetNextNode(root, &(var)->entry)))
+
+#endif /* __cplusplus */
 
 #endif /* QUEUE_H_ */
