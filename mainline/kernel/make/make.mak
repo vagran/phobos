@@ -29,7 +29,7 @@ export TARGET
 endif
 
 ifeq ($(TARGET),RELEASE)
-COMPILE_FLAGS+= -O3
+COMPILE_FLAGS+= -O2
 else ifeq ($(TARGET),DEBUG)
 COMPILE_FLAGS+= -g -DDEBUG -O0
 else

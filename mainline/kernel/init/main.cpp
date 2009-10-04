@@ -9,9 +9,18 @@
 #include <sys.h>
 phbSource("$Id$");
 
-ASMCALL int
-main()
-{
+#include <boot.h>
+#include <gcc.h>
 
+MBInfo *pMBInfo;
+
+int
+Main(paddr_t firstAddr)
+{
+	mm::PreInitialize((vaddr_t)(firstAddr - LOAD_ADDRESS + KERNEL_ADDRESS));
+	CXA::ConstructStaticObjects();
+
+
+	hlt();
 	return 0;
 }

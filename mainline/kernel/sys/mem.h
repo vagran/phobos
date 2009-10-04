@@ -11,7 +11,10 @@
 #include <sys.h>
 phbSource("$Id$");
 
-typedef u32		v_addr;
-typedef u64		p_addr;
+#include <mem/pte.h>
+#include <mem/mm.h>
+
+extern paddr_t IdlePDPT, IdlePTD;
+extern vaddr_t quickMap;
 
 #endif /* MEM_H_ */

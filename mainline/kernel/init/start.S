@@ -34,5 +34,6 @@ boot_entry:
 
 	.align 4
 	.space	BOOT_STACK_SIZE
+	.globl boot_stack
 boot_stack:
 	.long 0, 0, 0, 0

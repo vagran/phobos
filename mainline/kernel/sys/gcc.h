@@ -31,4 +31,10 @@ public:
 	static int DestructStaticObjects();
 };
 
+ASMCALL i64 __divdi3(i64 a, i64 b);
+ASMCALL u64 __udivdi3(u64 a, u64 b);
+ASMCALL i64	__moddi3(i64 a, i64 b);
+ASMCALL u64	__umoddi3(u64 a, u64 b);
+ASMCALL u64	__qdivrem(u64 u, u64 v, u64 *rem);
+
 #endif /* GCC_H_ */

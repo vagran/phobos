@@ -15,7 +15,8 @@ phbSource("$Id$");
 
 #ifndef ASSEMBLER
 
-extern u8 _bootbss, _eboot, _btext, _etext, _erodata, _edata, _end, _esym, _estabstr;
+extern u8 _bootbss, _eboot, _btext, _etext, _erodata, _edata, _end,
+	_esym, _estabstr, _kernImageEnd, boot_stack;
 
 #endif /* ASSEMBLER */
 
@@ -36,23 +37,29 @@ extern u8 _bootbss, _eboot, _btext, _etext, _erodata, _edata, _end, _esym, _esta
 #ifndef ASSEMBLER
 
 typedef enum {
-		F_MEMSIZE =		0x0001,
-		F_DEVICE =		0x0002,
-		F_CMDLINE =		0x0004,
-		F_MODULES =		0x0008,
-		F_SYMBOLS =		0x0010,
-		F_SECTIONS =	0x0020,
-		F_MEMMAP =		0x0040,
-		F_DRIVES =		0x0080,
-		F_CONFIG =		0x0100,
-		F_LOADERNAME =	0x0200,
-		F_APMTABLE =	0x0400,
+		MBIF_MEMSIZE =		0x0001,
+		MBIF_DEVICE =		0x0002,
+		MBIF_CMDLINE =		0x0004,
+		MBIF_MODULES =		0x0008,
+		MBIF_SYMBOLS =		0x0010,
+		MBIF_SECTIONS =		0x0020,
+		MBIF_MEMMAP =		0x0040,
+		MBIF_DRIVES =		0x0080,
+		MBIF_CONFIG =		0x0100,
+		MBIF_LOADERNAME =	0x0200,
+		MBIF_APMTABLE =		0x0400,
 } MBIFlags;
 
 typedef struct {
 	u32 flags;
-
+	u32 memLower, memUpper;
+	u32 bootDevice;
+	char *cmdLine;
+	u32 modsCount;
+	u32 modsAddr;
 } MBInfo;
+
+extern MBInfo *pMBInfo;
 
 #endif /* ASSEMBLER */
 

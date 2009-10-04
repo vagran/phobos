@@ -22,7 +22,11 @@
 	((x & 0x10000) ? 0x10 : 0) | ((x & 0x100000) ? 0x20 : 0) | \
 	((x & 0x1000000) ? 0x40 : 0) | ((x & 0x10000000) ? 0x80 : 0))
 
+#define NBBY		8
+
 #define ASMCALL extern "C" __attribute__((regparm(0)))
+
+#define __packed	__attribute__((packed))
 
 #define min(x, y) ((x) <? (y))
 #define max(x, y) ((x) >? (y))
@@ -36,7 +40,7 @@
 #define rounddown2(size, balign)	((size) & (~((balign) - 1)))
 
 
-#if defined(__cplusplus) && !defined(ASSEMBLER) && defined(KERNEL)
+#if !defined(ASSEMBLER) && defined(KERNEL)
 /*
  * Source control system
  */
@@ -50,9 +54,9 @@ public:
 #define __phbSourceFileID	__CONCAT(__phbSourceFile, __COUNTER__)
 
 #define phbSource(id)		volatile static phbSourceFile __phbSourceFileID(id)
-#else /* defined(__cplusplus) && !defined(ASSEMBLER) && defined(KERNEL) */
+#else /* !defined(ASSEMBLER) && defined(KERNEL) */
 #define phbSource(id)
-#endif /* defined(__cplusplus) && !defined(ASSEMBLER) && defined(KERNEL) */
+#endif /* !defined(ASSEMBLER) && defined(KERNEL) */
 
 phbSource("$Id$");
 

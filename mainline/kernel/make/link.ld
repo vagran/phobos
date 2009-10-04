@@ -11,8 +11,8 @@ ENTRY(start)
 SECTIONS {
 	. = LOAD_ADDRESS;
 	.boot : {
-		*/start.o(.text .data .rodata)
-		*/init.o(.text .data .rodata)
+		*/start.o(.text .data .rodata*)
+		*/init.o(.text .data .rodata*)
 		_bootbss = ABSOLUTE(.);
 		*/start.o(.bss)
 		*/init.o(.bss)
@@ -30,7 +30,7 @@ SECTIONS {
 	_etext = ABSOLUTE(.);
 	
 	.rodata : AT(_etext - _btext + _eboot) {
-		*(.rodata)
+		*(.rodata*)
 		*(.gnu.linkonce.r.*)
 		
 		/* place global constructors and destructors list in .rodata section */
@@ -78,7 +78,10 @@ SECTIONS {
 	
 	. = ALIGN(0x1000);
 	_estabstr = ABSOLUTE(.);
+	_kernImageEnd = _estabstr;
 	
-	
-	/DISCARD/ : {*(.comment)}
+	/DISCARD/ : {
+		*(.comment)
+		*/init.o(.ctors .dtors)
+	}
 }

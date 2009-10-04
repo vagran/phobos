@@ -58,7 +58,7 @@ outl(u32 value, u16 port)
 }
 
 static __inline void
-invlpg(v_addr va)
+invlpg(vaddr_t va)
 {
 	__asm__ __volatile__ ("invlpg %0"::"m"(*(u8 *)va));
 }
@@ -146,5 +146,64 @@ rdtsc()
 #define cli() __asm__ __volatile__ ("cli")
 
 #define sti() __asm__ __volatile__ ("sti")
+
+static __inline void
+lgdt(void *p)
+{
+	__asm__ __volatile__ (
+		"lgdt	%0"
+		:
+		: "m"(*(u8 *)p)
+		);
+}
+
+static __inline void
+lidt(void *p)
+{
+	__asm__ __volatile__ (
+		"lidt	%0"
+		:
+		: "m"(*(u8 *)p)
+		);
+}
+
+static __inline void
+lldt(u16 sel)
+{
+	__asm__ __volatile__ (
+		"lldt	%0"
+		:
+		: "r"(sel)
+		);
+}
+
+static __inline void
+sgdt(void *p)
+{
+	__asm__ __volatile__ (
+		"sgdt	%0"
+		: "=m"(*(u8 *)p)
+	);
+}
+
+static __inline void
+sidt(void *p)
+{
+	__asm__ __volatile__ (
+		"sidt	%0"
+		: "=m"(*(u8 *)p)
+	);
+}
+
+static __inline u16
+sldt()
+{
+	u16 sel;
+	__asm__ __volatile__ (
+		"sldt	%0"
+		: "=r"(sel)
+	);
+	return sel;
+}
 
 #endif /* CPU_INSTR_H_ */

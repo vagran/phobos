@@ -29,4 +29,16 @@ typedef u16		u_int16_t;
 typedef u32		u_int32_t;
 typedef u64		u_int64_t;
 
+typedef u32		vaddr_t;
+typedef u64		paddr_t;
+
+
+/* variable arguments */
+typedef u8* va_list;
+
+#define va_roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
+#define va_size(arg)		va_roundup2(sizeof(arg), sizeof(int))
+#define va_start(va, arg)	((va) = ((u8 *)&arg) + va_size(arg))
+#define va_arg(va, type)	((va) += va_size(type), *(type *)((va) - va_size(type)))
+
 #endif /* TYPES_H_ */

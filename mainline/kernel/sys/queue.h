@@ -113,8 +113,6 @@ typedef struct {
 	} \
 }
 
-#ifdef __cplusplus
-
 struct _TreeEntry;
 typedef struct _TreeEntry TreeEntry;
 struct _TreeEntry {
@@ -162,6 +160,5 @@ public:
 	(var); \
 	(var) = TREE_DATA(type, entry, Tree32::GetNextNode(root, &(var)->entry)))
 
-#endif /* __cplusplus */
 
 #endif /* QUEUE_H_ */

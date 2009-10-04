@@ -27,6 +27,9 @@
 <tool errorParsers="org.eclipse.cdt.core.GCCErrorParser" id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.807252215" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler">
 <option id="gnu.cpp.compiler.option.preprocessor.def.370948384" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 <listOptionValue builtIn="false" value="KERNEL=1"/>
+<listOptionValue builtIn="false" value="KERNEL_ADDRESS=0xc0000000"/>
+<listOptionValue builtIn="false" value="LOAD_ADDRESS=0x00100000"/>
+<listOptionValue builtIn="false" value="DEBUG=1"/>
 </option>
 <inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1697608585" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 </tool>
@@ -40,10 +43,11 @@
 </folderInfo>
 <folderInfo id="cdt.managedbuild.toolchain.gnu.cross.base.984236421.1540920918" name="/" resourcePath="unit_test">
 <toolChain id="cdt.managedbuild.toolchain.gnu.cross.base.1373825957" name="cdt.managedbuild.toolchain.gnu.cross.base" superClass="cdt.managedbuild.toolchain.gnu.cross.base" unusedChildren="">
-<option id="cdt.managedbuild.option.gnu.cross.prefix.1718931664.1162133583" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix.1718931664"/>
-<option id="cdt.managedbuild.option.gnu.cross.path.477266151.1490804325" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path.477266151"/>
+<option id="cdt.managedbuild.option.gnu.cross.prefix.1718931664.1162133583" name="Prefix"/>
+<option id="cdt.managedbuild.option.gnu.cross.path.477266151.1490804325" name="Path"/>
+<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
 <tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.1871585720" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler.807252215">
-<option id="gnu.cpp.compiler.option.include.paths.1295481357" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
+<option id="gnu.cpp.compiler.option.include.paths.1295481357" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 <listOptionValue builtIn="false" value="&quot;C:\cygwin\usr\include&quot;"/>
 </option>
 <inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.629611952" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
@@ -489,10 +493,12 @@
 <option id="cdt.managedbuild.option.gnu.cross.prefix.893140845" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 <option id="cdt.managedbuild.option.gnu.cross.path.1630302245" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 <targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.GNU_ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.1516373334" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-<builder id="org.eclipse.cdt.build.core.settings.default.builder.709977481" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="org.eclipse.cdt.build.core.settings.default.builder"/>
+<builder command="C:/cygwin/bin/make" id="org.eclipse.cdt.build.core.settings.default.builder.709977481" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="org.eclipse.cdt.build.core.settings.default.builder"/>
 <tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.1682081093" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler">
 <option id="gnu.cpp.compiler.option.preprocessor.def.1620388002" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 <listOptionValue builtIn="false" value="KERNEL=1"/>
+<listOptionValue builtIn="false" value="KERNEL_ADDRESS=0xc0000000"/>
+<listOptionValue builtIn="false" value="LOAD_ADDRESS=0x00100000"/>
 </option>
 <inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.401851170" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 </tool>
@@ -506,10 +512,11 @@
 </folderInfo>
 <folderInfo id="cdt.managedbuild.toolchain.gnu.cross.base.984236421.1254301916.677991241" name="/" resourcePath="unit_test">
 <toolChain id="cdt.managedbuild.toolchain.gnu.cross.base.741839194" name="cdt.managedbuild.toolchain.gnu.cross.base" superClass="cdt.managedbuild.toolchain.gnu.cross.base" unusedChildren="">
-<option id="cdt.managedbuild.option.gnu.cross.prefix.893140845.151361467" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix.893140845"/>
-<option id="cdt.managedbuild.option.gnu.cross.path.1630302245.801558004" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path.1630302245"/>
+<option id="cdt.managedbuild.option.gnu.cross.prefix.893140845.151361467" name="Prefix"/>
+<option id="cdt.managedbuild.option.gnu.cross.path.1630302245.801558004" name="Path"/>
+<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
 <tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.2069432887" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler.1682081093">
-<option id="gnu.cpp.compiler.option.include.paths.2055437326" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
+<option id="gnu.cpp.compiler.option.include.paths.2055437326" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 <listOptionValue builtIn="false" value="&quot;C:\cygwin\usr\include&quot;"/>
 </option>
 <inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.681677654" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>

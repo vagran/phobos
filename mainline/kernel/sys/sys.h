@@ -11,21 +11,37 @@
 #include <defs.h>
 phbSource("$Id$");
 
+#define PAGE_SHIFT		12
+#define PAGE_SIZE		(1 << PAGE_SHIFT)
+
+#define atop(x)			(x >> PAGE_SHIFT)
+#define ptoa(x)			(x << PAGE_SHIFT)
+
 #ifndef ASSEMBLER
 #include <types.h>
 #include <queue.h>
-#include <mem.h>
 #include <specialreg.h>
+#include <stdlib.h>
 #include <cpu_instr.h>
+#include <mem.h>
 
-/* variable arguments */
-typedef u8* va_list;
+//temp
+#define trace(ch) __asm __volatile ( \
+			"movl	$0x3f8, %%edx\n" \
+			"outb	%%al, (%%dx)\n" \
+			: \
+			: "a"(ch) \
+			: "edx" \
+			)
 
-#define va_size(arg)		roundup2(sizeof(arg), sizeof(int))
-#define va_start(va, arg)	((va) = ((u8 *)&arg) + va_size(arg))
-#define va_arg(va, type)	((va) += va_size(type), *(type *)((va) - va_size(type)))
+
+#ifdef KERNEL
+
+extern int Main(paddr_t firstAddr);
 
 #define panic(x, ...) //temp
+
+#endif /* KERNEL */
 
 #endif /* ASSEMBLER */
 
