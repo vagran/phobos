@@ -15,6 +15,8 @@
 #define __STR2(x)			# x
 #define __STR(x)			__STR2(x)
 
+#define __UID(str)			__CONCAT(str, __COUNTER__)
+
 #define OFFSETOF(struc_name, field_name) ((unsigned int)&((struc_name *)0)->field_name)
 
 #define BIN(x) ((x & 0x1) | ((x & 0x10) ? 0x2 : 0) | \
@@ -51,7 +53,7 @@ public:
 	phbSourceFile(const char *id);
 };
 
-#define __phbSourceFileID	__CONCAT(__phbSourceFile, __COUNTER__)
+#define __phbSourceFileID	__UID(__phbSourceFile)
 
 #define phbSource(id)		volatile static phbSourceFile __phbSourceFileID(id)
 #else /* !defined(ASSEMBLER) && defined(KERNEL) */
