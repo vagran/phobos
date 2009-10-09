@@ -27,7 +27,6 @@ static PTE::PDPTEntry *bsIdlePDPT;
 static paddr_t bsQuickMap;
 static PTE::PTEntry *bsQuickMapPTE;
 
-#define SERIAL_DEBUG
 
 #ifdef SERIAL_DEBUG
 #include <dev/uart/uart.h>
@@ -118,7 +117,7 @@ dbg_printf(const char *fmt,...)
 	dbg_vprintf(fmt, va);
 }
 
-void
+static void
 dbgTraceTranslation(vaddr_t va)
 {
 	dbg_printf("tracing VA 0x%x\n", va);

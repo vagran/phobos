@@ -11,37 +11,36 @@ phbSource("$Id$");
 
 #include <dev/condev.h>
 
+/* default system console */
+ConsoleDev *sysCons;
+
 ConsoleDev::ConsoleDev(Type type, u32 unit, u32 classID) :
-	Device(type, unit, classID)
+	ChrDevice(type, unit, classID)
 {
 	inDev = 0;
 	outDev = 0;
 }
 
-void
+Device::IOStatus
 ConsoleDev::Putc(u8 c)
 {
 	if (!outDev) {
-		return;
+		return IOS_NOTSPRT;
 	}
-	outDev->Putc(c);
+	return outDev->Putc(c);
 }
 
-u8
-ConsoleDev::Getc()
+Device::IOStatus
+ConsoleDev::Getc(u8 *c)
 {
 	if (!inDev) {
-		return 0;
+		return IOS_NOTSPRT;
 	}
-	u8 c;
-	if (inDev->Getc(&c) != IOS_OK) {
-		return 0;
-	}
-	return c;
+	return inDev->Getc(c);
 }
 
 int
-ConsoleDev::Printf(char *fmt,...)
+ConsoleDev::Printf(const char *fmt,...)
 {
 	va_list va;
 	va_start(va, fmt);
@@ -49,7 +48,7 @@ ConsoleDev::Printf(char *fmt,...)
 }
 
 int
-ConsoleDev::VPrintf(char *fmt, va_list va)
+ConsoleDev::VPrintf(const char *fmt, va_list va)
 {
 	return kvprintf(fmt, (PutcFunc)_Putc, this, 10, va);
 }

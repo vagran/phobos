@@ -13,7 +13,7 @@ phbSource("$Id$");
 
 #include <dev/device.h>
 
-class ConsoleDev : public Device {
+class ConsoleDev : public ChrDevice {
 public:
 
 private:
@@ -27,11 +27,13 @@ protected:
 public:
 	ConsoleDev(Type type, u32 unit, u32 classID);
 
-	void Putc(u8 c);
-	u8 Getc();
+	virtual IOStatus Getc(u8 *c);
+	virtual IOStatus Putc(u8 c);
 
-	int VPrintf(char *fmt, va_list va);
-	int Printf(char *fmt,...);
+	int VPrintf(const char *fmt, va_list va);
+	int Printf(const char *fmt,...);
 };
+
+extern ConsoleDev *sysCons;
 
 #endif /* CONDEV_H_ */

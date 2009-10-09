@@ -128,11 +128,11 @@ typedef struct {
 class Tree32
 {
 public:
-	static TreeEntry *FindNode(TreeRoot root, u32 key);
+	static TreeEntry *FindNode(TreeRoot &root, u32 key);
 	static void AddNode(TreeRoot &root,TreeEntry *node); /* key must be set in 'node' */
 	static void DeleteNode(TreeRoot &root, TreeEntry *node);
-	static TreeEntry *GetNextNode(TreeRoot root, TreeEntry *node);
-	static int CheckTree(TreeRoot root);
+	static TreeEntry *GetNextNode(TreeRoot &root, TreeEntry *node);
+	static int CheckTree(TreeRoot &root);
 };
 
 #define TREE_INIT(root) {(root).rootnode = 0;}
@@ -149,7 +149,8 @@ public:
 
 #define TREE_PARENT(type, entry, value) ((value)->entry.parent ? TREE_DATA(type, entry, (value)->entry.parent) : 0)
 
-#define TREE_FIND(key, type, entry, root) TREE_DATA(type, entry, Tree32::FindNode(root, key))
+#define TREE_FIND(key, type, entry, var, root) \
+	((var) = (type *)Tree32::FindNode(root, key), (var) = TREE_DATA(type, entry, var))
 
 #define TREE_ADD(entry, var, root) Tree32::AddNode((root), &(var)->entry)
 

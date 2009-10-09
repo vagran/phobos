@@ -12,26 +12,28 @@
 phbSource("$Id$");
 
 ASMCALL void *memset(void *dst, u8 fill, u32 size);
-ASMCALL void *memcpy(void *dst, void *src, u32 size);
-ASMCALL void *memmove(void *dst, void *src, u32 size);
-ASMCALL int memcmp(void *ptr1, void *ptr2, u32 size);
+ASMCALL void *memcpy(void *dst, const void *src, u32 size);
+ASMCALL void *memmove(void *dst, const void *src, u32 size);
+ASMCALL int memcmp(const void *ptr1, const void *ptr2, u32 size);
 
 ASMCALL int toupper(int c);
 ASMCALL int tolower(int c);
 
-ASMCALL u32 strlen(char *str);
-ASMCALL char *strcpy(char *dst, char *src);
-ASMCALL int strcmp(char *s1, char *s2);
-ASMCALL char *strdup(char *str);
+ASMCALL u32 strlen(const char *str);
+ASMCALL char *strcpy(char *dst, const char *src);
+ASMCALL int strcmp(const char *s1, const char *s2);
+ASMCALL char *strdup(const char *str);
 
-u32 gethash(char *s);
+u32 gethash(const char *s);
 u32 gethash(u8 *data, u32 size);
-u64 gethash64(char *s);
+u64 gethash64(const char *s);
 u64 gethash64(u8 *data, u32 size);
 
 typedef void (*PutcFunc)(int c, void *arg);
-int kvprintf(char const *fmt, PutcFunc func, void *arg, int radix, va_list ap);
-int sprintf(char *buf, char const *fmt,...);
+int kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap);
+int sprintf(char *buf, const char *fmt,...);
+#define printf(fmt,...)		{if (sysCons) sysCons->Printf(fmt, ## __VA_ARGS__);}
+#define vprintf(fmt, va)	{if (sysCons) sysCons->VPrintf(fmt, va);}
 
 typedef enum {
 	KLOG_DEBUG,

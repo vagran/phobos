@@ -91,7 +91,7 @@ Tree32::DeleteNode(TreeRoot &root, TreeEntry *node)
 }
 
 TreeEntry *
-Tree32::FindNode(TreeRoot root, u32 key)
+Tree32::FindNode(TreeRoot &root, u32 key)
 {
 	TreeEntry *p = root.rootnode;
 	while (p && p->key != key) {
@@ -105,7 +105,7 @@ Tree32::FindNode(TreeRoot root, u32 key)
 }
 
 TreeEntry *
-Tree32::GetNextNode(TreeRoot root, TreeEntry *node)
+Tree32::GetNextNode(TreeRoot &root, TreeEntry *node)
 {
 	if (!root.rootnode) {
 		return 0;
@@ -137,7 +137,7 @@ Tree32::GetNextNode(TreeRoot root, TreeEntry *node)
 }
 
 int
-Tree32::CheckTree(TreeRoot root)
+Tree32::CheckTree(TreeRoot &root)
 {
 	TreeEntry *p = 0;
 	while ((p = GetNextNode(root, p))) {

@@ -22,7 +22,7 @@ memset(void *dst, u8 fill, u32 size)
 }
 
 ASMCALL void *
-memcpy(void *dst, void *src, u32 size)
+memcpy(void *dst, const void *src, u32 size)
 {
 	void *ret = dst;
 	while (size) {
@@ -35,7 +35,7 @@ memcpy(void *dst, void *src, u32 size)
 }
 
 ASMCALL void *
-memmove(void *dst, void *src, u32 size)
+memmove(void *dst, const void *src, u32 size)
 {
 	void *ret = dst;
 	if (src > dst) {
@@ -59,7 +59,7 @@ memmove(void *dst, void *src, u32 size)
 }
 
 ASMCALL int
-memcmp(void *ptr1, void *ptr2, u32 size)
+memcmp(const void *ptr1, const void *ptr2, u32 size)
 {
 	while (size) {
 		if (*(u8 *)ptr1 != *(u8 *)ptr2) {
@@ -88,7 +88,7 @@ tolower(int c)
 }
 
 ASMCALL u32
-strlen(char *str)
+strlen(const char *str)
 {
 	register const char *s;
 
@@ -97,7 +97,7 @@ strlen(char *str)
 }
 
 ASMCALL char *
-strcpy(char *dst, char *src)
+strcpy(char *dst, const char *src)
 {
 	char *ret = dst;
 	while (*src) {
@@ -109,7 +109,7 @@ strcpy(char *dst, char *src)
 }
 
 ASMCALL int
-strcmp(char *s1, char *s2)
+strcmp(const char *s1, const char *s2)
 {
 	while (*s1 == *s2) {
 		if (!*s1) {
@@ -122,7 +122,7 @@ strcmp(char *s1, char *s2)
 }
 
 char *
-strdup(char *str)
+strdup(const char *str)
 {
 	if (!str) {
 		return 0;
@@ -137,7 +137,7 @@ strdup(char *str)
 }
 
 int
-sprintf(char *buf, char const *fmt,...)
+sprintf(char *buf, const char *fmt,...)
 {
 	va_list va;
 	va_start(va, fmt);
@@ -174,7 +174,7 @@ ksprintn(char *nbuf, u64 num, int base, int *lenp, int upper)
 
 /* ported from FreeBSD */
 int
-kvprintf(char const *fmt, PutcFunc func, void *arg, int radix, va_list ap)
+kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap)
 {
 #define PCHAR(c) {int cc=(c); if (func) (*func)(cc, arg); else *d++ = cc; retval++;}
 /* Max number conversion buffer length: a u_quad_t in base 2, plus NUL byte. */
@@ -573,7 +573,7 @@ u32 hashtable[256] = {
 };
 
 u32
-gethash(char *s)
+gethash(const char *s)
 {
 	u32 hash = 0x5a5a5a5a;
 	while (*s) {
@@ -598,7 +598,7 @@ u32 gethash(u8 *data, u32 size)
 	return hash;
 }
 
-u64 gethash64(char *s)
+u64 gethash64(const char *s)
 {
 	u64 hash = 0x5a5a5a5aa5a5a5a5ull;
 	while (*s) {
@@ -628,7 +628,17 @@ gethash64(u8 *data, u32 size)
 	return hash;
 }
 
+/* XXX should be moved */
 void klog(KLogLevel level, const char *fmt,...)
 {
-	/* XXX should be moved */
+	static KLogLevel curLevel = KLOG_DEBUG;
+	static const char *levelStr[] = {"DEBUG", "INFO", "WARNING", "ERROR"};
+
+	if (level >= curLevel) {
+		va_list va;
+		va_start(va, fmt);
+		printf("[%s] kernel: ", levelStr[level]);
+		vprintf(fmt, va);
+		printf("\n");
+	}
 }

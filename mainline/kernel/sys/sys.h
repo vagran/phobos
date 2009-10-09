@@ -24,22 +24,17 @@ phbSource("$Id$");
 #include <stdlib.h>
 #include <cpu_instr.h>
 #include <mem.h>
-
-//temp
-#define trace(ch) __asm __volatile ( \
-			"movl	$0x3f8, %%edx\n" \
-			"outb	%%al, (%%dx)\n" \
-			: \
-			: "a"(ch) \
-			: "edx" \
-			)
-
+#include <dev/device.h>
+#include <dev/condev.h>
 
 #ifdef KERNEL
 
 extern int Main(paddr_t firstAddr);
 
-#define panic(x, ...) //temp
+#define panic(msg, ...) { \
+	printf(msg, ## __VA_ARGS__); \
+	hlt(); \
+}
 
 #endif /* KERNEL */
 
