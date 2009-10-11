@@ -30,6 +30,7 @@
 <listOptionValue builtIn="false" value="KERNEL_ADDRESS=0xc0000000"/>
 <listOptionValue builtIn="false" value="LOAD_ADDRESS=0x00100000"/>
 <listOptionValue builtIn="false" value="DEBUG=1"/>
+<listOptionValue builtIn="false" value="ENABLE_TRACING=1"/>
 </option>
 <inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1697608585" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 </tool>

@@ -30,8 +30,8 @@
 
 #define __packed	__attribute__((packed))
 
-#define min(x, y) ((x) <? (y))
-#define max(x, y) ((x) >? (y))
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#define max(x, y) ((x) > (y) ? (x) : (y))
 
 #define roundup(size, balign)		(((size) + (balign) - 1) / (balign) * (balign))
 #define rounddown(size, balign)		((size) / (balign) * (balign))

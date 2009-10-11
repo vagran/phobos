@@ -121,7 +121,24 @@ strcmp(const char *s1, const char *s2)
 	return *s2 - *s1;
 }
 
-char *
+ASMCALL int
+strncmp(const char *s1, const char *s2, u32 num)
+{
+	while (num && *s1 == *s2) {
+		if (!*s1) {
+			return 0;
+		}
+		s1++;
+		s2++;
+		num--;
+	}
+	if (!num) {
+		return 0;
+	}
+	return *s2 - *s1;
+}
+
+ASMCALL char *
 strdup(const char *str)
 {
 	if (!str) {
@@ -136,12 +153,26 @@ strdup(const char *str)
 	return p;
 }
 
+ASMCALL char *
+strchr(const char *str, int c)
+{
+	while (*str) {
+		if (*str == c) {
+			return (char *)str;
+		}
+		str++;
+	}
+	return 0;
+}
+
 int
 sprintf(char *buf, const char *fmt,...)
 {
 	va_list va;
 	va_start(va, fmt);
-	return kvprintf(fmt, 0, buf, 10, va);
+	int len = kvprintf(fmt, 0, buf, 10, va);
+	buf[len] = 0;
+	return len;
 }
 
 /* This is actually used with radix [2..36] */
@@ -642,3 +673,164 @@ void klog(KLogLevel level, const char *fmt,...)
 		printf("\n");
 	}
 }
+
+ASMCALL int
+isalnum(int c)
+{
+	if (c >= '0' && c <= '9') {
+		return 1;
+	}
+	if (c >= 'a' && c <= 'z') {
+		return 1;
+	}
+	if (c >= 'A' && c <= 'Z') {
+		return 1;
+	}
+	return 0;
+}
+
+ASMCALL int
+isalpha(int c)
+{
+	if (c >= 'a' && c <= 'z') {
+		return 1;
+	}
+	if (c >= 'A' && c <= 'Z') {
+		return 1;
+	}
+	return 0;
+}
+
+ASMCALL int
+iscntrl(int c)
+{
+	return c < 32;
+}
+
+ASMCALL int
+isdigit(int c)
+{
+	return c >= '0' && c <= '9';
+}
+ASMCALL int
+isgraph(int c)
+{
+	return isalnum(c) || ispunct(c);
+}
+
+ASMCALL int
+islower(int c)
+{
+	return c >= 'a' && c <= 'z';
+}
+
+ASMCALL int
+isprint(int c)
+{
+	return isalnum(c) || ispunct(c) || c == ' ';
+}
+
+ASMCALL int
+ispunct(int c)
+{
+	return !(iscntrl(c) || isalnum(c) || c == ' ');
+}
+
+ASMCALL int
+isspace(int c)
+{
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n' ||
+		c == '\v' || c == '\f';
+}
+
+ASMCALL int
+isupper(int c)
+{
+	return c >= 'A' && c <= 'Z';
+}
+
+ASMCALL int
+isxdigit(int c)
+{
+	if (c >= '0' && c <= '9') {
+		return 1;
+	}
+	if (c >= 'a' && c <= 'f') {
+		return 1;
+	}
+	if (c >= 'A' && c <= 'F') {
+		return 1;
+	}
+	return 0;
+}
+
+ASMCALL int
+isascii(int c)
+{
+	return c >= 0 && c <= 127;
+}
+
+/*
+ * Convert a string to an unsigned long integer.
+ *
+ * Ignores `locale' stuff.  Assumes that the upper and lower case
+ * alphabets and digits are each contiguous.
+ */
+ASMCALL u32
+strtoul(const char *nptr, char **endptr, int base)
+{
+	const char *s = nptr;
+	unsigned long acc;
+	unsigned char c;
+	unsigned long cutoff;
+	int neg = 0, any, cutlim;
+
+	/*
+	 * See strtol for comments as to the logic used.
+	 */
+	do {
+		c = *s++;
+	} while (isspace(c));
+	if (c == '-') {
+		neg = 1;
+		c = *s++;
+	} else if (c == '+')
+		c = *s++;
+	if ((base == 0 || base == 16) &&
+	    c == '0' && (*s == 'x' || *s == 'X')) {
+		c = s[1];
+		s += 2;
+		base = 16;
+	}
+	if (base == 0)
+		base = c == '0' ? 8 : 10;
+	cutoff = (unsigned long)0xffffffff / (unsigned long)base;
+	cutlim = (unsigned long)0xffffffff % (unsigned long)base;
+	for (acc = 0, any = 0;; c = *s++) {
+		if (!isascii(c))
+			break;
+		if (isdigit(c))
+			c -= '0';
+		else if (isalpha(c))
+			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else
+			break;
+		if (c >= base)
+			break;
+		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
+			any = -1;
+		else {
+			any = 1;
+			acc *= base;
+			acc += c;
+		}
+	}
+	if (any < 0) {
+		acc = 0xffffffff;
+	} else if (neg)
+		acc = -acc;
+	if (endptr != 0)
+		*((const char **)endptr) = any ? s - 1 : nptr;
+	return (acc);
+}
+

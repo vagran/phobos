@@ -9,6 +9,6 @@ MAKEIMAGE= 1
 export LOAD_ADDRESS=	0x00200000
 export KERNEL_ADDRESS=	0xc0000000
 
-SUBDIRS= init lib dev mem unit_test
+SUBDIRS= init lib dev mem unit_test kern kdb
 
 include $(KERNROOT)/make/make.mak

@@ -12,7 +12,7 @@ EXECUTABLE= utrun
 INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
 INCLUDE_FLAGS= $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
-COMPILE_FLAGS= -Werror -Wall -pipe
+COMPILE_FLAGS= -g -Werror -Wall -pipe
 
 LIBS=
 

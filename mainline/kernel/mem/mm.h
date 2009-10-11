@@ -29,10 +29,10 @@ public:
 
 	static void PreInitialize(vaddr_t addr);
 	static paddr_t VtoP(vaddr_t va);
-	static inline PTE::PDEntry *VtoPDE(vaddr_t va);
-	static inline PTE::PTEntry *VtoPTE(vaddr_t va);
-	static inline void *OpNew(u32 size);
-	static inline void OpDelete(void *p);
+	static inline PTE::PDEntry *VtoPDE(vaddr_t va) {return &PTD[va >> PD_SHIFT];}
+	static inline PTE::PTEntry *VtoPTE(vaddr_t va) {return &PTmap[va >> PT_SHIFT];}
+	static inline void *OpNew(u32 size) {return malloc(size);}
+	static inline void OpDelete(void *p) {return free(p);}
 	static void *malloc(u32 size, u32 align = 4);
 	static void free(void *p);
 	static void *QuickMapEnter(paddr_t pa);

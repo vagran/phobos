@@ -31,7 +31,7 @@ endif
 ifeq ($(TARGET),RELEASE)
 COMPILE_FLAGS+= -O2
 else ifeq ($(TARGET),DEBUG)
-COMPILE_FLAGS+= -g -DDEBUG -O0
+COMPILE_FLAGS+= -g -DDEBUG -O0 -DENABLE_TRACING
 else
 $(error Target not supported: $(TARGET))
 endif

@@ -15,7 +15,13 @@ phbSource("$Id$");
 
 class ConsoleDev : public ChrDevice {
 public:
-
+	typedef enum {
+		K_BACKSPACE =		8,
+		K_UP =				65,
+		K_DOWN =			66,
+		K_RIGHT =			67,
+		K_LEFT =			68,
+	} Keys;
 private:
 	ChrDevice *inDev, *outDev;
 

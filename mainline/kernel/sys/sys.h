@@ -21,6 +21,7 @@ phbSource("$Id$");
 #include <types.h>
 #include <queue.h>
 #include <specialreg.h>
+#include <frame.h>
 #include <stdlib.h>
 #include <cpu_instr.h>
 #include <mem.h>
@@ -30,11 +31,8 @@ phbSource("$Id$");
 #ifdef KERNEL
 
 extern int Main(paddr_t firstAddr);
-
-#define panic(msg, ...) { \
-	printf(msg, ## __VA_ARGS__); \
-	hlt(); \
-}
+extern void panic(const char *fmt,...);
+extern void RunDebugger(const char *fmt,...);
 
 #endif /* KERNEL */
 

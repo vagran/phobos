@@ -316,7 +316,7 @@ ASMCALL u32
 Bootstrap(u32 mbSignature, MBInfo *mbi)
 {
 	u8 *p;
-	MBInfo *pmbi;
+	MBInfo *pmbi = 0;
 
 	/* zero bootstrap bss */
 	for (p = &_bootbss; p < &_eboot; p++) {
@@ -347,7 +347,7 @@ Bootstrap(u32 mbSignature, MBInfo *mbi)
 
 	IdlePDPT = (paddr_t)bsIdlePDPT;
 	IdlePTD = (paddr_t)bsIdlePTD;
-	pMBInfo = (MBInfo *)((u8 *)pmbi - LOAD_ADDRESS + KERNEL_ADDRESS);
+	pMBInfo = pmbi ? (MBInfo *)((u8 *)pmbi - LOAD_ADDRESS + KERNEL_ADDRESS) : 0;
 	quickMap = (vaddr_t)(bsQuickMap - LOAD_ADDRESS + KERNEL_ADDRESS);
 
 	CreateInitialStack();

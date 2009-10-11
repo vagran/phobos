@@ -60,30 +60,6 @@ mm::VtoP(vaddr_t va)
 	return (VtoPTE(va)->raw & PG_FRAME) | (va & ~PG_FRAME);
 }
 
-PTE::PDEntry *
-mm::VtoPDE(vaddr_t va)
-{
-	return &PTD[va >> PD_SHIFT];
-}
-
-PTE::PTEntry *
-mm::VtoPTE(vaddr_t va)
-{
-	return &PTmap[va >> PT_SHIFT];
-}
-
-void *
-mm::OpNew(u32 size)
-{
-	return malloc(size);
-}
-
-void
-mm::OpDelete(void *p)
-{
-	return free(p);
-}
-
 void *
 operator new(u32 size)
 {
