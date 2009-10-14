@@ -11,11 +11,21 @@
 #include <sys.h>
 phbSource("$Id$");
 
-class mm {
+#include <boot.h>
+
+class MM {
 public:
 	enum {
-		QUICKMAP_SIZE =		8 /* pages */
+		QUICKMAP_SIZE =		8, /* pages */
+		MEM_MAX_CHUNKS =	16,
 	};
+
+	typedef struct {
+		paddr_t	start, end;
+	} MemChunk;
+
+	MemChunk physMem[MEM_MAX_CHUNKS];
+	u32 physMemSize;
 private:
 	static vaddr_t firstAddr;
 	static PTE::PTEntry *PTmap;
@@ -24,6 +34,8 @@ private:
 
 	static inline void FlushTLB() {wcr3(rcr3());}
 	static void GrowMem(vaddr_t addr);
+	void InitAvailMem();
+	const char *StrMemType(SMMemType type);
 public:
 	static int isInitialized;
 
@@ -37,8 +49,12 @@ public:
 	static void free(void *p);
 	static void *QuickMapEnter(paddr_t pa);
 	static void QuickMapRemove(vaddr_t va);
+
+	MM();
 };
 
-#define ALLOC(type, count)		((type *)mm::malloc(sizeof(type) * count))
+#define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * count))
+
+extern MM *mm;
 
 #endif /* MM_H_ */

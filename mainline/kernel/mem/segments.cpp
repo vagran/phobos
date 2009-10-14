@@ -57,9 +57,9 @@ SDT::SetGate(Gate *g, u32 offset, u16 selector, u32 type)
 
 GDT::GDT()
 {
-	ldt = (ldtTable *)mm::malloc(sizeof(ldtTable), sizeof(SDT::Descriptor));
+	ldt = (ldtTable *)MM::malloc(sizeof(ldtTable), sizeof(SDT::Descriptor));
 	memset(ldt, 0 ,sizeof(*ldt));
-	table = (Table *)mm::malloc(sizeof(Table), sizeof(SDT::Descriptor));
+	table = (Table *)MM::malloc(sizeof(Table), sizeof(SDT::Descriptor));
 	memset(&table->null, 0, sizeof(table->null));
 	SDT::SetDescriptor(&table->kcode, 0, 0xffffffff, 0, 0,
 		SDT::DST_CODE | SDT::DST_C_READ);
@@ -126,7 +126,7 @@ IDT::IDT()
 	memset(handlersTable, 0, sizeof(handlersTable));
 	InitHandlers();
 
-	table = (SDT::Gate *)mm::malloc(256 * sizeof(*table), sizeof(*table));
+	table = (SDT::Gate *)MM::malloc(256 * sizeof(*table), sizeof(*table));
 	memset(table, 0, 256 * sizeof(*table));
 
 	SetTrap(0x00);
@@ -174,4 +174,36 @@ IDT::RegisterUTHandler(TrapHandler h, void *arg)
 	_unhandledTrap = h;
 	_unhandledTrapArg = arg;
 	return ret;
+}
+
+const char *
+IDT::StrTrap(SysTraps trap)
+{
+	const char *str[] = {
+		"Divide error",
+		"Debug trap",
+		"NMI interrupt",
+		"Breakpoint",
+		"Overflow",
+		"BOUND range exceeded",
+		"Invalid opcode",
+		"Device not available",
+		"Double fault",
+		"Coprocessor Segment Overrun",
+		"Invalid TSS",
+		"Segment not present",
+		"Stack segment fault",
+		"General protection",
+		"Page fault",
+		"Intel reserved",
+		"x87 FPU floating point error",
+		"Alignment check",
+		"Machine check",
+		"SIMD floating point exception"
+	};
+
+	if ((u32)trap > sizeof(str) / sizeof(str[0])) {
+		return "Unknown exception";
+	}
+	return str[trap];
 }

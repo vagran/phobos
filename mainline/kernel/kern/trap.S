@@ -43,6 +43,7 @@ _unhandledTrapArg:
 	movl	(idx * 4)(%eax), %eax; \
 	pushl	%eax; \
 	pushl	$idx; \
+	call	OnTrap; \
 	movl	_trapHandlersTable, %eax; \
 	movl	(idx * 4)(%eax), %eax; \
 	testl	%eax, %eax; \

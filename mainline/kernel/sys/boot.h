@@ -50,6 +50,21 @@ typedef enum {
 		MBIF_APMTABLE =		0x0400,
 } MBIFlags;
 
+typedef enum {
+	SMMT_MEMORY =		1,
+	SMMT_RESERVED =		2,
+	SMMT_ACPI_RECLAIM =	3,
+	SMMT_ACPI_NVS =		4,
+	SMMT_ACPI_ERROR =	5,
+} SMMemType;
+
+typedef struct {
+	u32 size;
+	u64 baseAddr;
+	u64 length;
+	u32 type;
+} MBIMmapEntry;
+
 typedef struct {
 	u32 flags;
 	u32 memLower, memUpper;
@@ -57,6 +72,22 @@ typedef struct {
 	char *cmdLine;
 	u32 modsCount;
 	u32 modsAddr;
+	union {
+		struct {
+			u32 tabSize;
+			u32 strSize;
+			u32 addr;
+			u32 reserved;
+		} symTable;
+		struct {
+			u32 num;
+			u32 size;
+			u32 addr;
+			u32 shndx;
+		};
+	} syms;
+	u32 mmapLength;
+	MBIMmapEntry *mmapAddr;
 } MBInfo;
 
 extern MBInfo *pMBInfo;

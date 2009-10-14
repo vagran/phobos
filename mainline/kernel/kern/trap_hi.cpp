@@ -9,6 +9,11 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#include <kdb/debugger.h>
+
+int debugFaults = 1;
+int debugPanics = 1;
+
 ASMCALL void
 OnUserRet(u32 idx, Frame *frame)
 {
@@ -23,8 +28,24 @@ panic(const char *fmt,...)
 	printf("panic: ");
 	vprintf(fmt, va);
 	printf("\n");
+	if (debugPanics) {
+		if (sysDebugger) {
+			sysDebugger->Break();
+		}
+	}
 	cli();
 	hlt();
+}
+
+ASMCALL int
+OnTrap(u32 idx, void *arg, Frame *frame)
+{
+	if (debugFaults && idx != IDT::ST_DEBUG && idx != IDT::ST_BREAKPOINT) {
+		if (sysDebugger) {
+			sysDebugger->Trap((IDT::SysTraps)idx, frame);
+		}
+	}
+	return 0;
 }
 
 static int

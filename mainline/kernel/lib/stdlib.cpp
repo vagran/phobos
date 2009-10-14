@@ -145,7 +145,7 @@ strdup(const char *str)
 		return 0;
 	}
 	u32 len = strlen(str) + 1;
-	char *p = (char *)mm::malloc(len, 1);
+	char *p = (char *)MM::malloc(len, 1);
 	if (!p) {
 		return 0;
 	}

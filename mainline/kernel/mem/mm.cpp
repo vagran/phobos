@@ -1,5 +1,5 @@
 /*
- * /kernel/mem/mm.cpp
+ * /kernel/mem/MM.cpp
  * $Id$
  *
  * This file is a part of PhobOS operating system.
@@ -9,26 +9,74 @@
 #include <sys.h>
 phbSource("$Id$");
 
-#include <mem.h>
+#include <boot.h>
 
 paddr_t IdlePDPT, IdlePTD;
 
 vaddr_t quickMap;
 
-vaddr_t mm::firstAddr = 0;
+MM *mm;
 
-int mm::isInitialized = 0;
+vaddr_t MM::firstAddr = 0;
 
-PTE::PTEntry *mm::PTmap = (PTE::PTEntry *)((vaddr_t)-PD_PAGES * PT_ENTRIES * PAGE_SIZE);
+int MM::isInitialized = 0;
 
-PTE::PDEntry *mm::PTD = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * PAGE_SIZE);
+PTE::PTEntry *MM::PTmap = (PTE::PTEntry *)((vaddr_t)-PD_PAGES * PT_ENTRIES * PAGE_SIZE);
 
-PTE::PDEntry *mm::PTDpde = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * sizeof(PTE::PDEntry));
+PTE::PDEntry *MM::PTD = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * PAGE_SIZE);
 
-PTE::PTEntry *mm::quickMapPTE;
+PTE::PDEntry *MM::PTDpde = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * sizeof(PTE::PDEntry));
+
+PTE::PTEntry *MM::quickMapPTE;
+
+MM::MM()
+{
+	InitAvailMem();
+}
+
+const char *
+MM::StrMemType(SMMemType type)
+{
+	switch (type) {
+	case SMMT_MEMORY:
+		return "RAM";
+	case SMMT_RESERVED:
+		return "Reserved";
+	case SMMT_ACPI_RECLAIM:
+		return "ACPI Reclaim";
+	case SMMT_ACPI_NVS:
+		return "ACPI NVS";
+	case SMMT_ACPI_ERROR:
+		return "ACPI Error";
+	}
+	return "Unknown";
+}
 
 void
-mm::PreInitialize(vaddr_t addr)
+MM::InitAvailMem()
+{
+	if (!pMBInfo || !(pMBInfo->flags & MBIF_MEMMAP)) {
+		panic("No information about system memory map");
+	}
+	physMemSize = 0;
+	int len = pMBInfo->mmapLength;
+	MBIMmapEntry *pe = pMBInfo->mmapAddr;
+	while (len > 0) {
+		printf("[%016llx - %016llx] %s (%d)\n",
+			pe->baseAddr, pe->baseAddr + pe->length,
+			StrMemType((SMMemType)pe->type), pe->type);
+		if (pe->type == SMMT_MEMORY) {
+			physMem[physMemSize].start = pe->baseAddr;
+			physMem[physMemSize].end = pe->baseAddr + pe->length;
+			physMemSize++;
+		}
+		len -= pe->size + sizeof(pe->size);
+		pe = (MBIMmapEntry *)((u8 *)pe + pe->size + sizeof(pe->size));
+	}
+}
+
+void
+MM::PreInitialize(vaddr_t addr)
 {
 	firstAddr = addr;
 
@@ -52,7 +100,7 @@ mm::PreInitialize(vaddr_t addr)
 }
 
 paddr_t
-mm::VtoP(vaddr_t va)
+MM::VtoP(vaddr_t va)
 {
 	if (!VtoPDE(va)->fields.present) {
 		return 0;
@@ -63,29 +111,29 @@ mm::VtoP(vaddr_t va)
 void *
 operator new(u32 size)
 {
-	return mm::OpNew(size);
+	return MM::OpNew(size);
 }
 
 void *
 operator new[](u32 size)
 {
-	return mm::OpNew(size);
+	return MM::OpNew(size);
 }
 
 void
 operator delete(void *p)
 {
-	mm::OpDelete(p);
+	MM::OpDelete(p);
 }
 
 void
 operator delete[](void *p)
 {
-	mm::OpDelete(p);
+	MM::OpDelete(p);
 }
 
 void *
-mm::QuickMapEnter(paddr_t pa)
+MM::QuickMapEnter(paddr_t pa)
 {
 	paddr_t _pa = rounddown2(pa, PAGE_SIZE);
 	for (u32 i = 0; i < QUICKMAP_SIZE; i++) {
@@ -101,15 +149,15 @@ mm::QuickMapEnter(paddr_t pa)
 }
 
 void
-mm::QuickMapRemove(vaddr_t va)
+MM::QuickMapRemove(vaddr_t va)
 {
 	va = rounddown2(va, PAGE_SIZE);
 	if (va < quickMap || va >= (quickMap + QUICKMAP_SIZE * PAGE_SIZE)) {
-		panic("mm::QuickMapRemove: va = 0x%x is out of quick map area", va);
+		panic("MM::QuickMapRemove: va = 0x%x is out of quick map area", va);
 	}
 	PTE::PTEntry *pte = VtoPTE(va);
 	if (!pte->fields.present) {
-		panic("mm::QuickMapRemove: attempted to remove free quick map entry (0x%x)",
+		panic("MM::QuickMapRemove: attempted to remove free quick map entry (0x%x)",
 			va);
 	}
 	pte->raw = 0;
@@ -118,7 +166,7 @@ mm::QuickMapRemove(vaddr_t va)
 
 /* usable while memory management is not initialized */
 void
-mm::GrowMem(vaddr_t addr)
+MM::GrowMem(vaddr_t addr)
 {
 	vaddr_t va = roundup2(firstAddr, PAGE_SIZE);
 	vaddr_t eva = roundup2(addr, PAGE_SIZE);
@@ -142,7 +190,7 @@ mm::GrowMem(vaddr_t addr)
 }
 
 void *
-mm::malloc(u32 size, u32 align)
+MM::malloc(u32 size, u32 align)
 {
 	if (!isInitialized) {
 		firstAddr = roundup(firstAddr, align);
@@ -155,7 +203,7 @@ mm::malloc(u32 size, u32 align)
 }
 
 void
-mm::free(void *p)
+MM::free(void *p)
 {
 	if (!isInitialized) {
 		return;

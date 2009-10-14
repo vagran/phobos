@@ -83,6 +83,14 @@ Debugger::_DebugHandler(u32 idx, Debugger *d, Frame *frame)
 }
 
 int
+Debugger::Trap(IDT::SysTraps idx, Frame *frame)
+{
+	con->Printf("Trap: %d - %s\n", idx, IDT::StrTrap(idx));
+	requestedBreak = 1;
+	return BPHandler(frame);
+}
+
+int
 Debugger::BPHandler(Frame *frame)
 {
 	this->frame = frame;
@@ -339,6 +347,14 @@ Debugger::cmd_gdb(char **argv, u32 argc)
 	gdbMode = 1;
 	gdbSkipCont = 1; /* workaround for Eclipse GDB configuration */
 	return HS_EXIT;
+}
+
+int Debugger::SetGDBMode(int f)
+{
+	int ret = gdbMode;
+	gdbMode = f;
+	gdbSkipCont = 1;
+	return ret;
 }
 
 Debugger::HdlStatus
@@ -670,11 +686,11 @@ Debugger::ReadMemory()
 	while (size) {
 		u32 toRead = roundup2(addr + 1, PAGE_SIZE) - addr;
 		toRead = min(toRead, size);
-		PTE::PDEntry *pde = mm::VtoPDE(addr);
+		PTE::PDEntry *pde = MM::VtoPDE(addr);
 		if (!pde->fields.present) {
 			break;
 		}
-		PTE::PTEntry *pte = mm::VtoPTE(addr);
+		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
 			break;
 		}
@@ -706,11 +722,11 @@ Debugger::WriteMemory()
 	while (size) {
 		u32 toWrite = roundup2(addr + 1, PAGE_SIZE) - addr;
 		toWrite = min(toWrite, size);
-		PTE::PDEntry *pde = mm::VtoPDE(addr);
+		PTE::PDEntry *pde = MM::VtoPDE(addr);
 		if (!pde->fields.present) {
 			break;
 		}
-		PTE::PTEntry *pte = mm::VtoPTE(addr);
+		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
 			break;
 		}
@@ -746,12 +762,12 @@ Debugger::Continue()
 
 	if (lineBuf[1]) {
 		addr = strtoul(&lineBuf[1], &eptr, 16);
-		PTE::PDEntry *pde = mm::VtoPDE(addr);
+		PTE::PDEntry *pde = MM::VtoPDE(addr);
 		if (!pde->fields.present) {
 			GDBSend("E00");
 			return 0;
 		}
-		PTE::PTEntry *pte = mm::VtoPTE(addr);
+		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
 			GDBSend("E00");
 			return 0;
@@ -775,12 +791,12 @@ Debugger::Step()
 
 	if (lineBuf[1]) {
 		addr = strtoul(&lineBuf[1], &eptr, 16);
-		PTE::PDEntry *pde = mm::VtoPDE(addr);
+		PTE::PDEntry *pde = MM::VtoPDE(addr);
 		if (!pde->fields.present) {
 			GDBSend("E00");
 			return 0;
 		}
-		PTE::PTEntry *pte = mm::VtoPTE(addr);
+		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
 			GDBSend("E00");
 			return 0;

@@ -18,6 +18,8 @@ MBInfo *pMBInfo;
 char *argv[MAX_CMDLINE_PARAMS + 1];
 int argc;
 
+static int bootDebugger = 0;
+
 static char copyright[]	=
 	"******************************************************\n"
 	"PhobOS operating system\n"
@@ -34,6 +36,7 @@ InitTables()
 
 typedef enum {
 	OPT_DEBUGGER,
+	OPT_GDB,
 } OptID;
 
 typedef struct {
@@ -44,6 +47,7 @@ typedef struct {
 
 static Option opts[] = {
 	{"debugger", 0, OPT_DEBUGGER},
+	{"gdb", 0, OPT_GDB},
 };
 
 static int
@@ -51,7 +55,10 @@ ProcessOption(OptID opt, char *arg)
 {
 	switch(opt) {
 	case OPT_DEBUGGER:
-		RunDebugger("Boot options requested debugger");
+		bootDebugger = 1;
+		break;
+	case OPT_GDB:
+		sysDebugger->SetGDBMode(1);
 		break;
 	}
 	return 0;
@@ -99,7 +106,7 @@ ParseArguments()
 			}
 			next++;
 		}
-		argv[argc] = (char *)mm::malloc(next - s + 1, 1);
+		argv[argc] = (char *)MM::malloc(next - s + 1, 1);
 		memcpy(argv[argc], s, next - s);
 		argv[argc][next - s] = 0;
 		argc++;
@@ -132,10 +139,10 @@ ParseArguments()
 				ProcessOption(opts[j].id, arg);
 				break;
 			}
-			if (!found) {
-				panic("Invalid option specified: '%s'", o);
-			}
  		}
+		if (!found) {
+			panic("Invalid option specified: '%s'", o);
+		}
 	}
 
 	return 0;
@@ -145,7 +152,7 @@ int
 Main(paddr_t firstAddr)
 {
 	/* setup basic memory management */
-	mm::PreInitialize((vaddr_t)(firstAddr - LOAD_ADDRESS + KERNEL_ADDRESS));
+	MM::PreInitialize((vaddr_t)(firstAddr - LOAD_ADDRESS + KERNEL_ADDRESS));
 	/* call constructors for all static objects */
 	CXA::ConstructStaticObjects();
 	/* create default system console */
@@ -154,6 +161,10 @@ Main(paddr_t firstAddr)
 	InitTables();
 	sysDebugger = new Debugger(sysCons);
 	ParseArguments();
+	if (bootDebugger) {
+		RunDebugger("Boot options requested debugger");
+	}
+	mm = new MM();
 
 	panic("Initialization done");//temp
 	return 0;

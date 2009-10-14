@@ -255,7 +255,7 @@ CreateInitialMapping()
 	}
 
 	/* create space for quick maps */
-	bsQuickMap = (paddr_t)bs_malloc(mm::QUICKMAP_SIZE * PAGE_SIZE, PAGE_SIZE);
+	bsQuickMap = (paddr_t)bs_malloc(MM::QUICKMAP_SIZE * PAGE_SIZE, PAGE_SIZE);
 	PTE::PDEntry *pde = &bsIdlePTD[bsQuickMap >> PD_SHIFT];
 	bsQuickMapPTE = (PTE::PTEntry *)(pde->raw & PG_FRAME) + ((bsQuickMap & PT_MASK) >> PT_SHIFT);
 
@@ -308,6 +308,11 @@ LoadMBInfo(MBInfo *p)
 		out->cmdLine = (char *)bs_malloc(len);
 		bs_memcpy(out->cmdLine, p->cmdLine, len);
 		TRACE("Command line: '%s'\n", out->cmdLine);
+	}
+	if (out->flags & MBIF_MEMMAP) {
+		void *buf = bs_malloc(p->mmapLength);
+		bs_memcpy(buf, p->mmapAddr, p->mmapLength);
+		out->mmapAddr = (MBIMmapEntry *)buf;
 	}
 	return out;
 }

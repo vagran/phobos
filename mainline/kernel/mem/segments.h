@@ -164,6 +164,8 @@ private:
 
 	void InitHandlers();
 public:
+	static const char *StrTrap(SysTraps trap);
+
 	IDT();
 
 	TrapHandler RegisterHandler(u32 idx, TrapHandler h, void *arg = 0);

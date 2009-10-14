@@ -98,6 +98,8 @@ public:
 
 	int SetConsole(ConsoleDev *con);
 	int Break();
+	int SetGDBMode(int f);
+	int Trap(IDT::SysTraps idx, Frame *frame);
 };
 
 extern Debugger *sysDebugger;
