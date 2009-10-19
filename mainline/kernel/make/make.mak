@@ -16,7 +16,7 @@ COMPILE_FLAGS= -Werror -Wall -pipe -DKERNEL \
 COMPILE_FLAGS_CXX= -fno-exceptions -fno-rtti
 COMPILE_FLAGS_C=
 COMPILE_FLAGS_ASM= -DASSEMBLER
-LINK_FLAGS= -static -nodefaultlibs -nostartfiles
+LINK_FLAGS= -static -nodefaultlibs -nostartfiles -nostdinc -nostdinc -nostdinc++
 LINK_SCRIPT= $(KERNROOT)/make/link.ld
 
 INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
@@ -44,7 +44,7 @@ SUBDIRS_TARGET= $(foreach item,$(SUBDIRS),$(item).dir)
 ifeq ($(MAKEIMAGE),1)
 IMAGE= $(OBJ_DIR)/kernel
 RMBUILD= rm -Rf $(COMPILE_DIR)
-$(IMAGE): $(OBJ_DIR) $(SUBDIRS_TARGET)
+$(IMAGE): $(OBJ_DIR) $(SUBDIRS_TARGET) $(LINK_SCRIPT)
 	$(LD) $(LINK_FLAGS) --defsym LOAD_ADDRESS=$(LOAD_ADDRESS) \
 		--defsym KERNEL_ADDRESS=$(KERNEL_ADDRESS) \
 		-T $(LINK_SCRIPT) -o $@ $(wildcard $(OBJ_DIR)/*.o)

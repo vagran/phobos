@@ -19,8 +19,6 @@ MM *mm;
 
 vaddr_t MM::firstAddr = 0;
 
-int MM::isInitialized = 0;
-
 PTE::PTEntry *MM::PTmap = (PTE::PTEntry *)((vaddr_t)-PD_PAGES * PT_ENTRIES * PAGE_SIZE);
 
 PTE::PDEntry *MM::PTD = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * PAGE_SIZE);
@@ -28,6 +26,8 @@ PTE::PDEntry *MM::PTD = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * PAGE_SIZE);
 PTE::PDEntry *MM::PTDpde = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * sizeof(PTE::PDEntry));
 
 PTE::PTEntry *MM::quickMapPTE;
+
+MM::InitState MM::initState = IS_INITIAL;
 
 MM::MM()
 {
@@ -73,6 +73,39 @@ MM::InitAvailMem()
 		len -= pe->size + sizeof(pe->size);
 		pe = (MBIMmapEntry *)((u8 *)pe + pe->size + sizeof(pe->size));
 	}
+
+	availMemSize = 0;
+	totalMem = 0;
+	for (u32 i = 0; i < physMemSize; i++) {
+		for (paddr_t pa = physMem[i].start; pa < physMem[i].end; pa += PAGE_SIZE) {
+			/* preserve BIOS IVT */
+			if (!pa) {
+				continue;
+			}
+			if (!availMemSize) {
+				availMem[0].start = pa;
+				availMem[0].end = pa + PAGE_SIZE;
+				availMemSize++;
+				totalMem++;
+			} else {
+				if (availMem[availMemSize - 1].end == pa) {
+					availMem[availMemSize - 1].end += PAGE_SIZE;
+					totalMem++;
+				} else {
+					if (availMemSize >= sizeof(availMem) / sizeof(availMem[0])) {
+						continue;
+					} else {
+						availMem[availMemSize].start = pa;
+						availMem[availMemSize].end = pa + PAGE_SIZE;
+						availMemSize++;
+						totalMem++;
+					}
+				}
+			}
+		}
+	}
+	initState = IS_MEMCOUNTED;
+	printf("Total %dM of physical memory\n", (u32)(ptoa(totalMem) >> 20));
 }
 
 void
@@ -168,31 +201,57 @@ MM::QuickMapRemove(vaddr_t va)
 void
 MM::GrowMem(vaddr_t addr)
 {
+	if (initState > IS_MEMCOUNTED) {
+		return;
+	}
 	vaddr_t va = roundup2(firstAddr, PAGE_SIZE);
 	vaddr_t eva = roundup2(addr, PAGE_SIZE);
-	int ptGrowed = 0;
 	while (va < eva) {
 		PTE::PDEntry *pde = VtoPDE(va);
 		if (!pde->fields.present) {
-			ptGrowed = 1;
-			paddr_t ptepa = (paddr_t)(eva - KERNEL_ADDRESS + LOAD_ADDRESS);
+			paddr_t ptepa;
+			if (initState == IS_INITIAL) {
+				ptepa = (paddr_t)eva - KERNEL_ADDRESS + LOAD_ADDRESS;
+				eva += PAGE_SIZE;
+			} else {
+				ptepa = _AllocPage();
+			}
 			pde->raw = ptepa | PTE::F_S | PTE::F_W | PTE::F_P;
-			eva += PAGE_SIZE;
 		}
 		PTE::PTEntry *pte = VtoPTE(va);
 		if (!pte->fields.present) {
-			paddr_t pa = (paddr_t)(va - KERNEL_ADDRESS + LOAD_ADDRESS);
+			paddr_t pa;
+			if (initState == IS_INITIAL) {
+				pa = (paddr_t)va - KERNEL_ADDRESS + LOAD_ADDRESS;
+			} else {
+				pa = _AllocPage();
+			}
 			pte->raw = pa | PTE::F_S | PTE::F_W | PTE::F_P;
 		}
 		va += PAGE_SIZE;
 	}
-	firstAddr = ptGrowed ? eva : addr;
+	if (eva > firstAddr) {
+		firstAddr = eva;
+	}
+}
+
+paddr_t
+MM::_AllocPage()
+{
+	if (initState == IS_MEMCOUNTED) {
+		for (u32 i = 0; i < mm->availMemSize; i++) {
+			if (mm->availMem[i].start < mm->availMem[i].end) {
+				mm->availMem[i].start += PAGE_SIZE;
+			}
+		}
+	}
+	return 0;
 }
 
 void *
 MM::malloc(u32 size, u32 align)
 {
-	if (!isInitialized) {
+	if (initState <= IS_MEMCOUNTED) {
 		firstAddr = roundup(firstAddr, align);
 		void *p = (void *)firstAddr;
 		GrowMem(firstAddr + size);
@@ -205,7 +264,7 @@ MM::malloc(u32 size, u32 align)
 void
 MM::free(void *p)
 {
-	if (!isInitialized) {
+	if (initState <= IS_MEMCOUNTED) {
 		return;
 	}
 

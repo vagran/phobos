@@ -26,19 +26,40 @@ public:
 
 	MemChunk physMem[MEM_MAX_CHUNKS];
 	u32 physMemSize;
+	MemChunk availMem[MEM_MAX_CHUNKS];
+	u32 availMemSize;
+	u32 totalMem;
+
+	typedef enum {
+		PG_FREE =		0x1,
+		PG_ACITIVE =	0x2,
+		PG_INACTIVE =	0x4,
+	} PageFlags;
+
+	typedef struct {
+		paddr_t		pa;
+		u16			flags;
+
+	} Page;
 private:
+	typedef enum {
+		IS_INITIAL,
+		IS_MEMCOUNTED,
+
+	} InitState;
+
 	static vaddr_t firstAddr;
 	static PTE::PTEntry *PTmap;
 	static PTE::PDEntry *PTD, *PTDpde;
 	static PTE::PTEntry *quickMapPTE;
+	static InitState initState;
 
 	static inline void FlushTLB() {wcr3(rcr3());}
 	static void GrowMem(vaddr_t addr);
+	static paddr_t _AllocPage(); /* at IS_MEMCOUNTED level */
 	void InitAvailMem();
 	const char *StrMemType(SMMemType type);
 public:
-	static int isInitialized;
-
 	static void PreInitialize(vaddr_t addr);
 	static paddr_t VtoP(vaddr_t va);
 	static inline PTE::PDEntry *VtoPDE(vaddr_t va) {return &PTD[va >> PD_SHIFT];}

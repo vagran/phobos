@@ -28,6 +28,16 @@ phbSource("$Id$");
 #include <dev/device.h>
 #include <dev/condev.h>
 
+#ifdef DEBUG
+#define assert(x) __assert(__FILE__, __LINE__, __STR(x))
+#else /* DEBUG */
+#define assert(x)
+#endif /* DEBUG */
+extern void __assert(const char *file, u32 line, const char *cond);
+
+#define tracec(c) __asm __volatile ("movl $0x3f8, %%edx; outb %%al, %%dx;" \
+	: : "a"(c) : "edx")
+
 #ifdef KERNEL
 
 extern int Main(paddr_t firstAddr);

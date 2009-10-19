@@ -82,7 +82,7 @@ public:
 	};
 private:
 	typedef struct {
-		TreeEntry node;
+		Tree<u32>::TreeEntry node;
 		char *name;
 		u32 id;
 		Device::Type type;
@@ -95,7 +95,7 @@ private:
 		INIT_MAGIC = 0xdede1357,
 	};
 
-	TreeRoot devTree;
+	Tree<u32>::TreeRoot devTree;
 	u32 isInitialized;
 
 	void Initialize();

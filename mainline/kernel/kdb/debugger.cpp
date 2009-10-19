@@ -197,10 +197,10 @@ Debugger::GetHex(u8 d)
 int
 Debugger::GetPacket()
 {
-	u32 i, csIdx;
+	u32 i, csIdx = 0;
 	int j;
 	int state = 0;
-	u8 cs, bcs;
+	u8 cs = 0, bcs = 0;
 
 	lbSize = 0;
 	while (1) {
@@ -469,9 +469,6 @@ Debugger::ProcessPacket()
 			GDBSend("E00");
 		}
 		return 0;
-	case 'H':
-		GDBSend("OK");
-		return 0;
 	case '?':
 		return SendStatus();
 	case 'c':
@@ -488,7 +485,7 @@ Debugger::GDB()
 	SendStatus();
 	while (1) {
 		GetPacket();
-		if (!strcmp("D", lineBuf)) {
+		if (lineBuf[0] == 'D') {
 			/* detach */
 			gdbMode = 0;
 			return 0;

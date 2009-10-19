@@ -134,29 +134,29 @@ MAKETEST(QueueTest, "Linked lists", "Linked lists verification test");
 
 /********************************************************************************/
 
-class Tree32Test : public CTest {
+class TreeTest : public CTest {
 public:
-	Tree32Test(char *name, char *desc);
+	TreeTest(char *name, char *desc);
 	virtual int Run();
 };
 
-Tree32Test::Tree32Test(char *name, char *desc) : CTest(name, desc)
+TreeTest::TreeTest(char *name, char *desc) : CTest(name, desc)
 {
 }
 
 int
-Tree32Test::Run()
+TreeTest::Run()
 {
 	static const int numItems = 32 * 1024;
 	static int buf[numItems];
 	typedef struct
 	{
-		TreeEntry tree;
+		Tree<u32>::TreeEntry tree;
 		int data;
 	} Item;
 	static Item items[numItems];
 	Item *p;
-	TreeRoot root;
+	Tree<u32>::TreeRoot root;
 
 	TREE_INIT(root);
 
@@ -184,7 +184,7 @@ Tree32Test::Run()
 		numLeft--;
 	}
 
-	int check1 = Tree32::CheckTree(root);
+	int check1 = Tree<u32>::CheckTree(root);
 	if (check1) ut_printf("Initial tree check failed\n");
 
 	ut_printf("Verifying tree searching...\n");
@@ -283,7 +283,7 @@ Tree32Test::Run()
 	    "%d not deleted items not enumerated, %d not deleted items not found\n",
 	    numDelNonwalked, numDelNotFound);
 
-	int check2 = Tree32::CheckTree(root);
+	int check2 = Tree<u32>::CheckTree(root);
 	if (check2) {
 		ut_printf("Final tree check failed\n");
 	}
@@ -294,4 +294,4 @@ Tree32Test::Run()
 	return 0;
 }
 
-MAKETEST(Tree32Test, "Binary trees", "Binary trees verification test");
+MAKETEST(TreeTest, "Binary trees", "Binary trees verification test");

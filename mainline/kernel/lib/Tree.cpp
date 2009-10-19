@@ -1,5 +1,5 @@
 /*
- * /kernel/lib/Tree32.cpp
+ * /kernel/lib/UTree.cpp
  * $Id$
  *
  * This file is a part of PhobOS operating system.
@@ -9,8 +9,9 @@
 #include <sys.h>
 phbSource("$Id$");
 
+template <typename key_t>
 void
-Tree32::AddNode(TreeRoot &root, TreeEntry *node)
+Tree<key_t>::AddNode(TreeRoot &root, TreeEntry *node)
 {
 	if (!root.rootnode) {
 		node->left = 0;
@@ -45,14 +46,15 @@ Tree32::AddNode(TreeRoot &root, TreeEntry *node)
 	node->mask = p->mask << 1;
 }
 
+template <typename key_t>
 void
-Tree32::DeleteNode(TreeRoot &root, TreeEntry *node)
+Tree<key_t>::DeleteNode(TreeRoot &root, TreeEntry *node)
 {
 	//find node to swap with
 	TreeEntry *p;
-	if (node->left) p=node->left;
-	else if (node->right) p=node->right;
-	else p=0;
+	if (node->left) p = node->left;
+	else if (node->right) p = node->right;
+	else p = 0;
 
 	if (p) {
 		while (p->left || p->right) {
@@ -90,8 +92,9 @@ Tree32::DeleteNode(TreeRoot &root, TreeEntry *node)
 	}
 }
 
-TreeEntry *
-Tree32::FindNode(TreeRoot &root, u32 key)
+template <typename key_t>
+typename Tree<key_t>::TreeEntry *
+Tree<key_t>::FindNode(TreeRoot &root, key_t key)
 {
 	TreeEntry *p = root.rootnode;
 	while (p && p->key != key) {
@@ -104,8 +107,9 @@ Tree32::FindNode(TreeRoot &root, u32 key)
 	return p;
 }
 
-TreeEntry *
-Tree32::GetNextNode(TreeRoot &root, TreeEntry *node)
+template <typename key_t>
+typename Tree<key_t>::TreeEntry *
+Tree<key_t>::GetNextNode(TreeRoot &root, TreeEntry *node)
 {
 	if (!root.rootnode) {
 		return 0;
@@ -136,8 +140,9 @@ Tree32::GetNextNode(TreeRoot &root, TreeEntry *node)
 	return 0;//make compiler happy
 }
 
+template <typename key_t>
 int
-Tree32::CheckTree(TreeRoot &root)
+Tree<key_t>::CheckTree(TreeRoot &root)
 {
 	TreeEntry *p = 0;
 	while ((p = GetNextNode(root, p))) {
@@ -165,4 +170,34 @@ Tree32::CheckTree(TreeRoot &root)
 		}
 	}
 	return 0;
+}
+
+/* Force compiler to compile all required versions of Tree class methods */
+
+static void
+CompilerStub()
+{
+	/* all supported types are here */
+	Tree<u8>::CompilerStub();
+	Tree<u16>::CompilerStub();
+	Tree<u32>::CompilerStub();
+	Tree<u64>::CompilerStub();
+}
+
+template <typename key_t>
+void
+Tree<key_t>::CompilerStub()
+{
+	TreeRoot root;
+	TreeEntry node;
+	key_t key = 0;
+
+	Tree<key_t>::AddNode(root, &node);
+	Tree<key_t>::DeleteNode(root, &node);
+	Tree<key_t>::FindNode(root, key);
+	Tree<key_t>::GetNextNode(root, &node);
+	Tree<key_t>::CheckTree(root);
+
+	/* reference static function to avoid warning */
+	::CompilerStub();
 }

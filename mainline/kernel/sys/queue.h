@@ -11,6 +11,9 @@
 #include <sys.h>
 phbSource("$Id$");
 
+
+/* Linked lists */
+
 struct _ListEntry;
 typedef struct _ListEntry ListEntry;
 struct _ListEntry {
@@ -56,11 +59,6 @@ typedef struct {
 	((var) ? (next) = LIST_NEXT(type, entry, var, head) : (var), (var)); \
 	(var) = ((next) == LIST_DATA(type, entry, (head).first) || !(head).first) ? 0 : (next))
 
-#define LIST_FREE(type, entry, var, head) for ( \
-	(var) = LIST_LAST(type, entry, head); \
-	((var) ? LIST_DELETE(entry, var, head) : , (var)); \
-	(var) = LIST_LAST(type, entry, head))
-
 #define LIST_ADD(entry, var, head) { \
 	if ((head).first) { \
 		(var)->entry.next = (head).first; \
@@ -78,7 +76,6 @@ typedef struct {
 	LIST_ADD(entry, var, head); \
 	(head).first = &(var)->entry; \
 }
-
 
 #define LIST_INSERTAFTER(entry, var, after) { \
 	(var)->entry.next = (after)->entry.next; \
@@ -113,26 +110,34 @@ typedef struct {
 	} \
 }
 
-struct _TreeEntry;
-typedef struct _TreeEntry TreeEntry;
-struct _TreeEntry {
-	u32 key;
-	u32 mask; /* branch left when branching bit is clear */
-	TreeEntry *left, *right, *parent;
-};
 
-typedef struct {
-	TreeEntry *rootnode;
-} TreeRoot;
+/*
+ * Binary trees
+ * Supported types for key are u8, u16, u32, u64 (see CompilerStub implementation).
+ */
 
-class Tree32
-{
+template <typename key_t>
+class Tree {
 public:
-	static TreeEntry *FindNode(TreeRoot &root, u32 key);
-	static void AddNode(TreeRoot &root,TreeEntry *node); /* key must be set in 'node' */
+	struct _TreeEntry;
+	typedef struct _TreeEntry TreeEntry;
+	struct _TreeEntry {
+		key_t key;
+		key_t mask; /* branch left when branching bit is clear */
+		TreeEntry *left, *right, *parent;
+	};
+
+	typedef struct {
+		TreeEntry *rootnode;
+	} TreeRoot;
+
+	static TreeEntry *FindNode(TreeRoot &root, key_t key);
+	static void AddNode(TreeRoot &root, TreeEntry *node); /* key must be set in 'node' */
 	static void DeleteNode(TreeRoot &root, TreeEntry *node);
 	static TreeEntry *GetNextNode(TreeRoot &root, TreeEntry *node);
 	static int CheckTree(TreeRoot &root);
+
+	static void CompilerStub(); /* do not call it! It is for internal magic. */
 };
 
 #define TREE_INIT(root) {(root).rootnode = 0;}
@@ -149,17 +154,17 @@ public:
 
 #define TREE_PARENT(type, entry, value) ((value)->entry.parent ? TREE_DATA(type, entry, (value)->entry.parent) : 0)
 
-#define TREE_FIND(key, type, entry, var, root) \
-	((var) = (type *)Tree32::FindNode(root, key), (var) = TREE_DATA(type, entry, var))
+#define TREE_FIND(keyValue, type, entry, var, root) \
+	((var) = (type *)Tree<typeof ((var)->entry.key)>::FindNode(root, keyValue), (var) = TREE_DATA(type, entry, var))
 
-#define TREE_ADD(entry, var, root) Tree32::AddNode((root), &(var)->entry)
+#define TREE_ADD(entry, var, root) Tree<typeof ((var)->entry.key)>::AddNode((root), &(var)->entry)
 
-#define TREE_DELETE(entry, var, root) Tree32::DeleteNode((root), &(var)->entry)
+#define TREE_DELETE(entry, var, root) Tree<typeof ((var)->entry.key)>::DeleteNode((root), &(var)->entry)
 
 #define TREE_FOREACH(type, entry, var, root) for ( \
-	(var) = TREE_DATA(type, entry, Tree32::GetNextNode(root, 0)); \
+	(var) = TREE_DATA(type, entry, Tree<typeof ((var)->entry.key)>::GetNextNode(root, 0)); \
 	(var); \
-	(var) = TREE_DATA(type, entry, Tree32::GetNextNode(root, &(var)->entry)))
+	(var) = TREE_DATA(type, entry, Tree<typeof ((var)->entry.key)>::GetNextNode(root, &(var)->entry)))
 
 
 #endif /* QUEUE_H_ */

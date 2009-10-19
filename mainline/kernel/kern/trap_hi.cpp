@@ -52,7 +52,7 @@ static int
 UnhandledTrap(u32 idx, void *arg, Frame *frame)
 {
 	u32 esp;
-	if (((SDT::SegSelector *)frame->cs)->rpl) {
+	if (((SDT::SegSelector *)&frame->cs)->rpl) {
 		esp = frame->esp;
 	} else {
 		esp = (u32)&frame->esp;

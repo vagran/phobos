@@ -53,6 +53,7 @@ typedef struct {
 	u16 es, __es_pad;
 	u16 fs, __fs_pad;
 	u16 gs, __gs_pad;
+	/* below is CPU hardware assisted */
 	union
 	{
 		u32 origeax; /* for syscall frame, auto restart */
@@ -62,6 +63,7 @@ typedef struct {
 	u32 eip;
 	u16 cs, __cs_pad;
 	u32 eflags;
+	/* below is present if transition rings */
 	u32 esp;			/* these fields valid only if PL change occured */
 	u16 ss, __ss_pad;
 } Frame;

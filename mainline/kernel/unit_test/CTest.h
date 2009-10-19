@@ -40,6 +40,9 @@ extern int UT_RAND_MAX;
 void
 ut_memset(void *p, int fill, int size);
 
+void
+ut_abort();
+
 class CTest {
 private:
 	CTest *next;

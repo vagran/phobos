@@ -16,6 +16,7 @@
 #include <stdarg.h>
 #include <strings.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "CTest.h"
 
@@ -93,6 +94,19 @@ CTest::RunTest(int idx)
 }
 
 /* standard functions implementations */
+
+void
+__assert(const char *file, unsigned long line, const char *cond)
+{
+	printf("Assert failed at %s:%ld: '%s'\n", file, line, cond);
+	ut_abort();
+}
+
+void
+ut_abort()
+{
+	abort();
+}
 
 void
 ut_printf(char *fmt,...)
@@ -193,6 +207,7 @@ main(int argc, char *argv[])
 	int run_idx = -1;
 
 	ut_printf("PhobOS unit testing procedure started\n");
+	srand(time(0));
 	while ((ch = getopt(argc, argv, "ln:")) != -1) {
 		switch (ch) {
 		case 'l':
