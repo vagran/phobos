@@ -23,8 +23,6 @@ class BuddyAllocator {
 public:
 	class BuddyClient : public MemAllocator {
 	public:
-		BuddyClient() {};
-
 		virtual int Allocate(range_t base, range_t size) = 0;
 		virtual int Free(range_t base, range_t size) = 0;
 	};
@@ -56,7 +54,7 @@ private:
 	BlockDesc *MergeBlock(BlockDesc *b);
 public:
 	BuddyAllocator(BuddyClient *client);
-	~BuddyAllocator();
+	virtual ~BuddyAllocator();
 
 	int Initialize(range_t base, range_t size, u16 minOrder, u16 maxOrder);
 	int Allocate(range_t size, range_t *location);
