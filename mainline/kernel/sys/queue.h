@@ -54,11 +54,6 @@ typedef struct {
 	(var); \
 	(var) = (((var)->entry.next == (head).first || !(head).first) ? 0 : LIST_DATA(type, entry, (var)->entry.next)))
 
-#define LIST_FOREACH_SAFE(type, entry, var, next, head) for ( \
-	(var) = LIST_DATA(type, entry, (head).first); \
-	((var) ? (next) = LIST_NEXT(type, entry, var, head) : (var), (var)); \
-	(var) = ((next) == LIST_DATA(type, entry, (head).first) || !(head).first) ? 0 : (next))
-
 #define LIST_ADD(entry, var, head) { \
 	if ((head).first) { \
 		(var)->entry.next = (head).first; \

@@ -1,5 +1,5 @@
 /*
- * /kernel/lib/UTree.cpp
+ * /kernel/lib/Tree.cpp
  * $Id$
  *
  * This file is a part of PhobOS operating system.
@@ -50,11 +50,15 @@ template <typename key_t>
 void
 Tree<key_t>::DeleteNode(TreeRoot &root, TreeEntry *node)
 {
-	//find node to swap with
+	/* find node to swap with */
 	TreeEntry *p;
-	if (node->left) p = node->left;
-	else if (node->right) p = node->right;
-	else p = 0;
+	if (node->left) {
+		p = node->left;
+	} else if (node->right) {
+		p = node->right;
+	} else {
+		p = 0;
+	}
 
 	if (p) {
 		while (p->left || p->right) {

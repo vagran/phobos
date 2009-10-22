@@ -114,19 +114,6 @@ QueueTest::Run()
 	}
 	ut_printf("ok\n");
 
-	ut_printf("foreach_safe...");
-	k = 0;
-	LIST_FOREACH_SAFE(Item, list, p, p1, head) {
-		if (p->idx != pat4[k]) {
-			ut_printf("%d. %d != %d\n", k, p->idx, pat4[k]);
-			return -1;
-		}
-		LIST_DELETE(list, p, head);
-		UTFREE(p);
-		k++;
-	}
-	ut_printf("ok\n");
-
 	return 0;
 }
 

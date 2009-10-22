@@ -38,9 +38,7 @@
 #define ispowerof2(balign)			((((balign) - 1) & (balign)) == 0)
 
 #define roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
-
 #define rounddown2(size, balign)	((size) & (~((balign) - 1)))
-
 
 #if !defined(ASSEMBLER) && defined(KERNEL)
 /*

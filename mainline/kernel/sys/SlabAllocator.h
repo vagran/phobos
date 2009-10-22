@@ -22,15 +22,33 @@ public:
 private:
 	typedef enum {
 		MIN_SLAB_SIZE = PAGE_SIZE,
-		MIN_BLOCKS_IN_SLAB = 32,
-
+		MIN_BLOCKS_IN_SLAB = 64,
+		ALLOC_GRAN = PAGE_SIZE, /* must be power of 2 */
+		BLOCK_GRAN = 4, /* must be power of 2 */
+		MAX_EMPTY_SLABS = 8,
+		EMPTY_SLABS_HYST = 4,
 	} AllocPolicy;
+
+	typedef enum {
+		F_INITIALPOOL =		0x1,
+	} Flags;
 
 	typedef struct {
 		ListEntry list;
 		u32 blockSize;
-		u32 totalBlocks, allocatedBlocks;
+		u32 flags;
+		u32 totalBlocks, usedBlocks;
+		u32 numEmptySlabs;
+		ListHead emptySlabs, filledSlabs, fullSlabs;
+	} SlabGroup;
+
+	typedef struct {
+		ListEntry list;
+		u32 blockSize;
+		u32 totalBlocks, usedBlocks;
+		u32 flags;
 		ListHead freeBlocks;
+		SlabGroup *group;
 	} Slab;
 
 	typedef struct {
@@ -43,19 +61,19 @@ private:
 		};
 	} Block;
 
-	typedef struct {
-		ListEntry list;
-		u32 blockSize;
-		ListHead emptySlabs, filledSlabs, fullSlabs;
-	} SlabGroup;
-
 	ListHead slabGroups;
 	u8 *initialPool;
 	u32 initialPoolSize;
+	u32 initialPoolPtr;
 	SlabClient *client;
 
 	void *Allocate(u32 size);
 	int Free(void *p, u32 size = 0);
+	Slab *GetSlab(u32 size);
+	SlabGroup *GetGroup(u32 size);
+	Slab *AllocateSlab(SlabGroup *g);
+	void FreeSlab(Slab *slab);
+	void FreeGroup(SlabGroup *g);
 public:
 	SlabAllocator(SlabClient *client, void *initialPool = 0, u32 initialPoolSize = 0);
 	virtual ~SlabAllocator();

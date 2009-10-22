@@ -29,7 +29,7 @@ phbSource("$Id$");
 #include <dev/condev.h>
 
 #ifdef DEBUG
-#define assert(x) __assert(__FILE__, __LINE__, __STR(x))
+#define assert(x) {if (!(x)) __assert(__FILE__, __LINE__, __STR(x));}
 #else /* DEBUG */
 #define assert(x)
 #endif /* DEBUG */

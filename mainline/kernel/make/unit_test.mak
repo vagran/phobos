@@ -12,7 +12,15 @@ EXECUTABLE= utrun
 INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
 INCLUDE_FLAGS= $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
-COMPILE_FLAGS= -g -Werror -Wall -pipe
+COMPILE_FLAGS= -Werror -Wall -pipe
+
+ifeq ($(TARGET),RELEASE)
+COMPILE_FLAGS+= -O2
+else ifeq ($(TARGET),DEBUG)
+COMPILE_FLAGS+= -g -DDEBUG -O0 -DENABLE_TRACING
+else
+$(error Target not supported: $(TARGET))
+endif
 
 LIBS= -lstdc++
 

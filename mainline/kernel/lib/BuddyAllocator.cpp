@@ -14,6 +14,7 @@ phbSource("$Id$");
 template <typename range_t>
 BuddyAllocator<range_t>::BuddyAllocator(BuddyClient *client)
 {
+	assert(client);
 	this->client = client;
 	TREE_INIT(tree);
 	freeBlocks = 0;

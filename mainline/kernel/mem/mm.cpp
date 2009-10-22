@@ -55,6 +55,7 @@ MM::StrMemType(SMMemType type)
 void
 MM::InitAvailMem()
 {
+	assert(initState == IS_INITIAL);
 	if (!pMBInfo || !(pMBInfo->flags & MBIF_MEMMAP)) {
 		panic("No information about system memory map");
 	}
@@ -241,7 +242,9 @@ MM::_AllocPage()
 	if (initState == IS_MEMCOUNTED) {
 		for (u32 i = 0; i < mm->availMemSize; i++) {
 			if (mm->availMem[i].start < mm->availMem[i].end) {
+				paddr_t pa = mm->availMem[i].start;
 				mm->availMem[i].start += PAGE_SIZE;
+				return pa;
 			}
 		}
 	}
