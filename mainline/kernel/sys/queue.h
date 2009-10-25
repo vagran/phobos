@@ -126,13 +126,13 @@ public:
 		TreeEntry *rootnode;
 	} TreeRoot;
 
-	static TreeEntry *FindNode(TreeRoot &root, key_t key);
-	static void AddNode(TreeRoot &root, TreeEntry *node); /* key must be set in 'node' */
-	static void DeleteNode(TreeRoot &root, TreeEntry *node);
-	static TreeEntry *GetNextNode(TreeRoot &root, TreeEntry *node);
-	static int CheckTree(TreeRoot &root);
+	static TreeEntry *FindNode(TreeRoot &root, key_t key) __noinline;
+	static void AddNode(TreeRoot &root, TreeEntry *node) __noinline; /* key must be set in 'node' */
+	static void DeleteNode(TreeRoot &root, TreeEntry *node) __noinline;
+	static TreeEntry *GetNextNode(TreeRoot &root, TreeEntry *node) __noinline;
+	static int CheckTree(TreeRoot &root) __noinline;
 
-	static void CompilerStub(); /* do not call it! It is for internal magic. */
+	static __volatile void CompilerStub(); /* do not call it! It is for internal magic. */
 };
 
 #define TREE_INIT(root) {(root).rootnode = 0;}

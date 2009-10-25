@@ -96,7 +96,7 @@ Debugger::BPHandler(Frame *frame)
 	this->frame = frame;
 	PrintFrameInfo(frame);
 	/* esp is saved in frame only if PL was switched */
-	if (!((SDT::SegSelector *)&frame->cs)->rpl) {
+	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
 		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
 		esp = (u32)&frame->esp;
 	} else {

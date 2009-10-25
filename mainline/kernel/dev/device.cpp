@@ -150,7 +150,7 @@ DeviceManager::CreateDevice(u32 devClassID)
 	DevClass *p;
 	TREE_FIND(devClassID, DevClass, node, p, devTree);
 	if (!p) {
-		panic("Attempted to create device of non-existing class (0x%x)", devClassID);
+		panic("Attempted to create device of non-existing class (0x%lx)", devClassID);
 	}
 	return CreateDevice(p);
 }
@@ -171,14 +171,14 @@ DeviceManager::RegisterClass(const char *devClass, Device::Type type,
 		if (!strcmp(devClass, found->name)) {
 			panic("Registering duplicated device classes: '%s'", devClass);
 		}
-		panic("Device class hash collision: h('%s')=h('%s')=0x%08x",
+		panic("Device class hash collision: h('%s')=h('%s')=0x%08lx",
 			devClass, found->name, id);
 	}
 	DevClass *p = ALLOC(DevClass, 1);
 	if (!p) {
 		panic("Device class registration failed, no memory");
 	}
-	klog(KLOG_DEBUG, "Registering device class '%s' (id = 0x08X)", devClass, id);
+	klog(KLOG_DEBUG, "Registering device class '%s' (id = 0x%08lX)", devClass, id);
 	p->id = id;
 	p->node.key = id;
 	p->name = strdup(devClass);

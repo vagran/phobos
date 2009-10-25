@@ -35,6 +35,7 @@ panic(const char *fmt,...)
 	}
 	cli();
 	hlt();
+	while (1);
 }
 
 ASMCALL int
@@ -52,14 +53,14 @@ static int
 UnhandledTrap(u32 idx, void *arg, Frame *frame)
 {
 	u32 esp;
-	if (((SDT::SegSelector *)&frame->cs)->rpl) {
+	if (((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
 		esp = frame->esp;
 	} else {
 		esp = (u32)&frame->esp;
 	}
-	panic("Unhandled trap\nidx = %x, code = %d, eip = 0x%08x, eflags = 0x%08x\n"
-		"eax = 0x%08x, ebx = 0x%08x, ecx = 0x%08x, edx = 0x%08x\n"
-		"esi = 0x%08x, edi = 0x%08x, ebp = 0x%08x, esp = 0x%08x",
+	panic("Unhandled trap\nidx = %lx, code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
+		"eax = 0x%08lx, ebx = 0x%08lx, ecx = 0x%08lx, edx = 0x%08lx\n"
+		"esi = 0x%08lx, edi = 0x%08lx, ebp = 0x%08lx, esp = 0x%08lx",
 		idx, frame->u.errorcode, frame->eip, frame->eflags,
 		frame->eax, frame->ebx, frame->ecx, frame->edx,
 		frame->esi, frame->edi, frame->ebp, esp);

@@ -18,7 +18,7 @@ SDT::SetDescriptor(Descriptor *d, u32 base, u32 limit, u32 ring, u32 system, u32
 	if ((limit & 0xfff) != 0xfff || limit < 0x100000) {
 		if (limit > 0xfffff) {
 			panic("Specifying segment with 1-byte granularity and limit >1MB, "
-				"limit = 0x%08X", limit);
+				"limit = 0x%08lX", limit);
 		}
 		d->gran = 0;
 	} else {

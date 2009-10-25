@@ -10,7 +10,7 @@ export CC= $(TOOLS_BIN)/$(TOOLS_TARGET)-gcc
 export LD= $(TOOLS_BIN)/$(TOOLS_TARGET)-ld
 export STRIP= $(TOOLS_BIN)/$TOOLS_TARGET)-strip
 
-COMPILE_FLAGS= -Werror -Wall -pipe -DKERNEL \
+COMPILE_FLAGS= -Werror -Wall -pipe -DKERNEL -fno-default-inline \
 				-DLOAD_ADDRESS=$(LOAD_ADDRESS) \
 				-DKERNEL_ADDRESS=$(KERNEL_ADDRESS)
 COMPILE_FLAGS_CXX= -fno-exceptions -fno-rtti

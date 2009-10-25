@@ -178,8 +178,8 @@ Tree<key_t>::CheckTree(TreeRoot &root)
 
 /* Force compiler to compile all required versions of Tree class methods */
 
-static void
-CompilerStub()
+void
+TreeCompilerStub()
 {
 	/* all supported types are here */
 	Tree<u8>::CompilerStub();
@@ -189,11 +189,13 @@ CompilerStub()
 }
 
 template <typename key_t>
-void
+__volatile void
 Tree<key_t>::CompilerStub()
 {
 	TreeRoot root;
+	TREE_INIT(root);
 	TreeEntry node;
+	memset(&node, 0, sizeof(node));
 	key_t key = 0;
 
 	Tree<key_t>::AddNode(root, &node);
@@ -201,7 +203,4 @@ Tree<key_t>::CompilerStub()
 	Tree<key_t>::FindNode(root, key);
 	Tree<key_t>::GetNextNode(root, &node);
 	Tree<key_t>::CheckTree(root);
-
-	/* reference static function to avoid warning */
-	::CompilerStub();
 }

@@ -12,7 +12,7 @@ EXECUTABLE= utrun
 INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
 INCLUDE_FLAGS= $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
-COMPILE_FLAGS= -Werror -Wall -pipe
+COMPILE_FLAGS= -Werror -Wall -pipe -fno-default-inline
 
 ifeq ($(TARGET),RELEASE)
 COMPILE_FLAGS+= -O2

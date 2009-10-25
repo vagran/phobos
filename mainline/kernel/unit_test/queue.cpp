@@ -34,7 +34,7 @@ QueueTest::Run()
 		int idx;
 	} Item;
 
-	Item *p, *p1;
+	Item *p, *p1 = 0;
 
 	LIST_INIT(head);
 

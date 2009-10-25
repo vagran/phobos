@@ -95,6 +95,11 @@ BuddyTest::Run()
 	ListHead head;
 	LIST_INIT(head);
 
+	if (alloc.Reserve((u32)mem + 32768, 4 * 1024 * 1024)) {
+		ut_printf("Failed to reserve region\n");
+		return -1;
+	}
+
 	ut_printf("Starting allocations, total memory in pool: 0x%08x bytes\n", size);
 	while (1) {
 		u32 bsize = OFFSETOF(DataItem, data) + (u64)ut_rand() * (1 << 16) / UT_RAND_MAX;

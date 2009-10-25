@@ -41,8 +41,8 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #ifdef KERNEL
 
 extern int Main(paddr_t firstAddr);
-extern void panic(const char *fmt,...);
-extern void RunDebugger(const char *fmt,...);
+extern void panic(const char *fmt,...) __format(printf, 1, 2) __noreturn;
+extern void RunDebugger(const char *fmt,...) __format(printf, 1, 2);
 
 #endif /* KERNEL */
 

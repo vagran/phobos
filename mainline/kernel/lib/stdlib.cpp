@@ -12,7 +12,7 @@ phbSource("$Id$");
 void
 __assert(const char *file, u32 line, const char *cond)
 {
-	panic("Assert failed at %s:%d: '%s'", file, line, cond);
+	panic("Assert failed at %s:%lu: '%s'", file, line, cond);
 }
 
 ASMCALL void *

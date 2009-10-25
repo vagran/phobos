@@ -131,6 +131,103 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location)
 }
 
 template <typename range_t>
+int
+BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
+{
+	if (!size) {
+		return -1;
+	}
+	range_t end = roundup2(location + size, (range_t)1 << minOrder);
+	location = rounddown2(location, (range_t)1 << minOrder);
+	if (location < base || location + size > base + this->size) {
+		return -1;
+	}
+	/* pass 1, verify that area is free */
+	range_t loc = location;
+	/* find the first block */
+	u16 order = minOrder;
+	BlockDesc *b = 0;
+	while (order <= maxOrder) {
+		TREE_FIND(loc, BlockDesc, node, b, tree);
+		if (b) {
+			if (!(b->flags & BF_FREE)) {
+				return -1;
+			}
+			loc += 1 << b->order;
+			break;
+		}
+		while (order <= maxOrder) {
+			order++;
+			range_t newLoc = rounddown2(loc, (range_t)1 << order);
+			if (newLoc != loc) {
+				loc = newLoc;
+				break;
+			}
+		}
+	}
+	assert(b);
+	/* scan the range */
+	while (loc < end) {
+		TREE_FIND(loc, BlockDesc, node, b, tree);
+		assert(b);
+		if (!(b->flags & BF_FREE)) {
+			return -1;
+		}
+		loc += (range_t)1 << b->order;
+	}
+
+	/* pass 2, space is free, reserve the range */
+	loc = location;
+	/* find the first block */
+	order = minOrder;
+	b = 0;
+	while (order <= maxOrder) {
+		TREE_FIND(loc, BlockDesc, node, b, tree);
+		if (b) {
+			while (loc != location) {
+				BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
+				AddFreeBlock(b2);
+				b->order--;
+				if (location >= b2->node.key) {
+					b = b2;
+				}
+				loc = b->node.key;
+			}
+			break;
+		}
+		while (order <= maxOrder) {
+			order++;
+			range_t newLoc = rounddown2(loc, (range_t)1 << order);
+			if (newLoc != loc) {
+				loc = newLoc;
+				break;
+			}
+		}
+	}
+	assert(b);
+
+	while (location < end) {
+		range_t size = (range_t)1 << b->order;
+		while (location + size > end) {
+			BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
+			AddFreeBlock(b2);
+			DeleteFreeBlock(b);
+			b->order--;
+			AddFreeBlock(b);
+			size = (range_t)1 << b->order;
+		}
+		DeleteFreeBlock(b);
+		b->flags |= BF_RESERVED;
+		location += (range_t)1 << b->order;
+		if (location < end) {
+			TREE_FIND(location, BlockDesc, node, b, tree);
+			assert(b);
+		}
+	}
+	return 0;
+}
+
+template <typename range_t>
 void
 BuddyAllocator<range_t>::SplitBlock(BlockDesc *b, u16 reqOrder)
 {
@@ -235,12 +332,13 @@ BuddyAllocator<range_t>::FreeTree()
 }
 
 /* compile methods for supported base types */
-static void
-CompilerStub()
+__volatile void
+BuddyCompilerStub()
 {
 #define REFTYPE(type) { \
 	BuddyAllocator<type> __CONCAT(obj_,type)((BuddyAllocator<type>::BuddyClient *)0); \
 	__CONCAT(obj_,type).Initialize(0,0,0,0); \
+	__CONCAT(obj_,type).Reserve(0 ,0); \
 	__CONCAT(obj_,type).Allocate(0 ,0); \
 	__CONCAT(obj_,type).Free(0); \
 }
@@ -248,11 +346,4 @@ CompilerStub()
 	REFTYPE(u16);
 	REFTYPE(u32);
 	REFTYPE(u64);
-}
-
-template <typename range_t>
-void
-BuddyAllocator<range_t>::CompilerStub()
-{
-	::CompilerStub();
 }

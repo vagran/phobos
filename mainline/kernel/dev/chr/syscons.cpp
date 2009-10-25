@@ -36,7 +36,7 @@ SysConsole::SysSerial::SysSerial(Type type, u32 unit, u32 classID) :
 		iobase = 0x2e8;
 		break;
 	default:
-		panic("SysSerial device supports only 4 units (attempted to create unit %d)",
+		panic("SysSerial device supports only 4 units (attempted to create unit %lu)",
 			unit);
 	}
 	SetSpeed(SERIAL_SPEED);

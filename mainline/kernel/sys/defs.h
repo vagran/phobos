@@ -19,6 +19,8 @@
 
 #define OFFSETOF(struc_name, field_name) ((unsigned int)&((struc_name *)0)->field_name)
 
+#define FIELDTYPE(struc_name, field_name) typeof(((struc_name *)0)->field_name)
+
 #define BIN(x) ((x & 0x1) | ((x & 0x10) ? 0x2 : 0) | \
 	((x & 0x100) ? 0x4 : 0) | ((x & 0x1000) ? 0x8 : 0) | \
 	((x & 0x10000) ? 0x10 : 0) | ((x & 0x100000) ? 0x20 : 0) | \
@@ -28,7 +30,10 @@
 
 #define ASMCALL extern "C" __attribute__((regparm(0)))
 
-#define __packed	__attribute__((packed))
+#define __packed			__attribute__((packed))
+#define __format(type, fmtIdx, argIdx)	__attribute__ ((format(type, fmtIdx, argIdx)))
+#define __noreturn			__attribute__ ((noreturn))
+#define __noinline 			__attribute__ ((noinline))
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 #define max(x, y) ((x) > (y) ? (x) : (y))

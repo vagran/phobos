@@ -9,6 +9,37 @@
 #include <sys.h>
 phbSource("$Id$");
 
+/*
+ * Virtual memory map:
+ * 		--------------------- FFFFFFFF
+ * 		| PT map			| PD_PAGES * PT_ENTRIES * PAGE_SIZE
+ * 		+-------------------+ FF800000
+ * 		| Alt. PT map		| PD_PAGES * PT_ENTRIES * PAGE_SIZE
+ * 		+-------------------+ FF000000
+ * 		|					|
+ * 		| Kernel dynamic 	|
+ * 		| memory			|
+ * 		+-------------------+
+ * 		| Kernel image,		|
+ * 		| initial memory	|
+ * 		+-------------------+ KERNEL_ADDRESS
+ * 		| Gate objects		| GATE_AREA_SIZE
+ * 		+-------------------+ KERNEL_ADDRESS - GATE_AREA_SIZE
+ * 		| Stack				|
+ * 		|					|
+ * 		.....................
+ * 		| Process dynamic	|
+ * 		| memory			|
+ * 		+-------------------+
+ * 		| Process data		|
+ * 		+-------------------+
+ * 		| Process code		|
+ * 		+-------------------+ PAGE_SIZE
+ * 		| Guard page		|
+ * 		+-------------------+ 00000000
+ *
+ */
+
 #include <boot.h>
 
 paddr_t IdlePDPT, IdlePTD;
@@ -187,11 +218,11 @@ MM::QuickMapRemove(vaddr_t va)
 {
 	va = rounddown2(va, PAGE_SIZE);
 	if (va < quickMap || va >= (quickMap + QUICKMAP_SIZE * PAGE_SIZE)) {
-		panic("MM::QuickMapRemove: va = 0x%x is out of quick map area", va);
+		panic("MM::QuickMapRemove: va = 0x%lx is out of quick map area", va);
 	}
 	PTE::PTEntry *pte = VtoPTE(va);
 	if (!pte->fields.present) {
-		panic("MM::QuickMapRemove: attempted to remove free quick map entry (0x%x)",
+		panic("MM::QuickMapRemove: attempted to remove free quick map entry (0x%lx)",
 			va);
 	}
 	pte->raw = 0;
