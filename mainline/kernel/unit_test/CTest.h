@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef CTEST_H_
@@ -14,11 +14,16 @@
  * we cannot include standard library files in unit tests sources.
  */
 
+#define strlen __builtin_strlen
+#define strcpy __builtin_strcpy
+#define memset __builtin_memset
+#define memcpy __builtin_memcmp
+
 void
-ut_printf(char *fmt,...);
+ut_printf(const char *fmt,...);
 
 void *
-ut_malloc(int size, char *file, int line);
+ut_malloc(int size, const char *file, int line);
 
 #define UTALLOC(type, num)	((type *)ut_malloc(sizeof(type) * num, __FILE__, __LINE__))
 
@@ -28,7 +33,7 @@ ut_free(void *p);
 #define UTFREE(p)	ut_free(p)
 
 char *
-ut_strdup(char *p, char *file, int line);
+ut_strdup(const char *p, const char *file, const int line);
 
 #define UTSTRDUP(p)	ut_strdup(p, __FILE__, __LINE__)
 
@@ -48,7 +53,7 @@ private:
 	CTest *next;
 	char *name, *desc;
 public:
-	CTest(char *name, char *desc);
+	CTest(const char *name, const char *desc);
 	virtual ~CTest();
 
 	static int ListTests();

@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef TYPES_H_
@@ -32,6 +32,7 @@ typedef u64		u_int64_t;
 typedef u32		vaddr_t;
 typedef u64		paddr_t;
 
+typedef unsigned int size_t;
 
 /* variable arguments */
 typedef u8* va_list;

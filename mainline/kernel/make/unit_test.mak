@@ -2,7 +2,7 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ©AST 2009. Written by Artemy Lebedev.
+# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
 
 export NAT_CC= gcc
 export NAT_LD= gcc
@@ -11,6 +11,9 @@ EXECUTABLE= utrun
 
 INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
 INCLUDE_FLAGS= $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
+
+NAT_INCLUDE_DIRS= /usr/include
+NAT_INCLUDE_FLAGS= $(foreach dir,$(NAT_INCLUDE_DIRS),-I$(dir))
 
 COMPILE_FLAGS= -Werror -Wall -pipe -fno-default-inline
 
@@ -51,7 +54,7 @@ $(UNIT_OBJ_DIR):
 
 # main.cpp must be compiled without kernel include paths to avoid conflicts
 $(OBJ_DIR)/main.o: main.cpp
-	$(NAT_CC) -c $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -o $@ $<
+	$(NAT_CC) $(NAT_INCLUDE_FLAGS) -c $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -o $@ $<
 
 $(OBJ_DIR)/%.o: %.c
 	$(NAT_CC) $(INCLUDE_FLAGS) -c $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) -o $@ $<

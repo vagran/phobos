@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -105,8 +105,11 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location)
 		sz >>= 1;
 		reqOrder++;
 	}
-	if (reqOrder < minOrder || reqOrder > maxOrder) {
+	if (reqOrder > maxOrder) {
 		return -1;
+	}
+	if (reqOrder < minOrder) {
+		reqOrder = minOrder;
 	}
 
 	BlockDesc *b = 0;
@@ -114,6 +117,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location)
 		ListHead &head = freeBlocks[order - minOrder];
 		if (!LIST_ISEMPTY(head)) {
 			b = LIST_FIRST(BlockDesc, list, head);
+			assert(b->order == order);
 			DeleteFreeBlock(b);
 			break;
 		}
@@ -187,7 +191,9 @@ BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
 			while (loc != location) {
 				BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
 				AddFreeBlock(b2);
+				DeleteFreeBlock(b);
 				b->order--;
+				AddFreeBlock(b);
 				if (location >= b2->node.key) {
 					b = b2;
 				}

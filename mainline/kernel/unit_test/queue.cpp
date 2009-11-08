@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -11,11 +11,11 @@
 
 class QueueTest : public CTest {
 public:
-	QueueTest(char *name, char *desc);
+	QueueTest(const char *name, const char *desc);
 	virtual int Run();
 };
 
-QueueTest::QueueTest(char *name, char *desc) : CTest(name, desc)
+QueueTest::QueueTest(const char *name, const char *desc) : CTest(name, desc)
 {
 }
 
@@ -123,11 +123,11 @@ MAKETEST(QueueTest, "Linked lists", "Linked lists verification test");
 
 class TreeTest : public CTest {
 public:
-	TreeTest(char *name, char *desc);
+	TreeTest(const char *name, const char *desc);
 	virtual int Run();
 };
 
-TreeTest::TreeTest(char *name, char *desc) : CTest(name, desc)
+TreeTest::TreeTest(const char *name, const char *desc) : CTest(name, desc)
 {
 }
 

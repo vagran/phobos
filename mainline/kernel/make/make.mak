@@ -2,15 +2,17 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ©AST 2009. Written by Artemy Lebedev.
+# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
 
-TOOLS_BIN= /usr/local/phobos/bin
-TOOLS_TARGET= i786-elf
-export CC= $(TOOLS_BIN)/$(TOOLS_TARGET)-gcc
-export LD= $(TOOLS_BIN)/$(TOOLS_TARGET)-ld
-export STRIP= $(TOOLS_BIN)/$TOOLS_TARGET)-strip
+#TOOLS_BIN= /usr/local/phobos/bin/
+TOOLS_BIN=
+#TOOLS_PREFIX= i786-elf-
+TOOLS_PREFIX=
+export CC= $(TOOLS_BIN)$(TOOLS_PREFIX)gcc
+export LD= $(TOOLS_BIN)$(TOOLS_PREFIX)ld
+export STRIP= $(TOOLS_BIN)$(TOOLS_PREFIX)strip
 
-COMPILE_FLAGS= -Werror -Wall -pipe -DKERNEL -fno-default-inline \
+COMPILE_FLAGS= -Werror -Wall -pipe -DKERNEL -fno-stack-protector -fno-default-inline \
 				-DLOAD_ADDRESS=$(LOAD_ADDRESS) \
 				-DKERNEL_ADDRESS=$(KERNEL_ADDRESS)
 COMPILE_FLAGS_CXX= -fno-exceptions -fno-rtti

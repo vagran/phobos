@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 /*
@@ -22,7 +22,7 @@
 
 CTest *ut_testlist;
 
-CTest::CTest(char *name, char *desc)
+CTest::CTest(const char *name, const char *desc)
 {
 	if (ut_testlist) {
 		next = ut_testlist;
@@ -90,7 +90,7 @@ CTest::RunTest(int idx)
 		p = p->next;
 	}
 	ut_printf("Total tests: %d, run: %d, failed: %d\n", i, run, failed);
-	return 0;
+	return failed != 0;
 }
 
 /* standard functions implementations */
@@ -109,7 +109,7 @@ ut_abort()
 }
 
 void
-ut_printf(char *fmt,...)
+ut_printf(const char *fmt,...)
 {
 	va_list va;
 	va_start(va, fmt);
@@ -118,7 +118,7 @@ ut_printf(char *fmt,...)
 }
 
 void *
-ut_malloc(int size, char *file, int line)
+ut_malloc(int size, const char *file, int line)
 {
 	void *p = malloc(size);
 	if (!p) {
@@ -135,7 +135,7 @@ ut_free(void *p)
 }
 
 char *
-ut_strdup(char *p, char *file, int line)
+ut_strdup(const char *p, const char *file, const int line)
 {
 	char *dup = (char *)ut_malloc(strlen(p) + 1, file, line);
 	strcpy(dup, p);

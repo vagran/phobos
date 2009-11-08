@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -174,13 +174,13 @@ MM::VtoP(vaddr_t va)
 }
 
 void *
-operator new(u32 size)
+operator new(size_t size)
 {
 	return MM::OpNew(size);
 }
 
 void *
-operator new[](u32 size)
+operator new[](size_t size)
 {
 	return MM::OpNew(size);
 }

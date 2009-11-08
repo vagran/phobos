@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -54,11 +54,11 @@ BuddyClient::Free(u32 base, u32 size)
 
 class BuddyTest : public CTest {
 public:
-	BuddyTest(char *name, char *desc);
+	BuddyTest(const char *name, const char *desc);
 	virtual int Run();
 };
 
-BuddyTest::BuddyTest(char *name, char *desc) : CTest(name, desc)
+BuddyTest::BuddyTest(const char *name, const char *desc) : CTest(name, desc)
 {
 }
 
@@ -95,6 +95,7 @@ BuddyTest::Run()
 	ListHead head;
 	LIST_INIT(head);
 
+	ut_printf("Reserving range\n");
 	if (alloc.Reserve((u32)mem + 32768, 4 * 1024 * 1024)) {
 		ut_printf("Failed to reserve region\n");
 		return -1;

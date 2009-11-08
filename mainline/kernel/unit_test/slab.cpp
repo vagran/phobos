@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -55,11 +55,11 @@ private:
 
 	int _Run();
 public:
-	SlabTest(char *name, char *desc);
+	SlabTest(const char *name, const char *desc);
 	virtual int Run();
 };
 
-SlabTest::SlabTest(char *name, char *desc) : CTest(name, desc)
+SlabTest::SlabTest(const char *name, const char *desc) : CTest(name, desc)
 {
 	LIST_INIT(blocks);
 	error = 0;
