@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef PTE_H_
@@ -99,6 +99,6 @@ public:
 
 #define PT_MASK			(((1 << (PD_SHIFT - PT_SHIFT)) - 1) << PT_SHIFT)
 #define PD_MASK			(((1 << (PDPT_SHIFT - PD_SHIFT)) - 1) << PD_SHIFT)
-#define PDPT_MASK		(((1 << (32 - PDPT_SHIFT)) - 1) << PT_SHIFT)
+#define PDPT_MASK		(((1 << (32 - PDPT_SHIFT)) - 1) << PDPT_SHIFT)
 
 #endif /* PTE_H_ */

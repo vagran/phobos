@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -24,7 +24,7 @@ static char copyright[]	=
 	"******************************************************\n"
 	"PhobOS operating system\n"
 	"Written by Artemy Lebedev\n"
-	"Copyright ©AST 2009\n";
+	"Copyright ï¿½AST 2009\n";
 
 static int
 InitTables()
@@ -148,7 +148,7 @@ ParseArguments()
 	return 0;
 }
 
-int
+void
 Main(paddr_t firstAddr)
 {
 	/* setup basic memory management */
@@ -166,6 +166,6 @@ Main(paddr_t firstAddr)
 	}
 	mm = new MM();
 
-	panic("Initialization done");//temp
-	return 0;
+	panic("Main exited");
+	/* NOTREACHED */
 }

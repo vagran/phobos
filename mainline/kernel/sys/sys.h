@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef SYS_H_
@@ -40,7 +40,7 @@ extern void __assert(const char *file, u32 line, const char *cond);
 
 #ifdef KERNEL
 
-extern int Main(paddr_t firstAddr);
+extern void Main(paddr_t firstAddr) __noreturn;
 extern void panic(const char *fmt,...) __format(printf, 1, 2) __noreturn;
 extern void RunDebugger(const char *fmt,...) __format(printf, 1, 2);
 

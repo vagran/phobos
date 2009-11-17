@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -27,7 +27,7 @@ static PTE::PDPTEntry *bsIdlePDPT;
 static paddr_t bsQuickMap;
 static PTE::PTEntry *bsQuickMapPTE;
 
-
+#define SERIAL_DEBUG
 #ifdef SERIAL_DEBUG
 #include <dev/uart/uart.h>
 
@@ -159,6 +159,10 @@ bs_panic(const char *msg,...)
 /* make all dynamic allocations right after kernel image end */
 static u8 *bsMemory = &_kernImageEnd - KERNEL_ADDRESS + LOAD_ADDRESS;
 
+#define BSMAPMEM()	{while (AddPT((paddr_t)bsMemory));}
+
+static int bsPagingEnabled = 0;
+
 static void *
 bs_malloc(u32 size, u32 align = 4)
 {
@@ -212,12 +216,9 @@ AddPT(paddr_t pa)
 {
 	int wasAdded = 0;
 
-	pa = rounddown2(pa, PAGE_SIZE);
-	if (pa < bsMapped) {
-		return 0;
-	}
+	pa = roundup2(pa, PAGE_SIZE);
 
-	while (bsMapped <= pa) {
+	while (bsMapped < pa) {
 		PTE::PTEntry *pte;
 		PTE::PDEntry *pde = &bsIdlePTD[bsMapped >> PD_SHIFT];
 		if (!pde->fields.present) {
@@ -227,7 +228,9 @@ AddPT(paddr_t pa)
 			/* map to both low and high memory */
 			pde = &bsIdlePTD[(bsMapped - LOAD_ADDRESS + KERNEL_ADDRESS) >> PD_SHIFT];
 			pde->raw = (paddr_t)pte | PTE::F_S | PTE::F_W | PTE::F_P;
-			pte = (PTE::PTEntry *)bsQuickMapEnter((paddr_t)pte);
+			if (bsPagingEnabled) {
+				pte = (PTE::PTEntry *)bsQuickMapEnter((paddr_t)pte);
+			}
 			bs_memset(pte, 0, PAGE_SIZE);
 		} else {
 			pte = (PTE::PTEntry *)(pde->raw & PG_FRAME);
@@ -249,6 +252,7 @@ CreateInitialMapping()
 	bs_memset(bsIdlePTD, 0, PD_PAGES * PAGE_SIZE);
 	bsIdlePDPT = (PTE::PDPTEntry *)bs_malloc(PD_PAGES * sizeof(PTE::PDPTEntry),
 		PD_PAGES * sizeof(PTE::PDPTEntry));
+	bs_memset(bsIdlePDPT, 0, PD_PAGES * sizeof(PTE::PDPTEntry));
 	for (int i = 0; i < PD_PAGES; i++) {
 		bsIdlePDPT[i].fields.present = 1;
 		bsIdlePDPT[i].fields.physAddr = atop((u64)bsIdlePTD) + i;
@@ -256,11 +260,9 @@ CreateInitialMapping()
 
 	/* create space for quick maps */
 	bsQuickMap = (paddr_t)bs_malloc(MM::QUICKMAP_SIZE * PAGE_SIZE, PAGE_SIZE);
+	BSMAPMEM(); /* map all used memory */
 	PTE::PDEntry *pde = &bsIdlePTD[bsQuickMap >> PD_SHIFT];
 	bsQuickMapPTE = (PTE::PTEntry *)(pde->raw & PG_FRAME) + ((bsQuickMap & PT_MASK) >> PT_SHIFT);
-
-	/* map all used memory */
-	while (AddPT((paddr_t)bsMemory));
 }
 
 static void
@@ -272,7 +274,7 @@ CreateInitialStack()
 	}
 	PTE::PTEntry *pte = (PTE::PTEntry *)bs_malloc(PAGE_SIZE, PAGE_SIZE);
 	paddr_t stackPBase = (paddr_t)bs_malloc(INITIAL_STACK_SIZE, PAGE_SIZE);
-	while (AddPT((paddr_t)bsMemory));
+	BSMAPMEM();
 	u32 pteIdx = PT_ENTRIES - INITIAL_STACK_SIZE / PAGE_SIZE;
 	for (u32 i = pteIdx; i < PT_ENTRIES; i++) {
 		pte[i].raw = (stackPBase + (i - pteIdx) * PAGE_SIZE) | PTE::F_W | PTE::F_P;
@@ -317,7 +319,7 @@ LoadMBInfo(MBInfo *p)
 	return out;
 }
 
-ASMCALL u32
+ASMCALL void
 Bootstrap(u32 mbSignature, MBInfo *mbi)
 {
 	u8 *p;
@@ -344,6 +346,7 @@ Bootstrap(u32 mbSignature, MBInfo *mbi)
 	wcr4(rcr4() | CR4_PAE);
 	wcr0(rcr0()	| CR0_PG);
 	TRACE("ok\n");
+	bsPagingEnabled = 1;
 
 	/* zero bss */
 	for (p = &_edata; p < &_end; p++) {
@@ -363,5 +366,5 @@ Bootstrap(u32 mbSignature, MBInfo *mbi)
 		(vaddr_t)((PTE::PDEntry *)IdlePTD + PD_PAGES * PT_ENTRIES - PD_PAGES));
 #endif /* DEBUG */
 
-	return Main((paddr_t)bsMemory);
+	Main((paddr_t)bsMemory);
 }
