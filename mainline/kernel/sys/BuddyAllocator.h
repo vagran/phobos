@@ -31,12 +31,13 @@ private:
 		typename Tree<range_t>::TreeEntry node;
 		u16 order;
 		u16 flags;
-		ListEntry list;
+		ListEntry list; /* either free blocks list or busy chain */
 	} BlockDesc;
 
 	typedef enum {
-		BF_FREE =		0x1,
-		BF_RESERVED =	0x2,
+		BF_FREE =			0x1,
+		BF_RESERVED =		0x2,
+		BF_BUSYCHAIN =		0x4, /* 'list' is chain of busy blocks */
 	} BlockFlags;
 
 	range_t base, size;

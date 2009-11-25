@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
+ * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -24,7 +24,7 @@ static char copyright[]	=
 	"******************************************************\n"
 	"PhobOS operating system\n"
 	"Written by Artemy Lebedev\n"
-	"Copyright ï¿½AST 2009\n";
+	"Copyright Â©AST 2009\n";
 
 static int
 InitTables()

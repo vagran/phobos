@@ -2,7 +2,7 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
+# Copyright ©AST 2009. Written by Artemy Lebedev.
 
 #TOOLS_BIN= /usr/local/phobos/bin/
 TOOLS_BIN=

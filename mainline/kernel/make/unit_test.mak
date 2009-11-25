@@ -2,7 +2,7 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
+# Copyright ©AST 2009. Written by Artemy Lebedev.
 
 export NAT_CC= gcc
 export NAT_LD= gcc
