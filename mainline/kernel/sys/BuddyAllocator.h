@@ -31,13 +31,20 @@ private:
 		typename Tree<range_t>::TreeEntry node;
 		u16 order;
 		u16 flags;
-		ListEntry list; /* either free blocks list or busy chain */
+		union {
+			ListEntry list; /* either free blocks list or busy chain */
+			struct {
+				ListHead chain; /* busy chain head for head block */
+				range_t blockSize;
+			} busyHead;
+		};
 	} BlockDesc;
 
 	typedef enum {
 		BF_FREE =			0x1,
 		BF_RESERVED =		0x2,
-		BF_BUSYCHAIN =		0x4, /* 'list' is chain of busy blocks */
+		BF_BUSY =			0x4,
+		BF_BUSYCHAIN =		0x8, /* 'list' is chain of busy blocks */
 	} BlockFlags;
 
 	range_t base, size;

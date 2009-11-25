@@ -24,7 +24,7 @@ static char copyright[]	=
 	"******************************************************\n"
 	"PhobOS operating system\n"
 	"Written by Artemy Lebedev\n"
-	"Copyright Â©AST 2009\n";
+	"Copyright ©AST 2009\n";
 
 static int
 InitTables()

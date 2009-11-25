@@ -130,7 +130,28 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location)
 		SplitBlock(b, reqOrder);
 	}
 	*location = b->node.key;
-	client->Allocate(*location, (range_t)1 << reqOrder);
+
+	/* make chain if required */
+	range_t realSize = roundup2(size, 1 << minOrder);
+	range_t blockSize = 1 << reqOrder;
+	ListHead *head = &b->busyHead.chain;
+	b->busyHead.blockSize = realSize;
+	b->flags |= BF_BUSY;
+	while (realSize < blockSize) {
+		BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
+		b->order--;
+		if (realSize <= (blockSize << 1)) {
+			AddFreeBlock(b2);
+			blockSize <<= 1;
+		} else {
+			realSize <<= 1;
+			b = b2;
+			b->flags |= BF_BUSYCHAIN;
+			LIST_ADD(list, b, *head);
+		}
+	}
+
+	client->Allocate(*location, roundup2(size, 1 << minOrder));
 	return 0;
 }
 
@@ -312,10 +333,18 @@ BuddyAllocator<range_t>::Free(range_t location)
 	if (!b) {
 		return -1;
 	}
-	if (b->flags & BF_FREE) {
+	if (!(b->flags & BF_BUSY)) {
 		return -1;
 	}
-	client->Free(location, (range_t)1 << b->order);
+	client->Free(location, b->busyHead.blockSize);
+	while (!LIST_ISEMPTY(b->busyHead.chain)) {
+		BlockDesc *cb = LIST_FIRST(BlockDesc, list, b->busyHead.chain);
+		LIST_DELETE(list, cb, b->busyHead.chain);
+		assert(cb->flags & BF_BUSYCHAIN);
+		cb->flags &= ~BF_BUSYCHAIN;
+		AddFreeBlock(cb);
+		MergeBlock(cb);
+	}
 	AddFreeBlock(b);
 	MergeBlock(b);
 	return 0;

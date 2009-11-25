@@ -1,0 +1,3 @@
+#Wed Nov 25 10:38:58 EET 2009
+eclipse.preferences.version=1
+environment/project/0.357475896=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?>\r\n<environment append\="true" appendContributed\="true">\r\n<variable delimiter\=";" name\="PHOBOS_ROOT" operation\="replace" value\="D\:/data/src/phobos/src"/>\r\n<variable delimiter\=";" name\="TARGET" operation\="append" value\="DEBUG"/>\r\n</environment>\r\n
