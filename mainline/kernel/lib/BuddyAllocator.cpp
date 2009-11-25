@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -135,21 +135,22 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 	range_t realSize = roundup2(size, 1 << minOrder);
 	range_t blockSize = 1 << reqOrder;
 	ListHead *head = &b->busyHead.chain;
+	LIST_INIT(*head);
 	b->busyHead.blockSize = realSize;
 	b->flags |= BF_BUSY;
-	b->allocArg = arg;
+	b->busyHead.allocArg = arg;
 	while (realSize < blockSize) {
 		BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
 		b->order--;
-		if (realSize <= (blockSize << 1)) {
+		if (realSize <= (blockSize >> 1)) {
 			AddFreeBlock(b2);
-			blockSize <<= 1;
 		} else {
-			realSize <<= 1;
+			realSize -= blockSize >> 1;
 			b = b2;
 			b->flags |= BF_BUSYCHAIN;
 			LIST_ADD(list, b, *head);
 		}
+		blockSize >>= 1;
 	}
 
 	client->Allocate(*location, roundup2(size, 1 << minOrder), arg);
