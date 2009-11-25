@@ -23,8 +23,8 @@ class BuddyAllocator {
 public:
 	class BuddyClient : public MemAllocator {
 	public:
-		virtual int Allocate(range_t base, range_t size) = 0;
-		virtual int Free(range_t base, range_t size) = 0;
+		virtual int Allocate(range_t base, range_t size, void *arg = 0) = 0;
+		virtual int Free(range_t base, range_t size, void *arg = 0) = 0;
 	};
 private:
 	typedef struct {
@@ -36,6 +36,7 @@ private:
 			struct {
 				ListHead chain; /* busy chain head for head block */
 				range_t blockSize;
+				void *allocArg;
 			} busyHead;
 		};
 	} BlockDesc;
@@ -65,7 +66,7 @@ public:
 	virtual ~BuddyAllocator();
 
 	int Initialize(range_t base, range_t size, u16 minOrder, u16 maxOrder);
-	int Allocate(range_t size, range_t *location);
+	int Allocate(range_t size, range_t *location, void *arg = 0);
 	int Free(range_t location);
 	int Reserve(range_t location, range_t size);
 };

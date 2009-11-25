@@ -94,7 +94,7 @@ BuddyAllocator<range_t>::DeleteFreeBlock(BlockDesc *b)
 
 template <typename range_t>
 int
-BuddyAllocator<range_t>::Allocate(range_t size, range_t *location)
+BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 {
 	if (!size) {
 		return -1;
@@ -137,6 +137,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location)
 	ListHead *head = &b->busyHead.chain;
 	b->busyHead.blockSize = realSize;
 	b->flags |= BF_BUSY;
+	b->allocArg = arg;
 	while (realSize < blockSize) {
 		BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
 		b->order--;
@@ -151,7 +152,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location)
 		}
 	}
 
-	client->Allocate(*location, roundup2(size, 1 << minOrder));
+	client->Allocate(*location, roundup2(size, 1 << minOrder), arg);
 	return 0;
 }
 
@@ -336,7 +337,7 @@ BuddyAllocator<range_t>::Free(range_t location)
 	if (!(b->flags & BF_BUSY)) {
 		return -1;
 	}
-	client->Free(location, b->busyHead.blockSize);
+	client->Free(location, b->busyHead.blockSize, b->busyHead.allocArg);
 	while (!LIST_ISEMPTY(b->busyHead.chain)) {
 		BlockDesc *cb = LIST_FIRST(BlockDesc, list, b->busyHead.chain);
 		LIST_DELETE(list, cb, b->busyHead.chain);

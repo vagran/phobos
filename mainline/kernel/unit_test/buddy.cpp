@@ -17,8 +17,8 @@ private:
 public:
 	BuddyClient();
 
-	virtual int Allocate(u32 base, u32 size);
-	virtual int Free(u32 base, u32 size);
+	virtual int Allocate(u32 base, u32 size, void *arg = 0);
+	virtual int Free(u32 base, u32 size, void *arg = 0);
 	virtual void *malloc(u32 size);
 	virtual void mfree(void *p);
 };
@@ -41,13 +41,13 @@ BuddyClient::BuddyClient()
 }
 
 int
-BuddyClient::Allocate(u32 base, u32 size)
+BuddyClient::Allocate(u32 base, u32 size, void *arg)
 {
 	return 0;
 }
 
 int
-BuddyClient::Free(u32 base, u32 size)
+BuddyClient::Free(u32 base, u32 size, void *arg)
 {
 	return 0;
 }
