@@ -88,4 +88,4 @@ $(PROG): $(OBJ_DIR) $(UNIT_OBJ_DIR) $(OBJS) $(UNIT_OBJS)
 all: $(PROG)
 	
 clean:
-	rm -rf $(OBJ_DIR) $(UNIT_OBJ_DIR)
+	rm -Rf $(OBJ_DIR) $(UNIT_OBJ_DIR)

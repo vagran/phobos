@@ -30,9 +30,11 @@ typedef u32		u_int32_t;
 typedef u64		u_int64_t;
 
 typedef u32		vaddr_t;
+typedef u32		vsize_t;
 typedef u64		paddr_t;
+typedef u64		psize_t;
 
-typedef unsigned int size_t;
+typedef vsize_t size_t;
 
 /* variable arguments */
 typedef u8* va_list;

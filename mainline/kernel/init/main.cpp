@@ -165,6 +165,7 @@ Main(paddr_t firstAddr)
 		RunDebugger("Boot options requested debugger");
 	}
 	mm = new MM();
+	/* from now memory management is fully operational */
 
 	panic("Main exited");
 	/* NOTREACHED */

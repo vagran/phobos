@@ -27,11 +27,11 @@ RunDebugger(const char *fmt,...)
 /*************************************************************/
 
 Debugger::CmdDesc Debugger::cmds[] = {
-	{"continue", &Debugger::cmd_continue},
-	{"c", &Debugger::cmd_continue},
-	{"registers", &Debugger::cmd_registers},
-	{"gdb", &Debugger::cmd_gdb},
-	{"step", &Debugger::cmd_step},
+	{"continue",	&Debugger::cmd_continue},
+	{"c",			&Debugger::cmd_continue},
+	{"registers",	&Debugger::cmd_registers},
+	{"gdb",			&Debugger::cmd_gdb},
+	{"step",		&Debugger::cmd_step},
 };
 
 Debugger::Debugger(ConsoleDev *con)

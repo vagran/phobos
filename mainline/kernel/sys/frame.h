@@ -64,7 +64,7 @@ typedef struct {
 	u16 cs, __cs_pad;
 	u32 eflags;
 	/* below is present if transition rings */
-	u32 esp;			/* these fields valid only if PL change occured */
+	u32 esp;
 	u16 ss, __ss_pad;
 } Frame;
 

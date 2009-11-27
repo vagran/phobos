@@ -4,10 +4,9 @@
 # This file is a part of PhobOS operating system.
 # Copyright ©AST 2009. Written by Artemy Lebedev.
 
-#TOOLS_BIN= /usr/local/phobos/bin/
-TOOLS_BIN=
-#TOOLS_PREFIX= i786-elf-
-TOOLS_PREFIX=
+TOOLS_BIN= $(PHOBOS_BUILD_TOOLS)/bin/
+TOOLS_PREFIX= i786-phobos-elf-
+
 export CC= $(TOOLS_BIN)$(TOOLS_PREFIX)gcc
 export LD= $(TOOLS_BIN)$(TOOLS_PREFIX)ld
 export STRIP= $(TOOLS_BIN)$(TOOLS_PREFIX)strip

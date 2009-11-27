@@ -62,7 +62,11 @@ MM::InitState MM::initState = IS_INITIAL;
 
 MM::MM()
 {
+	kmemSlabClient = 0;
+	kmemSlab = 0;
+	kmemVirt = 0;
 	InitAvailMem();
+	InitMM();
 }
 
 const char *
@@ -138,6 +142,24 @@ MM::InitAvailMem()
 	}
 	initState = IS_MEMCOUNTED;
 	printf("Total %dM of physical memory\n", (u32)(ptoa(totalMem) >> 20));
+}
+
+void
+MM::InitMM()
+{
+	kmemSlabClient = new KmemSlabClient();
+	assert(kmemSlabClient);
+	kmemSlabInitialMem = malloc(KMEM_SLAB_INITIALMEM_SIZE);
+	assert(kmemSlabInitialMem);
+	kmemSlab = new SlabAllocator(kmemSlabClient, kmemSlabInitialMem,
+		KMEM_SLAB_INITIALMEM_SIZE);
+	assert(kmemSlab);
+	kmemVirtClient = new KmemVirtClient(kmemSlab);
+	assert(kmemVirtClient);
+	kmemVirt = new BuddyAllocator<vaddr_t>(kmemVirtClient);
+	assert(kmemVirt);
+
+	initState = IS_NORMAL;
 }
 
 void
@@ -296,10 +318,24 @@ MM::malloc(u32 size, u32 align)
 }
 
 void
-MM::free(void *p)
+MM::mfree(void *p)
 {
 	if (initState <= IS_MEMCOUNTED) {
 		return;
 	}
 
+}
+
+int
+MM::KmemVirtClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
+{
+
+	return 0;
+}
+
+int
+MM::KmemVirtClient::Free(vaddr_t base, vaddr_t size, void *arg)
+{
+
+	return 0;
 }
