@@ -51,7 +51,7 @@ phbSource("$Id$");
 #define DEV_AREA_SIZE		(128 << 20)
 #define GATE_AREA_ADDRESS	(KERNEL_ADDRESS - GATE_AREA_SIZE)
 #define PTMAP_SIZE			(PD_PAGES * PT_ENTRIES * PAGE_SIZE)
-#define PTMAP_ADDRESS		((u32)0 - PTMAP_SIZE)
+#define PTMAP_ADDRESS		((vaddr_t)-PTMAP_SIZE)
 #define ALTPTMAP_ADDRESS	(PTMAP_ADDRESS - PTMAP_SIZE)
 #define DEV_AREA_ADDRESS	(ALTPTMAP_ADDRESS - DEV_AREA_SIZE)
 
@@ -99,8 +99,8 @@ private:
 	};
 
 	static vaddr_t firstAddr;
-	static PTE::PTEntry *PTmap;
-	static PTE::PDEntry *PTD, *PTDpde;
+	static PTE::PTEntry *PTmap, *altPTmap;
+	static PTE::PDEntry *PTD, *PTDpde, *altPTD, *altPTDpde;
 	static PTE::PTEntry *quickMapPTE;
 	static InitState initState;
 

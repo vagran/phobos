@@ -19,11 +19,22 @@ MM *mm;
 
 vaddr_t MM::firstAddr = 0;
 
-PTE::PTEntry *MM::PTmap = (PTE::PTEntry *)((vaddr_t)-PD_PAGES * PT_ENTRIES * PAGE_SIZE);
+/* recursive mappings */
+PTE::PTEntry *MM::PTmap = (PTE::PTEntry *)PTMAP_ADDRESS;
 
-PTE::PDEntry *MM::PTD = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * PAGE_SIZE);
+PTE::PTEntry *MM::altPTmap = (PTE::PTEntry *)ALTPTMAP_ADDRESS;
 
-PTE::PDEntry *MM::PTDpde = (PTE::PDEntry *)((vaddr_t)-PD_PAGES * sizeof(PTE::PDEntry));
+PTE::PDEntry *MM::PTD = (PTE::PDEntry *)(PTMAP_ADDRESS +
+	(PTMAP_ADDRESS >> PD_SHIFT) * PAGE_SIZE);
+
+PTE::PDEntry *MM::altPTD = (PTE::PDEntry *)(ALTPTMAP_ADDRESS +
+	(ALTPTMAP_ADDRESS >> PD_SHIFT) * PAGE_SIZE);
+
+PTE::PDEntry *MM::PTDpde = (PTE::PDEntry *)(PTMAP_ADDRESS +
+	(PTMAP_ADDRESS >> PD_SHIFT) * (PAGE_SIZE + sizeof(PTE::PTEntry)));
+
+PTE::PDEntry *MM::altPTDpde = (PTE::PDEntry *)(ALTPTMAP_ADDRESS +
+	(ALTPTMAP_ADDRESS >> PD_SHIFT) * (PAGE_SIZE + sizeof(PTE::PTEntry)));
 
 PTE::PTEntry *MM::quickMapPTE;
 
@@ -140,10 +151,10 @@ MM::PreInitialize(vaddr_t addr)
 	firstAddr = addr;
 
 	/*
-	 * Create page tables recursive mapping on the top of VM space.
-	 * Use identity mapping to modify PTD
+	 * Create page tables recursive mapping.
+	 * Use identity mapping to modify PTD.
 	 */
-	PTE::PDEntry *pde = (PTE::PDEntry *)IdlePTD + (PD_PAGES * PT_ENTRIES - PD_PAGES);
+	PTE::PDEntry *pde = (PTE::PDEntry *)IdlePTD + (PTMAP_ADDRESS >> PD_SHIFT);
 	for (u32 i = 0; i < PD_PAGES; i++) {
 		pde[i].raw = (IdlePTD + i * PAGE_SIZE) | PTE::F_S | PTE::F_W | PTE::F_P;
 	}
