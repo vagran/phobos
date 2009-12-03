@@ -41,7 +41,7 @@ typedef struct {
 
 #define LIST_FIRST(type, entry, head) (LIST_DATA(type, entry, (head).first))
 
-#define LIST_LAST(type, entry, head) (LIST_DATA(type, entry, (head).first ? (head).first->prev : 0))
+#define LIST_LAST(type, entry, head) (LIST_ISEMPTY(head) ? 0 : LIST_DATA(type, entry, (head).first->prev))
 
 #define LIST_NEXT(type, entry, value, head) (LIST_DATA(type, entry, (value)->entry.next))
 
@@ -50,9 +50,14 @@ typedef struct {
 #define LIST_DATA(type, entry, value) ((value) ? ((type *)(((u8 *)(value)) - OFFSETOF(type, entry))) : 0)
 
 #define LIST_FOREACH(type, entry, var, head) for ( \
-	(var) = LIST_DATA(type, entry, (head).first); \
+	(var) = LIST_FIRST(type, entry, head); \
 	(var); \
-	(var) = (((var)->entry.next == (head).first || !(head).first) ? 0 : LIST_DATA(type, entry, (var)->entry.next)))
+	(var) = LIST_ISLAST(entry, var, head) ? 0 : LIST_NEXT(type, entry, var, head))
+
+#define LIST_FOREACH_REVERSE(type, entry, var, head) for ( \
+	(var) = LIST_LAST(type, entry, head); \
+	(var); \
+	(var) = LIST_ISFIRST(entry, var, head) ? 0 : LIST_PREV(type, entry, var, head))
 
 #define LIST_ADD(entry, var, head) { \
 	if ((head).first) { \
@@ -66,6 +71,8 @@ typedef struct {
 		(head).first = &(var)->entry; \
 	} \
 }
+
+#define LIST_ADDLAST	LIST_ADD
 
 #define LIST_ADDFIRST(entry, var, head) {\
 	LIST_ADD(entry, var, head); \

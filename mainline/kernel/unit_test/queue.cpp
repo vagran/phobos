@@ -108,9 +108,29 @@ QueueTest::Run()
 		}
 		k++;
 	}
+
 	if (k != sizeof(pat4) / sizeof(pat4[0])) {
 		ut_printf("Incorrect list length, expected %d, actual %d\n",
 			sizeof(pat4) / sizeof(pat4[0]), k);
+	}
+	ut_printf("ok\n");
+
+	ut_printf("Reverse iteration...");
+	k = sizeof(pat4) / sizeof(pat4[0]) - 1;
+	LIST_FOREACH_REVERSE(Item, list, p, head) {
+		if (k < 0) {
+			ut_printf("iteration underflow\n");
+			return -1;
+		}
+		if (p->idx != pat4[k]) {
+			ut_printf("%d. %d != %d\n", k, p->idx, pat4[k]);
+			return -1;
+		}
+		k--;
+	}
+	if (k != -1) {
+		ut_printf("Incorrect list length, expected %d, actual %d\n",
+				sizeof(pat4) / sizeof(pat4[0]), sizeof(pat4) / sizeof(pat4[0]) - k);
 	}
 	ut_printf("ok\n");
 

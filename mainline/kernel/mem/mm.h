@@ -15,11 +15,53 @@ phbSource("$Id$");
 #include <SlabAllocator.h>
 #include <BuddyAllocator.h>
 
+/*
+ * Virtual memory map:
+ * 		--------------------- FFFFFFFF
+ * 		| PT map			| PD_PAGES * PT_ENTRIES * PAGE_SIZE
+ * 		+-------------------+ PTMAP_ADDRESS = FF800000
+ * 		| Alt. PT map		| PD_PAGES * PT_ENTRIES * PAGE_SIZE
+ * 		+-------------------+ ALTPTMAP_ADDRESS = FF000000
+ * 		| Devices memory	| DEV_AREA_SIZE
+ * 		+-------------------+ DEV_AREA_ADDRESS
+ * 		| Kernel dynamic 	|
+ * 		| memory			|
+ * 		+-------------------+
+ * 		| Kernel image,		|
+ * 		| initial memory	|
+ * 		+-------------------+ KERNEL_ADDRESS
+ * 		| Gate objects		| GATE_AREA_SIZE
+ * 		+-------------------+ GATE_AREA_ADDRESS
+ * 		| Stack				|
+ * 		|					|
+ * 		.....................
+ * 		| Process dynamic	|
+ * 		| memory			|
+ * 		+-------------------+
+ * 		| Process data		|
+ * 		+-------------------+
+ * 		| Process code		|
+ * 		+-------------------+ PAGE_SIZE
+ * 		| Guard page		|
+ * 		+-------------------+ 00000000
+ *
+ */
+
+#define GATE_AREA_SIZE		(64 << 20)
+#define DEV_AREA_SIZE		(128 << 20)
+#define GATE_AREA_ADDRESS	(KERNEL_ADDRESS - GATE_AREA_SIZE)
+#define PTMAP_SIZE			(PD_PAGES * PT_ENTRIES * PAGE_SIZE)
+#define PTMAP_ADDRESS		((u32)0 - PTMAP_SIZE)
+#define ALTPTMAP_ADDRESS	(PTMAP_ADDRESS - PTMAP_SIZE)
+#define DEV_AREA_ADDRESS	(ALTPTMAP_ADDRESS - DEV_AREA_SIZE)
+
 class MM {
 public:
 	enum {
 		QUICKMAP_SIZE =		8, /* pages */
 		MEM_MAX_CHUNKS =	16,
+		KMEM_MIN_BLOCK =	4, /* bits shift */
+		KMEM_MAX_BLOCK =	30,
 	};
 
 	typedef struct {
