@@ -98,6 +98,10 @@ MM::InitAvailMem()
 			if (!pa) {
 				continue;
 			}
+			/* skip initial allocations and kernel image itself */
+			if (pa >= LOAD_ADDRESS && pa < firstAddr - KERNEL_ADDRESS + LOAD_ADDRESS) {
+				continue;
+			}
 			if (!availMemSize) {
 				availMem[0].start = pa;
 				availMem[0].end = pa + PAGE_SIZE;
