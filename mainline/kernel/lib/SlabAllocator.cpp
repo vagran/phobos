@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -162,6 +162,13 @@ SlabAllocator::Free(void *p, u32 size)
 {
 	size = roundup2(size, BLOCK_GRAN);
 	Block *b = (Block *)(((u8 *)p) - OFFSETOF(Block, data));
+	if (b->type == BT_INITIAL) {
+		return 0;
+	}
+	if (b->type == BT_DIRECT) {
+		client->mfree(b);
+		return 0;
+	}
 	Slab *slab = b->slab;
 	if (size && slab->blockSize != size) {
 		return -1;
@@ -249,7 +256,21 @@ SlabAllocator::FreeGroup(SlabGroup *g)
 void *
 SlabAllocator::malloc(u32 size)
 {
-	return Allocate(size);
+	Block *b;
+
+	size = roundup2(size, BLOCK_GRAN) + OFFSETOF(Block, data);
+	if (size <= initialPoolSize - initialPoolPtr) {
+		b = (Block *)&initialPool[initialPoolPtr];
+		initialPoolPtr += size;
+		b->type = BT_INITIAL;
+		return b->data;
+	}
+	b = (Block *)client->malloc(size);
+	if (!b) {
+		return 0;
+	}
+	b->type = BT_DIRECT;
+	return b->data;
 }
 
 void

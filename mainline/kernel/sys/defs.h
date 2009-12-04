@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef DEFS_H_
@@ -27,6 +27,9 @@
 	((x & 0x1000000) ? 0x40 : 0) | ((x & 0x10000000) ? 0x80 : 0))
 
 #define NBBY		8
+
+#define TYPE_INT_MIN(type)	((type)1 << (sizeof(type) * NBBY - 1))
+#define TYPE_INT_MAX(type)	(TYPE_INT_MIN(type) - 1)
 
 #define ASMCALL extern "C" __attribute__((regparm(0)))
 

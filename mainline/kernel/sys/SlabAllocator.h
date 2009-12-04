@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef SLABALLOCATOR_H_
@@ -51,8 +51,15 @@ private:
 		SlabGroup *group;
 	} Slab;
 
+	typedef enum {
+		BT_INITIAL,
+		BT_DIRECT,
+	} BlockType;
 	typedef struct {
-		Slab *slab;
+		union {
+			Slab *slab;
+			BlockType type;
+		};
 		union {
 			struct {
 				ListEntry list;
@@ -81,7 +88,7 @@ public:
 	virtual void *malloc(u32 size);
 	virtual void mfree(void *p);
 	virtual void *AllocateStruct(u32 size);
-	virtual void FreeStruct(void *p, u32 size);
+	virtual void FreeStruct(void *p, u32 size = 0);
 };
 
 #endif /* SLABALLOCATOR_H_ */

@@ -2,7 +2,7 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ©AST 2009. Written by Artemy Lebedev.
+# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
 
 export NAT_CC= gcc
 export NAT_LD= gcc
@@ -20,7 +20,7 @@ COMPILE_FLAGS= -Werror -Wall -pipe -fno-default-inline
 ifeq ($(TARGET),RELEASE)
 COMPILE_FLAGS+= -O2
 else ifeq ($(TARGET),DEBUG)
-COMPILE_FLAGS+= -g -DDEBUG -O0 -DENABLE_TRACING
+COMPILE_FLAGS+= -ggdb3 -DDEBUG -O0 -DENABLE_TRACING
 else
 $(error Target not supported: $(TARGET))
 endif

@@ -2,7 +2,7 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ©AST 2009. Written by Artemy Lebedev.
+# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
 
 TOOLS_BIN= $(PHOBOS_BUILD_TOOLS)/bin/
 TOOLS_PREFIX= i786-phobos-elf-
@@ -17,7 +17,7 @@ COMPILE_FLAGS= -Werror -Wall -pipe -DKERNEL -fno-stack-protector -fno-default-in
 COMPILE_FLAGS_CXX= -fno-exceptions -fno-rtti
 COMPILE_FLAGS_C=
 COMPILE_FLAGS_ASM= -DASSEMBLER
-LINK_FLAGS= -static -nodefaultlibs -nostartfiles -nostdinc -nostdinc -nostdinc++
+LINK_FLAGS= -static -nodefaultlibs -nostartfiles -nostdinc -nostdinc++
 LINK_SCRIPT= $(KERNROOT)/make/link.ld
 
 INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
@@ -32,7 +32,7 @@ endif
 ifeq ($(TARGET),RELEASE)
 COMPILE_FLAGS+= -O2
 else ifeq ($(TARGET),DEBUG)
-COMPILE_FLAGS+= -g -DDEBUG -O0 -DENABLE_TRACING
+COMPILE_FLAGS+= -ggdb3 -DDEBUG -O0 -DENABLE_TRACING
 else
 $(error Target not supported: $(TARGET))
 endif

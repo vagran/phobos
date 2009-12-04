@@ -42,6 +42,8 @@ MM::InitState MM::initState = IS_INITIAL;
 
 MM::MM()
 {
+	assert(!mm);
+	mm = this;
 	kmemSlabClient = 0;
 	kmemSlab = 0;
 	kmemVirt = 0;

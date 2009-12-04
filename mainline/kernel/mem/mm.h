@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef MM_H_
@@ -118,6 +118,8 @@ private:
 		KmemVirtClient(MemAllocator *m) { this->m = m; }
 		virtual void *malloc(u32 size) { return m->malloc(size); }
 		virtual void mfree(void *p) { return m->mfree(p); }
+		virtual void *AllocateStruct(u32 size) {return m->AllocateStruct(size);}
+		virtual void FreeStruct(void *p, u32 size) {return m->FreeStruct(p, size);}
 		virtual int Allocate(vaddr_t base, vaddr_t size, void *arg = 0);
 		virtual int Free(vaddr_t base, vaddr_t size, void *arg = 0);
 	};

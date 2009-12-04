@@ -47,17 +47,18 @@ BuddyAllocator<range_t>::Initialize(range_t base, range_t size, u16 minOrder, u1
 	}
 
 	while (1) {
-		if (base + ((range_t)1 << minOrder) > end) {
+		if (end - base < (range_t)1 << minOrder) {
 			break;
 		}
 
 		/* find maximal order for current base */
 		int order = minOrder + 1;
-
+		range_t bsize;
 		while (1) {
-			range_t mask = ((range_t)1 << order) - 1;
-			if ((base & mask) || (base + mask + 1) > end) {
+			bsize = (range_t)1 << order;
+			if ((base & (bsize - 1)) || bsize > size) {
 				order--;
+				bsize >>= 1;
 				break;
 			}
 			if (order >= maxOrder) {
@@ -68,7 +69,8 @@ BuddyAllocator<range_t>::Initialize(range_t base, range_t size, u16 minOrder, u1
 
 		BlockDesc *b = AddBlock(order, base);
 		AddFreeBlock(b);
-		base += (range_t)1 << order;
+		base += bsize;
+		size -= bsize;
 	}
 
 	return 0;
@@ -237,7 +239,7 @@ BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
 
 	while (location < end) {
 		range_t size = (range_t)1 << b->order;
-		while (location + size > end) {
+		while (end - location < size) {
 			BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
 			AddFreeBlock(b2);
 			DeleteFreeBlock(b);
