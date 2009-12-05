@@ -94,7 +94,7 @@ SlabTest::_Run()
 
 	u32 bsize = 16;
 	for (u32 i = 0; i < INITIAL_ALLOCS; i++) {
-		DataItem *p = (DataItem *)alloc.malloc(bsize);
+		DataItem *p = (DataItem *)alloc.AllocateStruct(bsize);
 		if (!p) {
 			ut_printf("Allocation failed for bsize = %d, i = %d\n", bsize, i);
 			return -1;
@@ -112,7 +112,7 @@ SlabTest::_Run()
 
 	bsize = 48;
 	for (u32 i = 0; i < INITIAL_ALLOCS; i++) {
-		DataItem *p = (DataItem *)alloc.malloc(bsize);
+		DataItem *p = (DataItem *)alloc.AllocateStruct(bsize);
 		if (!p) {
 			ut_printf("Allocation failed for bsize = %d, i = %d\n", bsize, i);
 			return -1;
@@ -131,7 +131,7 @@ SlabTest::_Run()
 	ut_printf("Making bulk allocation...\n");
 	bsize = 16;
 	for (u32 i = 0; i < BULK_ALLOCS; i++) {
-		DataItem *p = (DataItem *)alloc.malloc(bsize);
+		DataItem *p = (DataItem *)alloc.AllocateStruct(bsize);
 		if (!p) {
 			ut_printf("Allocation failed for bsize = %d, i = %d\n", bsize, i);
 			return -1;
@@ -148,7 +148,7 @@ SlabTest::_Run()
 	}
 	bsize = 48;
 	for (u32 i = 0; i < BULK_ALLOCS; i++) {
-		DataItem *p = (DataItem *)alloc.malloc(bsize);
+		DataItem *p = (DataItem *)alloc.AllocateStruct(bsize);
 		if (!p) {
 			ut_printf("Allocation failed for bsize = %d, i = %d\n", bsize, i);
 			return -1;
@@ -167,17 +167,17 @@ SlabTest::_Run()
 	ut_printf("Freeing blocks...\n");
 	while ((d = LIST_FIRST(DataItem, list, blocks1))) {
 		LIST_DELETE(list, d, blocks1);
-		alloc.mfree(d);
+		alloc.FreeStruct(d, 0);
 	}
 	while ((d = LIST_FIRST(DataItem, list, blocks2))) {
 		LIST_DELETE(list, d, blocks2);
-		alloc.mfree(d);
+		alloc.FreeStruct(d, 0);
 	}
 
 	ut_printf("Making allocations second pass...\n");
 	bsize = 16;
 	for (u32 i = 0; i < BULK_ALLOCS; i++) {
-		DataItem *p = (DataItem *)alloc.malloc(bsize);
+		DataItem *p = (DataItem *)alloc.AllocateStruct(bsize);
 		if (!p) {
 			ut_printf("Allocation failed for bsize = %d, i = %d\n", bsize, i);
 			return -1;
@@ -195,7 +195,7 @@ SlabTest::_Run()
 
 	bsize = 48;
 	for (u32 i = 0; i < BULK_ALLOCS; i++) {
-		DataItem *p = (DataItem *)alloc.malloc(bsize);
+		DataItem *p = (DataItem *)alloc.AllocateStruct(bsize);
 		if (!p) {
 			ut_printf("Allocation failed for bsize = %d, i = %d\n", bsize, i);
 			return -1;

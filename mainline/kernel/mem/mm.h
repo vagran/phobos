@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
+ * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef MM_H_
@@ -91,6 +91,7 @@ private:
 	typedef enum {
 		IS_INITIAL,
 		IS_MEMCOUNTED,
+		IS_INITIALIZING,
 		IS_NORMAL,
 	} InitState;
 
@@ -105,15 +106,20 @@ private:
 	static InitState initState;
 
 	class KmemSlabClient : public SlabAllocator::SlabClient {
+	private:
+		Mutex mtx;
 	public:
 		virtual void *malloc(u32 size) { return MM::malloc(size); }
 		virtual void mfree(void *p) { return MM::mfree(p); }
 		virtual void FreeInitialPool(void *p, u32 size) {}
+		virtual void Lock() { mtx.Lock(); }
+		virtual void Unlock() { mtx.Unlock(); }
 	};
 
 	class KmemVirtClient : public BuddyAllocator<vaddr_t>::BuddyClient {
 	private:
 		MemAllocator *m;
+		Mutex mtx;
 	public:
 		KmemVirtClient(MemAllocator *m) { this->m = m; }
 		virtual void *malloc(u32 size) { return m->malloc(size); }
@@ -122,6 +128,8 @@ private:
 		virtual void FreeStruct(void *p, u32 size) {return m->FreeStruct(p, size);}
 		virtual int Allocate(vaddr_t base, vaddr_t size, void *arg = 0);
 		virtual int Free(vaddr_t base, vaddr_t size, void *arg = 0);
+		virtual void Lock() { mtx.Lock(); }
+		virtual void Unlock() { mtx.Unlock(); }
 	};
 
 	KmemSlabClient *kmemSlabClient;

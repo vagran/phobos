@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright Â©AST 2009. Written by Artemy Lebedev.
+ * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef PTE_H_

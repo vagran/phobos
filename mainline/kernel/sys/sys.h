@@ -24,6 +24,7 @@ phbSource("$Id$");
 #include <frame.h>
 #include <stdlib.h>
 #include <cpu_instr.h>
+#include <lock.h>
 #include <mem.h>
 #include <dev/device.h>
 #include <dev/condev.h>

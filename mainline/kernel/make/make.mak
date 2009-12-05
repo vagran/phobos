@@ -2,7 +2,7 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
+# Copyright ©AST 2009. Written by Artemy Lebedev.
 
 TOOLS_BIN= $(PHOBOS_BUILD_TOOLS)/bin/
 TOOLS_PREFIX= i786-phobos-elf-
@@ -32,7 +32,7 @@ endif
 ifeq ($(TARGET),RELEASE)
 COMPILE_FLAGS+= -O2
 else ifeq ($(TARGET),DEBUG)
-COMPILE_FLAGS+= -ggdb3 -DDEBUG -O0 -DENABLE_TRACING
+COMPILE_FLAGS+= -ggdb3 -DDEBUG -O0 -DENABLE_TRACING -DSERIAL_DEBUG
 else
 $(error Target not supported: $(TARGET))
 endif

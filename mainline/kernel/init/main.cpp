@@ -165,7 +165,19 @@ Main(paddr_t firstAddr)
 		RunDebugger("Boot options requested debugger");
 	}
 	mm = new MM();
-	/* from now memory management is fully operational */
+	/* from now kernel memory management is fully operational */
+
+	/*void *mem[1024];
+	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
+		mem[i] = MM::malloc(16384);
+		memset(mem[i], 237, 16384);
+		if (!mem[i]) {
+			panic("MM::malloc() failed");
+		}
+	}
+	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
+		MM::mfree(mem[i]);
+	}*/
 
 	panic("Main exited");
 	/* NOTREACHED */

@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
+ * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef SLABALLOCATOR_H_
@@ -18,6 +18,8 @@ public:
 	class SlabClient : public MemAllocator {
 	public:
 		virtual void FreeInitialPool(void *p, u32 size) = 0;
+		virtual void Lock() {}
+		virtual void Unlock() {}
 	};
 private:
 	typedef enum {
@@ -82,7 +84,7 @@ private:
 	void FreeSlab(Slab *slab);
 	void FreeGroup(SlabGroup *g);
 public:
-	SlabAllocator(SlabClient *client, void *initialPool = 0, u32 initialPoolSize = 0);
+	SlabAllocator(SlabClient *client, void *initialPool = 0, u32 initialPoolSize = 0) __noinline;
 	virtual ~SlabAllocator();
 
 	virtual void *malloc(u32 size);

@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright Â©AST 2009. Written by Artemy Lebedev.
+ * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -144,7 +144,7 @@ MM::InitMM()
 	assert(kmemVirtClient);
 	kmemVirt = new BuddyAllocator<vaddr_t>(kmemVirtClient);
 	assert(kmemVirt);
-
+	initState = IS_INITIALIZING;
 
 	kmemVirt->Initialize(firstAddr, DEV_AREA_ADDRESS - firstAddr,
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
@@ -302,6 +302,10 @@ MM::malloc(u32 size, u32 align)
 		GrowMem(firstAddr + size);
 		return p;
 	}
+	if (initState == IS_INITIALIZING) {
+		panic("MM::malloc() called on IS_INITIALIZING level");
+	}
+	assert(initState == IS_NORMAL);
 
 	return 0;//temp
 }
@@ -312,6 +316,10 @@ MM::mfree(void *p)
 	if (initState <= IS_MEMCOUNTED) {
 		return;
 	}
+	if (initState == IS_INITIALIZING) {
+		panic("MM::mfree() called on IS_INITIALIZING level");
+	}
+	assert(initState == IS_NORMAL);
 
 }
 

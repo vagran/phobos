@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
+ * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -15,22 +15,97 @@ template <typename range_t>
 BuddyAllocator<range_t>::BuddyAllocator(BuddyClient *client)
 {
 	assert(client);
+	client->Lock();
+	isInitialized = 0;
 	this->client = client;
 	TREE_INIT(tree);
+	numBlocks = 0;
 	freeBlocks = 0;
+	LIST_INIT(blocksPool);
+	numPool = 0;
+	numReqPool = 0;
+	client->Unlock();
 }
 
 template <typename range_t>
 BuddyAllocator<range_t>::~BuddyAllocator()
 {
+	client->Lock();
 	FreeTree();
+	isInitialized = 0;
+	client->Unlock();
+}
+
+template <typename range_t>
+typename BuddyAllocator<range_t>::BlockDesc *
+BuddyAllocator<range_t>::AllocateBlock()
+{
+	if (!isInitialized) {
+		return (BlockDesc *)client->AllocateStruct(sizeof(BlockDesc));
+	}
+	assert(!LIST_ISEMPTY(blocksPool));
+	if (LIST_ISEMPTY(blocksPool)) {
+		return 0;
+	}
+	BlockDesc *b = LIST_FIRST(BlockDesc, list, blocksPool);
+	LIST_DELETE(list, b, blocksPool);
+	numPool--;
+	return b;
+}
+
+template <typename range_t>
+void
+BuddyAllocator<range_t>::FreeBlock(BlockDesc *b)
+{
+	LIST_ADD(list, b, blocksPool);
+	numPool++;
+}
+
+/* called without lock */
+template <typename range_t>
+int
+BuddyAllocator<range_t>::KeepBlocks()
+{
+	client->Lock();
+	if (numPool + numReqPool < BPOOL_LOWWAT || numPool + numReqPool > BPOOL_HIWAT) {
+		numReqPool = (BPOOL_LOWWAT + BPOOL_HIWAT) / 2 - numPool;
+	} else {
+		client->Unlock();
+		return 0;
+	}
+	while (numReqPool) {
+		if (numReqPool > 0) {
+			client->Unlock();
+			BlockDesc *b = (BlockDesc *)client->AllocateStruct(sizeof(BlockDesc));
+			client->Lock();
+			if (!b) {
+				break;
+			}
+			LIST_ADD(list, b, blocksPool);
+			numPool++;
+			numReqPool--;
+		} else {
+			BlockDesc *b = LIST_FIRST(BlockDesc, list, blocksPool);
+			LIST_DELETE(list, b, blocksPool);
+			numPool--;
+			numReqPool++;
+			client->Unlock();
+			client->FreeStruct(b, sizeof(BlockDesc));
+			client->Lock();
+		}
+	}
+	client->Unlock();
+	return 0;
 }
 
 template <typename range_t>
 int
 BuddyAllocator<range_t>::Initialize(range_t base, range_t size, u16 minOrder, u16 maxOrder)
 {
-	if (maxOrder <= minOrder) {
+	client->Lock();
+	assert(!isInitialized);
+	if (isInitialized || maxOrder <= minOrder) {
+		client->Unlock();
 		return -1;
 	}
 	FreeTree();
@@ -72,7 +147,9 @@ BuddyAllocator<range_t>::Initialize(range_t base, range_t size, u16 minOrder, u1
 		base += bsize;
 		size -= bsize;
 	}
-
+	isInitialized = 1;
+	client->Unlock();
+	KeepBlocks();
 	return 0;
 }
 
@@ -98,9 +175,12 @@ template <typename range_t>
 int
 BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 {
-	if (!size) {
+	assert(isInitialized);
+	if (!size || !isInitialized) {
 		return -1;
 	}
+	KeepBlocks();
+	client->Lock();
 	range_t sz = size - 1;
 	u16 reqOrder = 0;
 	while (sz) {
@@ -126,6 +206,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 	}
 	if (!b) {
 		/* no free blocks */
+		client->Unlock();
 		return -1;
 	}
 	if (b->order > reqOrder) {
@@ -154,7 +235,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 		}
 		blockSize >>= 1;
 	}
-
+	client->Unlock();
 	client->Allocate(*location, roundup2(size, 1 << minOrder), arg);
 	return 0;
 }
@@ -163,12 +244,16 @@ template <typename range_t>
 int
 BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
 {
-	if (!size) {
+	assert(isInitialized);
+	if (!size || !isInitialized) {
 		return -1;
 	}
+	KeepBlocks();
+	client->Lock();
 	range_t end = roundup2(location + size, (range_t)1 << minOrder);
 	location = rounddown2(location, (range_t)1 << minOrder);
 	if (location < base || location + size > base + this->size) {
+		client->Unlock();
 		return -1;
 	}
 	/* pass 1, verify that area is free */
@@ -200,6 +285,7 @@ BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
 		TREE_FIND(loc, BlockDesc, node, b, tree);
 		assert(b);
 		if (!(b->flags & BF_FREE)) {
+			client->Unlock();
 			return -1;
 		}
 		loc += (range_t)1 << b->order;
@@ -255,6 +341,7 @@ BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
 			assert(b);
 		}
 	}
+	client->Unlock();
 	return 0;
 }
 
@@ -306,7 +393,7 @@ template <typename range_t>
 typename BuddyAllocator<range_t>::BlockDesc *
 BuddyAllocator<range_t>::AddBlock(u16 order, range_t location)
 {
-	BlockDesc *b = (BlockDesc *)client->AllocateStruct(sizeof(BlockDesc));
+	BlockDesc *b = AllocateBlock();
 	if (!b) {
 		return 0;
 	}
@@ -314,6 +401,7 @@ BuddyAllocator<range_t>::AddBlock(u16 order, range_t location)
 	b->flags = 0;
 	b->node.key = location;
 	TREE_ADD(node, b, tree);
+	numBlocks++;
 	return b;
 }
 
@@ -325,22 +413,33 @@ BuddyAllocator<range_t>::DeleteBlock(BlockDesc *b)
 		DeleteFreeBlock(b);
 	}
 	TREE_DELETE(node, b, tree);
-	client->FreeStruct(b, sizeof(*b));
+	assert(numBlocks);
+	numBlocks--;
+	FreeBlock(b);
 }
 
 template <typename range_t>
 int
 BuddyAllocator<range_t>::Free(range_t location)
 {
+	assert(isInitialized);
+	if (!isInitialized) {
+		return -1;
+	}
+	KeepBlocks();
+	client->Lock();
 	BlockDesc *b;
 	TREE_FIND(location, BlockDesc, node, b, tree);
 	if (!b) {
+		client->Unlock();
 		return -1;
 	}
 	if (!(b->flags & BF_BUSY)) {
+		client->Unlock();
 		return -1;
 	}
-	client->Free(location, b->busyHead.blockSize, b->busyHead.allocArg);
+	range_t blockSize = b->busyHead.blockSize;
+	void *allocArg = b->busyHead.allocArg;
 	while (!LIST_ISEMPTY(b->busyHead.chain)) {
 		BlockDesc *cb = LIST_FIRST(BlockDesc, list, b->busyHead.chain);
 		LIST_DELETE(list, cb, b->busyHead.chain);
@@ -351,6 +450,8 @@ BuddyAllocator<range_t>::Free(range_t location)
 	}
 	AddFreeBlock(b);
 	MergeBlock(b);
+	client->Unlock();
+	client->Free(location, blockSize, allocArg);
 	return 0;
 }
 
@@ -361,7 +462,7 @@ BuddyAllocator<range_t>::FreeTree()
 	BlockDesc *d;
 
 	if (freeBlocks) {
-		client->FreeStruct(freeBlocks, (maxOrder - minOrder + 1) * sizeof(ListHead));
+		client->mfree(freeBlocks);
 		freeBlocks = 0;
 	}
 	while ((d = TREE_ROOT(BlockDesc, node, tree))) {

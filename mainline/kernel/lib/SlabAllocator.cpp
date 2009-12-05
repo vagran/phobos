@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
+ * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -14,19 +14,23 @@ phbSource("$Id$");
 SlabAllocator::SlabAllocator(SlabClient *client, void *initialPool, u32 initialPoolSize)
 {
 	assert(client);
+	client->Lock();
 	LIST_INIT(slabGroups);
 	this->initialPool = (u8 *)initialPool;
 	this->initialPoolSize = initialPoolSize;
 	initialPoolPtr = 0;
 	this->client = client;
+	client->Unlock();
 }
 
 SlabAllocator::~SlabAllocator()
 {
 	SlabGroup *g;
+	client->Lock();
 	while ((g = LIST_FIRST(SlabGroup, list, slabGroups))) {
 		FreeGroup(g);
 	}
+	client->Unlock();
 	if (initialPool) {
 		client->FreeInitialPool(initialPool, initialPoolSize);
 	}
@@ -48,7 +52,9 @@ SlabAllocator::GetGroup(u32 size)
 		memset(g, 0, sizeof(*g));
 		g->flags = F_INITIALPOOL;
 	} else {
+		client->Unlock();
 		g = (SlabGroup *)client->AllocateStruct(sizeof(SlabGroup));
+		client->Lock();
 		if (!g) {
 			return 0;
 		}
@@ -80,7 +86,9 @@ SlabAllocator::AllocateSlab(SlabGroup *g)
 		memset(slab, 0, sizeof(*slab));
 		slab->flags = F_INITIALPOOL;
 	} else {
+		client->Unlock();
 		slab = (Slab *)client->malloc(size);
+		client->Lock();
 		if (!slab) {
 			return 0;
 		}
@@ -127,9 +135,11 @@ SlabAllocator::GetSlab(u32 size)
 void *
 SlabAllocator::Allocate(u32 size)
 {
+	client->Lock();
 	size = roundup2(size, BLOCK_GRAN);
 	Slab *slab = GetSlab(size);
 	if (!slab) {
+		client->Unlock();
 		return 0;
 	}
 	SlabGroup *g = slab->group;
@@ -154,6 +164,7 @@ SlabAllocator::Allocate(u32 size)
 		}
 	}
 	g->usedBlocks++;
+	client->Unlock();
 	return &b->data[0];
 }
 
@@ -169,8 +180,10 @@ SlabAllocator::Free(void *p, u32 size)
 		client->mfree(b);
 		return 0;
 	}
+	client->Lock();
 	Slab *slab = b->slab;
 	if (size && slab->blockSize != size) {
+		client->Unlock();
 		return -1;
 	}
 	SlabGroup *g = slab->group;
@@ -180,6 +193,7 @@ SlabAllocator::Free(void *p, u32 size)
 	if (slab->usedBlocks == slab->totalBlocks) {
 		LIST_DELETE(list, slab, g->fullSlabs);
 		slab->usedBlocks--;
+		g->usedBlocks--;
 		if (slab->usedBlocks) {
 			LIST_ADD(list, slab, g->filledSlabs);
 		} else {
@@ -188,6 +202,7 @@ SlabAllocator::Free(void *p, u32 size)
 		}
 	} else {
 		slab->usedBlocks--;
+		g->usedBlocks--;
 		if (!slab->usedBlocks) {
 			LIST_DELETE(list, slab, g->filledSlabs);
 			LIST_ADD(list, slab, g->emptySlabs);
@@ -205,10 +220,11 @@ SlabAllocator::Free(void *p, u32 size)
 			}
 		}
 	}
-	g->usedBlocks--;
+	client->Unlock();
 	return 0;
 }
 
+/* called with lock */
 void
 SlabAllocator::FreeSlab(Slab *slab)
 {
@@ -219,7 +235,9 @@ SlabAllocator::FreeSlab(Slab *slab)
 	LIST_DELETE(list, slab, slab->group->emptySlabs);
 	slab->group->numEmptySlabs--;
 	slab->group->totalBlocks -= slab->totalBlocks;
+	client->Unlock();
 	client->mfree(slab);
+	client->Lock();
 }
 
 void
@@ -259,12 +277,15 @@ SlabAllocator::malloc(u32 size)
 	Block *b;
 
 	size = roundup2(size, BLOCK_GRAN) + OFFSETOF(Block, data);
+	client->Lock();
 	if (size <= initialPoolSize - initialPoolPtr) {
 		b = (Block *)&initialPool[initialPoolPtr];
 		initialPoolPtr += size;
+		client->Unlock();
 		b->type = BT_INITIAL;
 		return b->data;
 	}
+	client->Unlock();
 	b = (Block *)client->malloc(size);
 	if (!b) {
 		return 0;

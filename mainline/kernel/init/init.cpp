@@ -27,7 +27,6 @@ static PTE::PDPTEntry *bsIdlePDPT;
 static paddr_t bsQuickMap;
 static PTE::PTEntry *bsQuickMapPTE;
 
-#define SERIAL_DEBUG
 #ifdef SERIAL_DEBUG
 #include <dev/uart/uart.h>
 
