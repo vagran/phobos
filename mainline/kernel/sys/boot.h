@@ -55,7 +55,7 @@ typedef enum {
 	SMMT_RESERVED =		2,
 	SMMT_ACPI_RECLAIM =	3,
 	SMMT_ACPI_NVS =		4,
-	SMMT_ACPI_ERROR =	5,
+	SMMT_BAD =	5,
 } SMMemType;
 
 typedef struct {

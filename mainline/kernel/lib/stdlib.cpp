@@ -15,6 +15,12 @@ __assert(const char *file, u32 line, const char *cond)
 	panic("Assert failed at %s:%lu: '%s'", file, line, cond);
 }
 
+void *
+operator new(size_t size, void *location)
+{
+	return location;
+}
+
 ASMCALL void *
 memset(void *dst, u8 fill, u32 size)
 {

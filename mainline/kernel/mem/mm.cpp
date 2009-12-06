@@ -63,8 +63,8 @@ MM::StrMemType(SMMemType type)
 		return "ACPI Reclaim";
 	case SMMT_ACPI_NVS:
 		return "ACPI NVS";
-	case SMMT_ACPI_ERROR:
-		return "ACPI Error";
+	case SMMT_BAD:
+		return "Bad";
 	}
 	return "Unknown";
 }
@@ -126,6 +126,7 @@ MM::InitAvailMem()
 			}
 		}
 	}
+
 	initState = IS_MEMCOUNTED;
 	printf("Total %dM of physical memory\n", (u32)(ptoa(totalMem) >> 20));
 }
@@ -144,8 +145,11 @@ MM::InitMM()
 	assert(kmemVirtClient);
 	kmemVirt = new BuddyAllocator<vaddr_t>(kmemVirtClient);
 	assert(kmemVirt);
-	initState = IS_INITIALIZING;
+	if (CreatePageDescs()) {
+		panic("MM::CreatePageDescs() failed");
+	}
 
+	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
 	kmemVirt->Initialize(firstAddr, DEV_AREA_ADDRESS - firstAddr,
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
 	initState = IS_NORMAL;
@@ -282,15 +286,122 @@ paddr_t
 MM::_AllocPage()
 {
 	if (initState == IS_MEMCOUNTED) {
-		for (u32 i = 0; i < mm->availMemSize; i++) {
-			if (mm->availMem[i].start < mm->availMem[i].end) {
-				paddr_t pa = mm->availMem[i].start;
-				mm->availMem[i].start += PAGE_SIZE;
-				return pa;
+		for (int i = mm->availMemSize - 1; i >= 0; i--) {
+			paddr_t pa = mm->availMem[i].end - PAGE_SIZE;
+			mm->availMem[i].end -= PAGE_SIZE;
+			mm->totalMem--;
+			if (mm->availMem[i].start >= mm->availMem[i].end) {
+				mm->availMemSize--;
 			}
+			return pa;
 		}
 	}
 	return 0;
+}
+
+int
+MM::CreatePageDescs()
+{
+	/*
+	 * Create page descriptors array. We don't want to waste any
+	 * memory for the descriptors of the array itself so do some
+	 * trick - allocate it at the top of physical memory and exclude
+	 * this area from the managed pages range. Allocate additional
+	 * page tables here also. Note, that array pages are mapped in reverse
+	 * order - VAs growing PAs decreased.
+	 */
+	int chunkTop = availMemSize - 1, chunkBot = 0;
+	paddr_t paTop = availMem[chunkTop].end, paBot = availMem[chunkBot].start;
+	paddr_t paTopMapped = 0;
+	firstAddr = roundup2(firstAddr, PAGE_SIZE);
+	pages = (Page *)firstAddr;
+
+	while (rounddown2(paTop, PAGE_SIZE) > paBot) {
+		paddr_t paNext = paBot + PAGE_SIZE;
+		if (paNext >= availMem[chunkBot].end) {
+			chunkBot++;
+			if (chunkBot >= (int)availMemSize) {
+				break;
+			}
+			paNext = availMem[chunkBot].start;
+		}
+		u32 pgSize = sizeof(Page) * atop(paNext - paBot);
+		do {
+			if (paTop - rounddown2(paTop, PAGE_SIZE) >= pgSize) {
+				paTop -= pgSize;
+				pgSize = 0;
+			} else {
+				pgSize -= paTop - rounddown2(paTop, PAGE_SIZE);
+				paTop = rounddown2(paTop, PAGE_SIZE);
+				if (paTop <= availMem[chunkTop].start) {
+					chunkTop--;
+					paTop = availMem[chunkTop].end;
+				}
+				u32 sz = min(pgSize, PAGE_SIZE);
+				paTop -= sz;
+				pgSize -= sz;
+			}
+		} while (pgSize);
+
+		paBot = paNext;
+		while (rounddown2(paTop, PAGE_SIZE) != paTopMapped) {
+			paddr_t pa = _AllocPage();
+			paTopMapped = pa;
+			PTE::PDEntry *pde = VtoPDE(firstAddr);
+			if (!pde->fields.present) {
+				paddr_t ptepa = _AllocPage();
+				pde->raw = ptepa | PTE::F_S | PTE::F_W | PTE::F_P;
+				paTopMapped = ptepa;
+				pgSize = PAGE_SIZE;
+				do {
+					if (paTop - rounddown2(paTop, PAGE_SIZE) >= pgSize) {
+						paTop -= pgSize;
+						pgSize = 0;
+					} else {
+						pgSize -= paTop - rounddown2(paTop, PAGE_SIZE);
+						paTop = rounddown2(paTop, PAGE_SIZE);
+						if (paTop <= availMem[chunkTop].start) {
+							chunkTop--;
+							paTop = availMem[chunkTop].end;
+						}
+						u32 sz = min(pgSize, PAGE_SIZE);
+						paTop -= sz;
+						pgSize -= sz;
+					}
+				} while (pgSize);
+			}
+			PTE::PTEntry *pte = VtoPTE(firstAddr);
+			pte->raw = pa | PTE::F_S | PTE::F_W | PTE::F_P;
+			firstAddr += PAGE_SIZE;
+		}
+	}
+
+	firstPage = atop(availMem[0].start);
+	pagesRange = atop(paTop) - firstPage;
+	memset(pages, 0, pagesRange * sizeof(Page));
+	int curChunk = 0;
+	for (u32 i = 0; i < pagesRange; i++) {
+		u16 flags;
+		paddr_t pa = ptoa((paddr_t)firstPage + i);
+		if (pa >= availMem[curChunk].end) {
+			curChunk++;
+			assert((u32)curChunk < availMemSize);
+		}
+		if (pa < availMem[curChunk].start) {
+			flags = Page::F_NOTAVAIL;
+		} else {
+			flags = 0;
+		}
+		construct(&pages[i], Page, pa, flags);
+	}
+
+	return 0;
+}
+
+MM::Page::Page(paddr_t pa, u16 flags)
+{
+	this->pa = pa;
+	this->flags = flags;
 }
 
 void *

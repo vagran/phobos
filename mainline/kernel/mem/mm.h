@@ -82,11 +82,17 @@ public:
 		PG_INACTIVE =	0x4,
 	} PageFlags;
 
-	typedef struct {
+	class Page {
+	public:
+		enum Flags {
+			F_NOTAVAIL =	0x1,
+		};
+
 		paddr_t		pa;
 		u16			flags;
 
-	} Page;
+		Page(paddr_t pa, u16 flags);
+	};
 private:
 	typedef enum {
 		IS_INITIAL,
@@ -104,6 +110,8 @@ private:
 	static PTE::PDEntry *PTD, *PTDpde, *altPTD, *altPTDpde;
 	static PTE::PTEntry *quickMapPTE;
 	static InitState initState;
+	Page *pages;
+	u32 pagesRange, firstPage;
 
 	class KmemSlabClient : public SlabAllocator::SlabClient {
 	private:
@@ -143,7 +151,7 @@ private:
 	void InitAvailMem();
 	void InitMM();
 	const char *StrMemType(SMMemType type);
-
+	int CreatePageDescs();
 public:
 	static void PreInitialize(vaddr_t addr);
 	static paddr_t VtoP(vaddr_t va);

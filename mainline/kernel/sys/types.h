@@ -34,7 +34,7 @@ typedef u32		vsize_t;
 typedef u64		paddr_t;
 typedef u64		psize_t;
 
-typedef vsize_t size_t;
+typedef __SIZE_TYPE__ size_t;
 
 /* variable arguments */
 typedef u8* va_list;

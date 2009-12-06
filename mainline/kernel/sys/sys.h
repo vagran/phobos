@@ -14,8 +14,8 @@ phbSource("$Id$");
 #define PAGE_SHIFT		12
 #define PAGE_SIZE		(1 << PAGE_SHIFT)
 
-#define atop(x)			(x >> PAGE_SHIFT)
-#define ptoa(x)			(x << PAGE_SHIFT)
+#define atop(x)			((x) >> PAGE_SHIFT)
+#define ptoa(x)			((x) << PAGE_SHIFT)
 
 #ifndef ASSEMBLER
 #include <types.h>

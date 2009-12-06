@@ -15,6 +15,9 @@ phbSource("$Id$");
 extern char *argv[MAX_CMDLINE_PARAMS + 1];
 extern int argc;
 
+#define construct(location, type,...)	new(location) type(__VA_ARGS__)
+void *operator new(size_t size, void *location);
+
 ASMCALL void *memset(void *dst, u8 fill, u32 size);
 ASMCALL void *memcpy(void *dst, const void *src, u32 size);
 ASMCALL void *memmove(void *dst, const void *src, u32 size);
@@ -63,7 +66,6 @@ int sprintf(char *buf, const char *fmt,...) __format(printf, 2, 3);
 #else
 #define trace(fmt,...)
 #endif
-
 
 typedef enum {
 	KLOG_DEBUG,
