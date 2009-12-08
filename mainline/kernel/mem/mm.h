@@ -75,12 +75,31 @@ public:
 	u32 totalMem;
 	SlabAllocator *kmemSlab;
 	BuddyAllocator<vaddr_t> *kmemVirt; /* kernel virtual address space allocator */
+	ListHead objects;
+	u32 numObjects;
 
 	typedef enum {
 		PG_FREE =		0x1,
 		PG_ACITIVE =	0x2,
 		PG_INACTIVE =	0x4,
 	} PageFlags;
+
+	class VMObject {
+	public:
+		enum Flags {
+			F_FILE =		0x1,
+		};
+		ListEntry	list;
+		vaddr_t		base;
+		vsize_t		size;
+		u32			flags;
+		ListHead	pages; /* resident pages list */
+		u32			numPages; /* resident pages count */
+
+		VMObject(vaddr_t base, vsize_t size);
+	};
+
+	VMObject *kmemObj;
 
 	class Page {
 	public:
@@ -90,6 +109,10 @@ public:
 
 		paddr_t		pa;
 		u16			flags;
+		VMObject	*object;
+		vaddr_t		offset; /* offset in object */
+		ListEntry	queue; /* entry in free, active, inactive or cached pages queue */
+		ListEntry	objList; /*entry in VMObject pages list */
 
 		Page(paddr_t pa, u16 flags);
 	};
@@ -104,6 +127,19 @@ private:
 	enum {
 		KMEM_SLAB_INITIALMEM_SIZE = 128 * 1024,
 	};
+
+	typedef enum {
+		OF_NOFREE =		0x1,
+	} ObjFlags;
+
+	typedef struct {
+		u32 flags;
+#ifdef DEBUG_MALLOC
+		const char *className;
+		const char *fileName;
+		int line;
+#endif /* DEBUG_MALLOC */
+	} ObjOverhead;
 
 	static vaddr_t firstAddr;
 	static PTE::PTEntry *PTmap, *altPTmap;
@@ -157,8 +193,9 @@ public:
 	static paddr_t VtoP(vaddr_t va);
 	static inline PTE::PDEntry *VtoPDE(vaddr_t va) {return &PTD[va >> PD_SHIFT];}
 	static inline PTE::PTEntry *VtoPTE(vaddr_t va) {return &PTmap[va >> PT_SHIFT];}
-	static inline void *OpNew(u32 size) {return malloc(size);}
-	static inline void OpDelete(void *p) {return mfree(p);}
+	static inline void *OpNew(u32 size);
+	static inline void *OpNew(u32 size, const char *className, const char *fileName, int line);
+	static inline void OpDelete(void *p);
 	static void *malloc(u32 size, u32 align = 4);
 	static void mfree(void *p);
 	static void *QuickMapEnter(paddr_t pa);
@@ -168,6 +205,15 @@ public:
 };
 
 #define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * count))
+
+#ifndef DEBUG_MALLOC
+#define NEW(className,...)		new className(__VA_ARGS__)
+#else /* DEBUG_MALLOC */
+#define NEW(className,...)		new(__STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
+#endif /* DEBUG_MALLOC */
+
+void *operator new(size_t size);
+void *operator new(size_t size, const char *className, const char *fileName, int line);
 
 extern MM *mm;
 

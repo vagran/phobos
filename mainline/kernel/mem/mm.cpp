@@ -47,6 +47,9 @@ MM::MM()
 	kmemSlabClient = 0;
 	kmemSlab = 0;
 	kmemVirt = 0;
+	kmemObj = 0;
+	LIST_INIT(objects);
+	numObjects = 0;
 	InitAvailMem();
 	InitMM();
 }
@@ -134,20 +137,22 @@ MM::InitAvailMem()
 void
 MM::InitMM()
 {
-	kmemSlabClient = new KmemSlabClient();
+	kmemSlabClient = NEW(KmemSlabClient);
 	assert(kmemSlabClient);
 	kmemSlabInitialMem = malloc(KMEM_SLAB_INITIALMEM_SIZE);
 	assert(kmemSlabInitialMem);
-	kmemSlab = new SlabAllocator(kmemSlabClient, kmemSlabInitialMem,
+	kmemSlab = NEW(SlabAllocator, kmemSlabClient, kmemSlabInitialMem,
 		KMEM_SLAB_INITIALMEM_SIZE);
 	assert(kmemSlab);
-	kmemVirtClient = new KmemVirtClient(kmemSlab);
+	kmemVirtClient = NEW(KmemVirtClient, kmemSlab);
 	assert(kmemVirtClient);
-	kmemVirt = new BuddyAllocator<vaddr_t>(kmemVirtClient);
+	kmemVirt = NEW(BuddyAllocator<vaddr_t>, kmemVirtClient);
 	assert(kmemVirt);
 	if (CreatePageDescs()) {
 		panic("MM::CreatePageDescs() failed");
 	}
+	kmemObj = NEW(VMObject, KERNEL_ADDRESS, DEV_AREA_ADDRESS - KERNEL_ADDRESS);
+	assert(kmemObj);
 
 	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
 	kmemVirt->Initialize(firstAddr, DEV_AREA_ADDRESS - firstAddr,
@@ -189,6 +194,57 @@ MM::VtoP(vaddr_t va)
 }
 
 void *
+MM::OpNew(u32 size)
+{
+	u32 bSize = size + sizeof(ObjOverhead);
+	ObjOverhead *m;
+	if (initState < IS_NORMAL) {
+		m = (ObjOverhead *)malloc(bSize);
+	} else {
+		/* use slab allocator for kernel objects */
+		m = (ObjOverhead *)mm->kmemSlab->AllocateStruct(bSize);
+	}
+	if (!m) {
+		return 0;
+	}
+#ifdef DEBUG_MALLOC
+	/* fill with known pattern to catch uninitialized members */
+	memset(m, 0xcc, bSize);
+#endif /* DEBUG_MALLOC */
+	memset(m, 0, sizeof(*m));
+	if (initState < IS_NORMAL) {
+		m->flags = OF_NOFREE;
+	}
+	return m + 1;
+}
+
+void *
+MM::OpNew(u32 size, const char *className, const char *fileName, int line)
+{
+	ObjOverhead *m = (ObjOverhead *)OpNew(size);
+	if (!m) {
+		return 0;
+	}
+	m--;
+#ifdef DEBUG_MALLOC
+	m->className = className;
+	m->fileName = fileName;
+	m->line = line;
+#endif /* DEBUG_MALLOC */
+	return m - 1;
+}
+
+void
+MM::OpDelete(void *p)
+{
+	ObjOverhead *m = (ObjOverhead *)p - 1;
+	if (m->flags & OF_NOFREE) {
+		return;
+	}
+	mm->kmemSlab->FreeStruct(m);
+}
+
+void *
 operator new(size_t size)
 {
 	return MM::OpNew(size);
@@ -197,7 +253,7 @@ operator new(size_t size)
 void *
 operator new[](size_t size)
 {
-	return MM::OpNew(size);
+	return MM::malloc(size);
 }
 
 void
@@ -209,7 +265,13 @@ operator delete(void *p)
 void
 operator delete[](void *p)
 {
-	MM::OpDelete(p);
+	MM::mfree(p);
+}
+
+void *
+operator new(size_t size, const char *className, const char *fileName, int line)
+{
+	return MM::OpNew(size, className, fileName, line);
 }
 
 void *
@@ -398,12 +460,6 @@ MM::CreatePageDescs()
 	return 0;
 }
 
-MM::Page::Page(paddr_t pa, u16 flags)
-{
-	this->pa = pa;
-	this->flags = flags;
-}
-
 void *
 MM::malloc(u32 size, u32 align)
 {
@@ -417,8 +473,11 @@ MM::malloc(u32 size, u32 align)
 		panic("MM::malloc() called on IS_INITIALIZING level");
 	}
 	assert(initState == IS_NORMAL);
-
-	return 0;//temp
+	vaddr_t m;
+	if (mm->kmemVirt->Allocate(size, &m, mm->kmemObj)) {
+		return 0;
+	}
+	return (void *)m;
 }
 
 void
@@ -431,7 +490,14 @@ MM::mfree(void *p)
 		panic("MM::mfree() called on IS_INITIALIZING level");
 	}
 	assert(initState == IS_NORMAL);
-
+	int rc = mm->kmemVirt->Free((vaddr_t)p);
+#ifdef DEBUG_MALLOC
+	if (rc) {
+		panic("MM::mfree() failed for block 0x%08lx", (vaddr_t)p);
+	}
+#else /* DEBUG_MALLOC */
+	(void)rc;
+#endif /* DEBUG_MALLOC */
 }
 
 int
@@ -446,4 +512,25 @@ MM::KmemVirtClient::Free(vaddr_t base, vaddr_t size, void *arg)
 {
 
 	return 0;
+}
+
+/*************************************************************/
+/* MM::Page class */
+MM::Page::Page(paddr_t pa, u16 flags)
+{
+	this->pa = pa;
+	this->flags = flags;
+	object = 0;
+	offset = 0;
+}
+
+/*************************************************************/
+/* MM::VMObject class */
+
+MM::VMObject::VMObject(vaddr_t base, vsize_t size)
+{
+	LIST_INIT(pages);
+	numPages = 0;
+	this->base = base;
+	this->size = size;
 }

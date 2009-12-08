@@ -29,8 +29,8 @@ static char copyright[]	=
 static int
 InitTables()
 {
-	idt = new IDT();
-	gdt = new GDT();
+	idt = NEW(IDT);
+	gdt = NEW(GDT);
 	return 0;
 }
 
@@ -159,12 +159,12 @@ Main(paddr_t firstAddr)
 	sysCons = (ConsoleDev *)devMan.CreateDevice("syscons");
 	printf(copyright);
 	InitTables();
-	sysDebugger = new Debugger(sysCons);
+	sysDebugger = NEW(Debugger, sysCons);
 	ParseArguments();
 	if (bootDebugger) {
 		RunDebugger("Boot options requested debugger");
 	}
-	mm = new MM();
+	mm = NEW(MM);
 	/* from now kernel memory management is fully operational */
 
 	/*void *mem[1024];
@@ -177,7 +177,14 @@ Main(paddr_t firstAddr)
 	}
 	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
 		MM::mfree(mem[i]);
+	}
+	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
+		mem[i] = NEW(u64);
+	}
+	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
+		delete (u64 *)mem[i];
 	}*/
+
 
 	panic("Main exited");
 	/* NOTREACHED */
