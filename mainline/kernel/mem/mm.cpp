@@ -46,7 +46,7 @@ MM::MM()
 	mm = this;
 	kmemSlabClient = 0;
 	kmemSlab = 0;
-	kmemVirt = 0;
+	kmemMap = 0;
 	kmemObj = 0;
 	LIST_INIT(objects);
 	numObjects = 0;
@@ -146,16 +146,16 @@ MM::InitMM()
 	assert(kmemSlab);
 	kmemVirtClient = NEW(KmemVirtClient, kmemSlab);
 	assert(kmemVirtClient);
-	kmemVirt = NEW(BuddyAllocator<vaddr_t>, kmemVirtClient);
-	assert(kmemVirt);
 	if (CreatePageDescs()) {
 		panic("MM::CreatePageDescs() failed");
 	}
 	kmemObj = NEW(VMObject, KERNEL_ADDRESS, DEV_AREA_ADDRESS - KERNEL_ADDRESS);
 	assert(kmemObj);
 
+	kmemMap = NEW(Map);
+	assert(kmemMap);
 	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
-	kmemVirt->Initialize(firstAddr, DEV_AREA_ADDRESS - firstAddr,
+	kmemMap->SetRange(firstAddr, DEV_AREA_ADDRESS - firstAddr,
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
 	initState = IS_NORMAL;
 }
@@ -452,7 +452,7 @@ MM::CreatePageDescs()
 		if (pa < availMem[curChunk].start) {
 			flags = Page::F_NOTAVAIL;
 		} else {
-			flags = 0;
+			flags = Page::F_FREE;
 		}
 		construct(&pages[i], Page, pa, flags);
 	}
@@ -474,7 +474,7 @@ MM::malloc(u32 size, u32 align)
 	}
 	assert(initState == IS_NORMAL);
 	vaddr_t m;
-	if (mm->kmemVirt->Allocate(size, &m, mm->kmemObj)) {
+	if (mm->kmemMap->alloc.Allocate(size, &m, mm->kmemObj)) {
 		return 0;
 	}
 	return (void *)m;
@@ -490,7 +490,7 @@ MM::mfree(void *p)
 		panic("MM::mfree() called on IS_INITIALIZING level");
 	}
 	assert(initState == IS_NORMAL);
-	int rc = mm->kmemVirt->Free((vaddr_t)p);
+	int rc = mm->kmemMap->alloc.Free((vaddr_t)p);
 #ifdef DEBUG_MALLOC
 	if (rc) {
 		panic("MM::mfree() failed for block 0x%08lx", (vaddr_t)p);
@@ -533,4 +533,27 @@ MM::VMObject::VMObject(vaddr_t base, vsize_t size)
 	numPages = 0;
 	this->base = base;
 	this->size = size;
+}
+
+/*************************************************************/
+/* MM::Map class */
+MM::Map::Map() : alloc(mm->kmemVirtClient)
+{
+	base = 0;
+	size = 0;
+}
+
+int
+MM::Map::SetRange(vaddr_t base, vsize_t size, int minBlockOrder, int maxBlockOrder)
+{
+	if (!size || this->size) {
+		return -1;
+	}
+	int rc = alloc.Initialize(base, size, minBlockOrder, maxBlockOrder);
+	if (rc) {
+		return rc;
+	}
+	this->base = base;
+	this->size = size;
+	return 0;
 }

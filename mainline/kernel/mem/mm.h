@@ -74,27 +74,23 @@ public:
 	u32 availMemSize;
 	u32 totalMem;
 	SlabAllocator *kmemSlab;
-	BuddyAllocator<vaddr_t> *kmemVirt; /* kernel virtual address space allocator */
 	ListHead objects;
 	u32 numObjects;
-
-	typedef enum {
-		PG_FREE =		0x1,
-		PG_ACITIVE =	0x2,
-		PG_INACTIVE =	0x4,
-	} PageFlags;
 
 	class VMObject {
 	public:
 		enum Flags {
 			F_FILE =		0x1,
 		};
+
 		ListEntry	list;
 		vaddr_t		base;
 		vsize_t		size;
 		u32			flags;
 		ListHead	pages; /* resident pages list */
 		u32			numPages; /* resident pages count */
+		VMObject	*shadowObj;
+		VMObject	*copyObj;
 
 		VMObject(vaddr_t base, vsize_t size);
 	};
@@ -104,7 +100,10 @@ public:
 	class Page {
 	public:
 		enum Flags {
-			F_NOTAVAIL =	0x1,
+			F_FREE =		0x1,
+			F_ACTIVE =		0x2,
+			F_INACTIVE =	0x4,
+			F_NOTAVAIL =	0x8,
 		};
 
 		paddr_t		pa;
@@ -116,6 +115,19 @@ public:
 
 		Page(paddr_t pa, u16 flags);
 	};
+
+	class Map {
+	public:
+
+		vaddr_t		base;
+		vsize_t		size;
+		BuddyAllocator<vaddr_t> alloc; /* kernel virtual address space allocator */
+
+		Map();
+		int SetRange(vaddr_t base, vsize_t size, int minBlockOrder = 4, int maxBlockOrder = 30);
+	};
+
+	Map *kmemMap;
 private:
 	typedef enum {
 		IS_INITIAL,

@@ -47,8 +47,8 @@ BuddyAllocator<range_t>::AllocateBlock()
 	if (LIST_ISEMPTY(blocksPool)) {
 		return 0;
 	}
-	BlockDesc *b = LIST_FIRST(BlockDesc, list, blocksPool);
-	LIST_DELETE(list, b, blocksPool);
+	BlockDesc *b = LIST_FIRST(BlockDesc, busyChain.list, blocksPool);
+	LIST_DELETE(busyChain.list, b, blocksPool);
 	numPool--;
 	return b;
 }
@@ -57,7 +57,7 @@ template <typename range_t>
 void
 BuddyAllocator<range_t>::FreeBlock(BlockDesc *b)
 {
-	LIST_ADD(list, b, blocksPool);
+	LIST_ADD(busyChain.list, b, blocksPool);
 	numPool++;
 }
 
@@ -81,12 +81,12 @@ BuddyAllocator<range_t>::KeepBlocks()
 			if (!b) {
 				break;
 			}
-			LIST_ADD(list, b, blocksPool);
+			LIST_ADD(busyChain.list, b, blocksPool);
 			numPool++;
 			numReqPool--;
 		} else {
-			BlockDesc *b = LIST_FIRST(BlockDesc, list, blocksPool);
-			LIST_DELETE(list, b, blocksPool);
+			BlockDesc *b = LIST_FIRST(BlockDesc, busyChain.list, blocksPool);
+			LIST_DELETE(busyChain.list, b, blocksPool);
 			numPool--;
 			numReqPool++;
 			client->Unlock();
@@ -158,7 +158,7 @@ void
 BuddyAllocator<range_t>::AddFreeBlock(BlockDesc *b)
 {
 	assert(!(b->flags & BF_FREE));
-	LIST_ADD(list, b, freeBlocks[b->order - minOrder]);
+	LIST_ADD(busyChain.list, b, freeBlocks[b->order - minOrder]);
 	b->flags |= BF_FREE;
 }
 
@@ -167,7 +167,7 @@ void
 BuddyAllocator<range_t>::DeleteFreeBlock(BlockDesc *b)
 {
 	assert(b->flags & BF_FREE);
-	LIST_DELETE(list, b, freeBlocks[b->order - minOrder]);
+	LIST_DELETE(busyChain.list, b, freeBlocks[b->order - minOrder]);
 	b->flags &= ~BF_FREE;
 }
 
@@ -198,7 +198,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 	for (u16 order = reqOrder; order <= maxOrder; order++) {
 		ListHead &head = freeBlocks[order - minOrder];
 		if (!LIST_ISEMPTY(head)) {
-			b = LIST_FIRST(BlockDesc, list, head);
+			b = LIST_FIRST(BlockDesc, busyChain.list, head);
 			assert(b->order == order);
 			DeleteFreeBlock(b);
 			break;
@@ -222,6 +222,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 	b->busyHead.blockSize = realSize;
 	b->flags |= BF_BUSY;
 	b->busyHead.allocArg = arg;
+	BlockDesc *headBlock = b;
 	while (realSize < blockSize) {
 		BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
 		b->order--;
@@ -231,7 +232,8 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 			realSize -= blockSize >> 1;
 			b = b2;
 			b->flags |= BF_BUSYCHAIN;
-			LIST_ADD(list, b, *head);
+			b->busyChain.head = headBlock;
+			LIST_ADD(busyChain.list, b, *head);
 		}
 		blockSize >>= 1;
 	}
@@ -346,6 +348,47 @@ BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
 }
 
 template <typename range_t>
+int
+BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize, void **pAllocArg)
+{
+	if (location < base || location >= base + size) {
+		return -1;
+	}
+	range_t lookupLoc;
+	for (int order = minOrder; order <= maxOrder; order++) {
+		range_t newLookupLoc = rounddown2(location, 1 << order);
+		if (order != minOrder && newLookupLoc == lookupLoc) {
+			continue;
+		}
+		BlockDesc *b;
+		TREE_FIND(newLookupLoc, BlockDesc, node, b, tree);
+		if (b) {
+			assert(b->order >= order);
+			if (!(b->flags & (BF_BUSY | BF_BUSYCHAIN))) {
+				return -1;
+			}
+			if (b->flags & BF_BUSYCHAIN) {
+				assert(!(b->flags & BF_BUSY));
+				b = b->busyChain.head;
+			}
+			assert(b->flags & BF_BUSY);
+			if (pBase) {
+				*pBase = b->node.key;
+			}
+			if (pSize) {
+				*pSize = b->busyHead.blockSize;
+			}
+			if (pAllocArg) {
+				*pAllocArg = b->busyHead.allocArg;
+			}
+			return 0;
+		}
+		lookupLoc = newLookupLoc;
+	}
+	return -1;
+}
+
+template <typename range_t>
 void
 BuddyAllocator<range_t>::SplitBlock(BlockDesc *b, u16 reqOrder)
 {
@@ -441,8 +484,8 @@ BuddyAllocator<range_t>::Free(range_t location)
 	range_t blockSize = b->busyHead.blockSize;
 	void *allocArg = b->busyHead.allocArg;
 	while (!LIST_ISEMPTY(b->busyHead.chain)) {
-		BlockDesc *cb = LIST_FIRST(BlockDesc, list, b->busyHead.chain);
-		LIST_DELETE(list, cb, b->busyHead.chain);
+		BlockDesc *cb = LIST_FIRST(BlockDesc, busyChain.list, b->busyHead.chain);
+		LIST_DELETE(busyChain.list, cb, b->busyHead.chain);
 		assert(cb->flags & BF_BUSYCHAIN);
 		cb->flags &= ~BF_BUSYCHAIN;
 		AddFreeBlock(cb);
@@ -481,6 +524,7 @@ BuddyCompilerStub()
 	__CONCAT(obj_,type).Reserve(0 ,0); \
 	__CONCAT(obj_,type).Allocate(0 ,0); \
 	__CONCAT(obj_,type).Free(0); \
+	__CONCAT(obj_,type).Lookup(0); \
 }
 	REFTYPE(u8);
 	REFTYPE(u16);

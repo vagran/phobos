@@ -34,12 +34,15 @@ private:
 		BPOOL_HIWAT = 256,
 	};
 
-	typedef struct {
+	typedef struct _BlockDesc {
 		typename Tree<range_t>::TreeEntry node;
 		u16 order;
 		u16 flags;
 		union {
-			ListEntry list; /* either free blocks list or busy chain */
+			struct {
+				struct _BlockDesc *head;
+				ListEntry list; /* either free blocks list or busy chain */
+			} busyChain;
 			struct {
 				ListHead chain; /* busy chain head for head block */
 				range_t blockSize;
@@ -84,6 +87,7 @@ public:
 	virtual int Allocate(range_t size, range_t *location, void *arg = 0);
 	virtual int Free(range_t location);
 	virtual int Reserve(range_t location, range_t size);
+	virtual int Lookup(range_t location, range_t *pBase = 0, range_t *pSize = 0, void **pAllocArg = 0);
 };
 
 

@@ -66,6 +66,7 @@ int
 BuddyTest::Run()
 {
 	const u32 size = (20 << 20) + 0x111111;
+	const int minOrder = 4, maxOrder = 20;
 	u8 *mem = UTALLOC(u8, size);
 	if (!mem) {
 		ut_printf("Memory allocation failed\n");
@@ -76,7 +77,7 @@ BuddyTest::Run()
 	BuddyClient client;
 	BuddyAllocator<u32> alloc(&client);
 	ut_printf("Initializing allocator...");
-	if (alloc.Initialize((u32)mem, size, 4, 20)) {
+	if (alloc.Initialize((u32)mem, size, minOrder, maxOrder)) {
 		ut_printf("failed\n");
 		return -1;
 	}
@@ -105,7 +106,7 @@ BuddyTest::Run()
 	while (1) {
 		u32 bsize = OFFSETOF(DataItem, data) + (u64)ut_rand() * (1 << 16) / UT_RAND_MAX;
 		DataItem *p;
-		if (alloc.Allocate(bsize, (u32 *)&p)) {
+		if (alloc.Allocate(bsize, (u32 *)&p, (void *)bsize)) {
 			failCount++;
 			ut_printf("Allocation fail %d: total = 0x%08x in %d blocks, requested 0x%08x\n",
 				failCount, total_mem, num_blocks, bsize);
@@ -170,7 +171,7 @@ BuddyTest::Run()
 	while (1) {
 		u32 bsize = OFFSETOF(DataItem, data) + (u64)ut_rand() * (1 << 16) / UT_RAND_MAX;
 		DataItem *p;
-		if (alloc.Allocate(bsize, (u32 *)&p)) {
+		if (alloc.Allocate(bsize, (u32 *)&p, (void *)bsize)) {
 			failCount++;
 			ut_printf("Allocation fail %d: total = 0x%08x in %d blocks, requested 0x%08x\n",
 				failCount, total_mem, num_blocks, bsize);
@@ -207,6 +208,69 @@ BuddyTest::Run()
 	if (failCount) {
 		UTFREE(mem);
 		return -1;
+	}
+
+	ut_printf("Verifying blocks lookup...\n");
+	failCount = 0;
+	LIST_FOREACH(DataItem, list, p, head) {
+		u32 base, size, arg;
+		if (alloc.Lookup((u32)(((char *)p) + p->size * 4 /5),
+			&base, &size, (void **)&arg)) {
+			failCount++;
+			continue;
+		}
+		if (base != (u32)p || size != roundup2(p->size, 1 << minOrder) || arg != p->size) {
+			failCount++;
+			continue;
+		}
+	}
+	ut_printf("%d blocks failed\n", failCount);
+	if (failCount) {
+		UTFREE(mem);
+		return -1;
+	}
+
+	/* free all blocks and repeat allocations */
+	ut_printf("Freeing all blocks...\n");
+	failCount = 0;
+	while ((p = LIST_FIRST(DataItem, list, head))) {
+		LIST_DELETE(list, p, head);
+		if (alloc.Free((u32)p)) {
+			failCount++;
+		}
+	}
+	total_mem = 0;
+	num_blocks = 0;
+	ut_printf("%d blocks failed\n", failCount);
+	if (failCount) {
+		UTFREE(mem);
+		return -1;
+	}
+
+	ut_printf("Starting allocations, total memory in pool: 0x%08x bytes\n", size);
+	while (1) {
+		u32 bsize = OFFSETOF(DataItem, data) + (u64)ut_rand() * (1 << 16) / UT_RAND_MAX;
+		DataItem *p;
+		if (alloc.Allocate(bsize, (u32 *)&p, (void *)bsize)) {
+			failCount++;
+			ut_printf("Allocation fail %d: total = 0x%08x in %d blocks, requested 0x%08x\n",
+				failCount, total_mem, num_blocks, bsize);
+			if (failCount < 16) {
+				continue;
+			} else {
+				break;
+			}
+		}
+		num_blocks++;
+		total_mem += bsize;
+		LIST_ADD(list, p, head);
+		p->size = bsize;
+		p->cs = 0;
+		for (u32 i = 0; i < bsize - OFFSETOF(DataItem, data); i++) {
+			u8 b = (u8)ut_rand();
+			p->data[i] = b;
+			p->cs += b;
+		}
 	}
 
 	UTFREE(mem);
