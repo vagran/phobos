@@ -28,6 +28,12 @@ public:
 		virtual void Lock() {}
 		virtual void Unlock() {}
 	};
+
+	enum LookupFlags {
+		LUF_ALLOCATED =		0x1,
+		LUF_FREE =			0x2,
+		LUF_RESERVED =		0x4,
+	};
 private:
 	enum {
 		BPOOL_LOWWAT = 128,
@@ -45,8 +51,8 @@ private:
 			} busyChain;
 			struct {
 				ListHead chain; /* busy chain head for head block */
-				range_t blockSize;
 				void *allocArg;
+				range_t blockSize;
 			} busyHead;
 		};
 	} BlockDesc;
@@ -56,6 +62,7 @@ private:
 		BF_RESERVED =		0x2,
 		BF_BUSY =			0x4,
 		BF_BUSYCHAIN =		0x8, /* 'list' is chain of busy blocks */
+		BF_RESCHAIN =		0x10,
 	} BlockFlags;
 
 	int isInitialized;
@@ -79,15 +86,19 @@ private:
 	void DeleteFreeBlock(BlockDesc *b);
 	void SplitBlock(BlockDesc *b, u16 reqOrder);
 	BlockDesc *MergeBlock(BlockDesc *b);
+	int AllocateArea(range_t location, range_t size, void *arg = 0, int reserve = 0);
 public:
 	BuddyAllocator(BuddyClient *client) __noinline;
 	virtual ~BuddyAllocator();
 
 	virtual int Initialize(range_t base, range_t size, u16 minOrder, u16 maxOrder);
 	virtual int Allocate(range_t size, range_t *location, void *arg = 0);
+	virtual int AllocateFixed(range_t location, range_t size, void *arg = 0);
 	virtual int Free(range_t location);
-	virtual int Reserve(range_t location, range_t size);
-	virtual int Lookup(range_t location, range_t *pBase = 0, range_t *pSize = 0, void **pAllocArg = 0);
+	virtual int Reserve(range_t location, range_t size, void *arg = 0);
+	virtual int UnReserve(range_t location);
+	virtual int Lookup(range_t location, range_t *pBase = 0, range_t *pSize = 0,
+		void **pAllocArg = 0, int flags = LUF_ALLOCATED, int *pFlags = 0);
 };
 
 

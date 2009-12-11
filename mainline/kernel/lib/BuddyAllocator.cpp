@@ -242,20 +242,15 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 	return 0;
 }
 
+/* must be called locked */
 template <typename range_t>
 int
-BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
+BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg, int reserve)
 {
-	assert(isInitialized);
-	if (!size || !isInitialized) {
-		return -1;
-	}
-	KeepBlocks();
-	client->Lock();
 	range_t end = roundup2(location + size, (range_t)1 << minOrder);
 	location = rounddown2(location, (range_t)1 << minOrder);
-	if (location < base || location + size > base + this->size) {
-		client->Unlock();
+	size = end - location;
+	if (!size || location < base || location + size > base + this->size) {
 		return -1;
 	}
 	/* pass 1, verify that area is free */
@@ -287,7 +282,6 @@ BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
 		TREE_FIND(loc, BlockDesc, node, b, tree);
 		assert(b);
 		if (!(b->flags & BF_FREE)) {
-			client->Unlock();
 			return -1;
 		}
 		loc += (range_t)1 << b->order;
@@ -325,31 +319,71 @@ BuddyAllocator<range_t>::Reserve(range_t location, range_t size)
 	}
 	assert(b);
 
+	BlockDesc *head = 0;
 	while (location < end) {
-		range_t size = (range_t)1 << b->order;
-		while (end - location < size) {
+		range_t bsize = (range_t)1 << b->order;
+		while (end - location < bsize) {
 			BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
 			AddFreeBlock(b2);
 			DeleteFreeBlock(b);
 			b->order--;
 			AddFreeBlock(b);
-			size = (range_t)1 << b->order;
+			bsize = (range_t)1 << b->order;
 		}
 		DeleteFreeBlock(b);
-		b->flags |= BF_RESERVED;
+		if (!head) {
+			b->flags |= reserve ? BF_RESERVED : BF_BUSY;
+			b->busyHead.allocArg = arg;
+			b->busyHead.blockSize = size;
+			head = b;
+		} else {
+			b->flags |= reserve ? BF_RESCHAIN : BF_BUSYCHAIN;
+			b->busyChain.head = head;
+			LIST_ADD(busyChain.list, b, head->busyHead.chain);
+		}
 		location += (range_t)1 << b->order;
 		if (location < end) {
 			TREE_FIND(location, BlockDesc, node, b, tree);
 			assert(b);
 		}
 	}
-	client->Unlock();
 	return 0;
 }
 
 template <typename range_t>
 int
-BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize, void **pAllocArg)
+BuddyAllocator<range_t>::Reserve(range_t location, range_t size, void *arg)
+{
+	assert(isInitialized);
+	if (!size || !isInitialized) {
+		return -1;
+	}
+	KeepBlocks();
+	client->Lock();
+	int rc = AllocateArea(location, size, arg, 1);
+	client->Unlock();
+	return rc;
+}
+
+template <typename range_t>
+int
+BuddyAllocator<range_t>::AllocateFixed(range_t location, range_t size, void *arg)
+{
+	assert(isInitialized);
+	if (!size || !isInitialized) {
+		return -1;
+	}
+	KeepBlocks();
+	client->Lock();
+	int rc = AllocateArea(location, size, arg, 0);
+	client->Unlock();
+	return rc;
+}
+
+template <typename range_t>
+int
+BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize,
+	void **pAllocArg, int flags, int *pFlags)
 {
 	if (location < base || location >= base + size) {
 		return -1;
@@ -364,22 +398,55 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 		TREE_FIND(newLookupLoc, BlockDesc, node, b, tree);
 		if (b) {
 			assert(b->order >= order);
-			if (!(b->flags & (BF_BUSY | BF_BUSYCHAIN))) {
-				return -1;
+			if (b->flags & BF_FREE) {
+				if (!(flags & LUF_FREE)) {
+					return -1;
+				}
+				if (pFlags) {
+					*pFlags = LUF_FREE;
+				}
+				if (pSize) {
+					*pSize = 1 << b->order;
+				}
+			} else if (b->flags & (BF_BUSY | BF_BUSYCHAIN)) {
+				if (!(flags & LUF_ALLOCATED)) {
+					return -1;
+				}
+				if (b->flags & BF_BUSYCHAIN) {
+					assert(!(b->flags & BF_BUSY));
+					b = b->busyChain.head;
+				}
+				assert(b->flags & BF_BUSY);
+				if (pFlags) {
+					*pFlags = LUF_ALLOCATED;
+				}
+				if (pSize) {
+					*pSize = b->busyHead.blockSize;
+				}
+				if (pAllocArg) {
+					*pAllocArg = b->busyHead.allocArg;
+				}
+			} else if (b->flags & (BF_RESERVED | BF_RESCHAIN)) {
+				if (!(flags & LUF_RESERVED)) {
+					return -1;
+				}
+				if (b->flags & BF_RESCHAIN) {
+					assert(!(b->flags & BF_RESERVED));
+					b = b->busyChain.head;
+				}
+				assert(b->flags & BF_RESERVED);
+				if (pFlags) {
+					*pFlags = LUF_RESERVED;
+				}
+				if (pSize) {
+					*pSize = b->busyHead.blockSize;
+				}
+				if (pAllocArg) {
+					*pAllocArg = b->busyHead.allocArg;
+				}
 			}
-			if (b->flags & BF_BUSYCHAIN) {
-				assert(!(b->flags & BF_BUSY));
-				b = b->busyChain.head;
-			}
-			assert(b->flags & BF_BUSY);
 			if (pBase) {
 				*pBase = b->node.key;
-			}
-			if (pSize) {
-				*pSize = b->busyHead.blockSize;
-			}
-			if (pAllocArg) {
-				*pAllocArg = b->busyHead.allocArg;
 			}
 			return 0;
 		}
@@ -496,6 +563,41 @@ BuddyAllocator<range_t>::Free(range_t location)
 	MergeBlock(b);
 	client->Unlock();
 	client->Free(location, blockSize, allocArg);
+	return 0;
+}
+
+template <typename range_t>
+int
+BuddyAllocator<range_t>::UnReserve(range_t location)
+{
+	assert(isInitialized);
+	if (!isInitialized) {
+		return -1;
+	}
+	KeepBlocks();
+	client->Lock();
+	BlockDesc *b;
+	TREE_FIND(location, BlockDesc, node, b, tree);
+	if (!b) {
+		client->Unlock();
+		return -1;
+	}
+	if (!(b->flags & BF_RESERVED)) {
+		client->Unlock();
+		return -1;
+	}
+	while (!LIST_ISEMPTY(b->busyHead.chain)) {
+		BlockDesc *cb = LIST_FIRST(BlockDesc, busyChain.list, b->busyHead.chain);
+		LIST_DELETE(busyChain.list, cb, b->busyHead.chain);
+		assert(cb->flags & BF_RESCHAIN);
+		cb->flags &= ~BF_RESCHAIN;
+		AddFreeBlock(cb);
+		MergeBlock(cb);
+	}
+	b->flags &= ~BF_RESERVED;
+	AddFreeBlock(b);
+	MergeBlock(b);
+	client->Unlock();
 	return 0;
 }
 
