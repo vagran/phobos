@@ -491,6 +491,7 @@ BuddyAllocator<range_t>::Free(range_t location)
 		AddFreeBlock(cb);
 		MergeBlock(cb);
 	}
+	b->flags &= ~BF_BUSY;
 	AddFreeBlock(b);
 	MergeBlock(b);
 	client->Unlock();

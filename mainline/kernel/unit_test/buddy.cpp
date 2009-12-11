@@ -93,7 +93,7 @@ BuddyTest::Run()
 	u32 total_mem = 0;
 	u32 num_blocks = 0;
 	u32 failCount = 0;
-	ListHead head;
+	ListHead head, freeBlocks;
 	LIST_INIT(head);
 
 	ut_printf("Reserving range\n");
@@ -150,14 +150,51 @@ BuddyTest::Run()
 	u32 numToFree = num_blocks / 2;
 	ut_printf("Freeing half of blocks...\n");
 	failCount = 0;
+	LIST_INIT(freeBlocks);
 	while (numToFree) {
 		p = LIST_FIRST(DataItem, list, head);
 		LIST_DELETE(list, p, head);
+		LIST_ADD(list, p, freeBlocks);
 		total_mem -= p->size;
 		num_blocks--;
 		numToFree--;
 		if (alloc.Free((u32)p)) {
 			failCount++;
+		}
+	}
+	ut_printf("%d blocks failed\n", failCount);
+	if (failCount) {
+		UTFREE(mem);
+		return -1;
+	}
+
+	ut_printf("Verifying blocks lookup...\n");
+	failCount = 0;
+	LIST_FOREACH(DataItem, list, p, head) {
+		u32 base, size, arg;
+		if (alloc.Lookup((u32)(((char *)p) + p->size * 4 /5),
+			&base, &size, (void **)&arg)) {
+			failCount++;
+			continue;
+		}
+		if (base != (u32)p || size != roundup2(p->size, 1 << minOrder) || arg != p->size) {
+			failCount++;
+			continue;
+		}
+	}
+	ut_printf("%d blocks failed\n", failCount);
+	if (failCount) {
+		UTFREE(mem);
+		return -1;
+	}
+	ut_printf("Looking up for freed blocks...\n");
+	failCount = 0;
+	LIST_FOREACH(DataItem, list, p, freeBlocks) {
+		u32 base, size, arg;
+		if (!alloc.Lookup((u32)(((char *)p) + p->size * 4 /5),
+			&base, &size, (void **)&arg)) {
+			failCount++;
+			continue;
 		}
 	}
 	ut_printf("%d blocks failed\n", failCount);
@@ -202,26 +239,6 @@ BuddyTest::Run()
 		}
 		if (cs != p->cs) {
 			failCount++;
-		}
-	}
-	ut_printf("%d blocks failed\n", failCount);
-	if (failCount) {
-		UTFREE(mem);
-		return -1;
-	}
-
-	ut_printf("Verifying blocks lookup...\n");
-	failCount = 0;
-	LIST_FOREACH(DataItem, list, p, head) {
-		u32 base, size, arg;
-		if (alloc.Lookup((u32)(((char *)p) + p->size * 4 /5),
-			&base, &size, (void **)&arg)) {
-			failCount++;
-			continue;
-		}
-		if (base != (u32)p || size != roundup2(p->size, 1 << minOrder) || arg != p->size) {
-			failCount++;
-			continue;
 		}
 	}
 	ut_printf("%d blocks failed\n", failCount);
