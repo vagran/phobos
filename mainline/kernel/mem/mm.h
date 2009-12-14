@@ -91,6 +91,8 @@ public:
 		u32			numPages; /* resident pages count */
 		VMObject	*shadowObj;
 		VMObject	*copyObj;
+		vaddr_t		copyOffset; /* offset in copy object */
+		u32			refCount;
 
 		VMObject(vaddr_t base, vsize_t size);
 	};
@@ -122,9 +124,33 @@ public:
 		vaddr_t		base;
 		vsize_t		size;
 		BuddyAllocator<vaddr_t> alloc; /* kernel virtual address space allocator */
+		u32			numEntries;
+		ListHead	entries;
+		Mutex		entriesLock;
 
+		class Entry {
+		public:
+			ListEntry	list;
+			Map			*map;
+			vaddr_t		base;
+			vsize_t		size;
+			VMObject	*object;
+			vaddr_t		offset; /* offset in object */
+			u32			flags;
+
+			Entry(Map *map);
+			~Entry();
+		};
+
+		int AddEntry(Entry *e);
+		int DeleteEntry(Entry *e);
+
+	public:
 		Map();
+		~Map();
 		int SetRange(vaddr_t base, vsize_t size, int minBlockOrder = 4, int maxBlockOrder = 30);
+		int Allocate(vsize_t size, vaddr_t *base);
+		int Free(vaddr_t base);
 	};
 
 	Map *kmemMap;
@@ -216,7 +242,7 @@ public:
 	MM();
 };
 
-#define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * count))
+#define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
 
 #ifndef DEBUG_MALLOC
 #define NEW(className,...)		new className(__VA_ARGS__)
@@ -226,6 +252,8 @@ public:
 
 void *operator new(size_t size);
 void *operator new(size_t size, const char *className, const char *fileName, int line);
+
+#define DELETE(ptr)				delete (ptr)
 
 extern MM *mm;
 

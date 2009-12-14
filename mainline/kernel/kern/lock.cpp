@@ -22,6 +22,7 @@ SpinLock::Lock()
 {
 	__asm__ __volatile__ (
 		"1: lock btsl	$0, %0\n"
+		"pause\n"
 		"jc	1b\n"
 		:
 		: "m"(flag)
@@ -33,7 +34,7 @@ void
 SpinLock::Unlock()
 {
 	__asm__ __volatile__ (
-		"1: lock btcl	$0, %0"
+		"1: btcl	$0, %0"
 		:
 		: "m"(flag)
 		: "cc"

@@ -470,11 +470,12 @@ MM::malloc(u32 size, u32 align)
 		return p;
 	}
 	if (initState == IS_INITIALIZING) {
-		panic("MM::malloc() called on IS_INITIALIZING level");
+		panic("MM::malloc() called on IS_INITIALIZING level, "
+			"probably initial pool size for kernel slab allocator should be increased");
 	}
 	assert(initState == IS_NORMAL);
 	vaddr_t m;
-	if (mm->kmemMap->alloc.Allocate(size, &m, mm->kmemObj)) {
+	if (mm->kmemMap->Allocate(size, &m)) {
 		return 0;
 	}
 	return (void *)m;
@@ -490,7 +491,7 @@ MM::mfree(void *p)
 		panic("MM::mfree() called on IS_INITIALIZING level");
 	}
 	assert(initState == IS_NORMAL);
-	int rc = mm->kmemMap->alloc.Free((vaddr_t)p);
+	int rc = mm->kmemMap->Free((vaddr_t)p);
 #ifdef DEBUG_MALLOC
 	if (rc) {
 		panic("MM::mfree() failed for block 0x%08lx", (vaddr_t)p);
@@ -533,6 +534,9 @@ MM::VMObject::VMObject(vaddr_t base, vsize_t size)
 	numPages = 0;
 	this->base = base;
 	this->size = size;
+	shadowObj = 0;
+	copyObj = 0;
+	refCount = 1;
 }
 
 /*************************************************************/
@@ -541,6 +545,13 @@ MM::Map::Map() : alloc(mm->kmemVirtClient)
 {
 	base = 0;
 	size = 0;
+	numEntries = 0;
+	LIST_INIT(entries);
+}
+
+MM::Map::~Map()
+{
+
 }
 
 int
@@ -556,4 +567,64 @@ MM::Map::SetRange(vaddr_t base, vsize_t size, int minBlockOrder, int maxBlockOrd
 	this->base = base;
 	this->size = size;
 	return 0;
+}
+
+int
+MM::Map::AddEntry(Entry *e)
+{
+	entriesLock.Lock();
+	LIST_ADD(list, e, entries);
+	e->map = this;
+	numEntries++;
+	entriesLock.Unlock();
+	return 0;
+}
+
+int
+MM::Map::DeleteEntry(Entry *e)
+{
+	entriesLock.Lock();
+	LIST_DELETE(list, e, entries);
+	e->map = 0;
+	numEntries--;
+	entriesLock.Unlock();
+	return 0;
+}
+
+int
+MM::Map::Allocate(vsize_t size, vaddr_t *base)
+{
+	Entry *e = NEW(Entry, this);
+	if (!e) {
+		return -1;
+	}
+	if (alloc.Allocate(size, base, e)) {
+		DELETE(e);
+		return -1;
+	}
+	return 0;
+}
+
+int
+MM::Map::Free(vaddr_t base)
+{
+	return alloc.Free(base);
+}
+
+/*************************************************************/
+/* MM::Map::Entry class */
+MM::Map::Entry::Entry(Map *map)
+{
+	this->map = 0;
+	base = 0;
+	size = 0;
+	object = 0;
+	offset = 0;
+	flags = 0;
+	map->AddEntry(this);
+}
+
+MM::Map::Entry::~Entry()
+{
+	map->DeleteEntry(this);
 }
