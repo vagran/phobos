@@ -149,13 +149,13 @@ MM::InitMM()
 	if (CreatePageDescs()) {
 		panic("MM::CreatePageDescs() failed");
 	}
-	kmemObj = NEW(VMObject, KERNEL_ADDRESS, DEV_AREA_ADDRESS - KERNEL_ADDRESS);
+	kmemObj = NEW(VMObject, KERNEL_ADDRESS, KERNEL_END_ADDRESS - KERNEL_ADDRESS);
 	assert(kmemObj);
 
 	kmemMap = NEW(Map);
 	assert(kmemMap);
 	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
-	kmemMap->SetRange(firstAddr, DEV_AREA_ADDRESS - firstAddr,
+	kmemMap->SetRange(firstAddr, KERNEL_END_ADDRESS - firstAddr,
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
 	initState = IS_NORMAL;
 }
@@ -164,7 +164,6 @@ void
 MM::PreInitialize(vaddr_t addr)
 {
 	firstAddr = addr;
-
 	/*
 	 * Create page tables recursive mapping.
 	 * Use identity mapping to modify PTD.

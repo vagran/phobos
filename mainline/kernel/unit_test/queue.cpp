@@ -197,7 +197,7 @@ TreeTest::Run()
 	ut_printf("Verifying tree searching...\n");
 	int numFound = 0, numValid = 0;
 	for (int i = 0; i < numItems; i++) {
-		TREE_FIND(i, Item, tree, p, root);
+		p = TREE_FIND(i, Item, tree, root);
 		if (!p) {
 			ut_printf("Item not found, index=%d\n", i);
 			continue;
@@ -248,7 +248,7 @@ TreeTest::Run()
 	int numDelFound = 0;
 	for (int i = 0; i < numItems; i++) {
 		if (buf[i]) {
-			TREE_FIND(i, Item, tree, p, root);
+			p = TREE_FIND(i, Item, tree, root);
 			if (p) {
 				ut_printf("Deleted node found, index=%d\n", p->data);
 				numDelFound++;
@@ -279,7 +279,7 @@ TreeTest::Run()
 				ut_printf("Non-enumerated not deleted item, index=%d\n", i);
 				numDelNonwalked++;
 			}
-			TREE_FIND(i, Item, tree, p, root);
+			p = TREE_FIND(i, Item, tree, root);
 			if (!p) {
 				ut_printf("Not found not deleted item, index=%d\n", i);
 				numDelNotFound++;

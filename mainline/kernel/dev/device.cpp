@@ -147,8 +147,7 @@ DeviceManager::CreateDevice(const char *devClass)
 Device *
 DeviceManager::CreateDevice(u32 devClassID)
 {
-	DevClass *p;
-	TREE_FIND(devClassID, DevClass, node, p, devTree);
+	DevClass *p = TREE_FIND(devClassID, DevClass, node, devTree);
 	if (!p) {
 		panic("Attempted to create device of non-existing class (0x%lx)", devClassID);
 	}
@@ -165,8 +164,7 @@ DeviceManager::RegisterClass(const char *devClass, Device::Type type,
 		Initialize();
 	}
 	u32 id = GetClassID(devClass);
-	DevClass *found;
-	TREE_FIND(id, DevClass, node, found, devTree);
+	DevClass *found = TREE_FIND(id, DevClass, node, devTree);
 	if (found) {
 		if (!strcmp(devClass, found->name)) {
 			panic("Registering duplicated device classes: '%s'", devClass);
@@ -201,8 +199,7 @@ DeviceManager::AllocateUnit(DevClass *p)
 u32
 DeviceManager::AllocateUnit(u32 devClassID)
 {
-	DevClass *p;
-	TREE_FIND(devClassID, DevClass, node, p, devTree);
+	DevClass *p = TREE_FIND(devClassID, DevClass, node, devTree);
 	if (!p) {
 		panic("Allocating unit for non-existing device class");
 	}
@@ -212,8 +209,7 @@ DeviceManager::AllocateUnit(u32 devClassID)
 char *
 DeviceManager::GetClass(u32 devClassID)
 {
-	DevClass *p;
-	TREE_FIND(devClassID, DevClass, node, p, devTree);
+	DevClass *p = TREE_FIND(devClassID, DevClass, node, devTree);
 	if (!p) {
 		klog(KLOG_WARNING, "Requesting class for none-existing device class ID");
 		return 0;

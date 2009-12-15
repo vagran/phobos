@@ -259,7 +259,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	u16 order = minOrder;
 	BlockDesc *b = 0;
 	while (order <= maxOrder) {
-		TREE_FIND(loc, BlockDesc, node, b, tree);
+		b = TREE_FIND(loc, BlockDesc, node, tree);
 		if (b) {
 			if (!(b->flags & BF_FREE)) {
 				return -1;
@@ -279,7 +279,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	assert(b);
 	/* scan the range */
 	while (loc < end) {
-		TREE_FIND(loc, BlockDesc, node, b, tree);
+		b = TREE_FIND(loc, BlockDesc, node, tree);
 		assert(b);
 		if (!(b->flags & BF_FREE)) {
 			return -1;
@@ -293,7 +293,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	order = minOrder;
 	b = 0;
 	while (order <= maxOrder) {
-		TREE_FIND(loc, BlockDesc, node, b, tree);
+		b = TREE_FIND(loc, BlockDesc, node, tree);
 		if (b) {
 			while (loc != location) {
 				BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
@@ -343,7 +343,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 		}
 		location += (range_t)1 << b->order;
 		if (location < end) {
-			TREE_FIND(location, BlockDesc, node, b, tree);
+			b = TREE_FIND(location, BlockDesc, node, tree);
 			assert(b);
 		}
 	}
@@ -394,8 +394,7 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 		if (order != minOrder && newLookupLoc == lookupLoc) {
 			continue;
 		}
-		BlockDesc *b;
-		TREE_FIND(newLookupLoc, BlockDesc, node, b, tree);
+		BlockDesc *b = TREE_FIND(newLookupLoc, BlockDesc, node, tree);
 		if (b) {
 			assert(b->order >= order);
 			if (b->flags & BF_FREE) {
@@ -474,8 +473,7 @@ BuddyAllocator<range_t>::MergeBlock(BlockDesc *b)
 	while (b->order < maxOrder) {
 		range_t posBit = (range_t)1 << b->order;
 		range_t adjLoc = b->node.key ^ posBit;
-		BlockDesc *adjBlock;
-		TREE_FIND(adjLoc, BlockDesc, node, adjBlock, tree);
+		BlockDesc *adjBlock = TREE_FIND(adjLoc, BlockDesc, node, tree);
 		if (!adjBlock || !(adjBlock->flags & BF_FREE) || (adjBlock->order != b->order)) {
 			break;
 		}
@@ -538,8 +536,7 @@ BuddyAllocator<range_t>::Free(range_t location)
 	}
 	KeepBlocks();
 	client->Lock();
-	BlockDesc *b;
-	TREE_FIND(location, BlockDesc, node, b, tree);
+	BlockDesc *b = TREE_FIND(location, BlockDesc, node, tree);
 	if (!b) {
 		client->Unlock();
 		return -1;
@@ -576,8 +573,7 @@ BuddyAllocator<range_t>::UnReserve(range_t location)
 	}
 	KeepBlocks();
 	client->Lock();
-	BlockDesc *b;
-	TREE_FIND(location, BlockDesc, node, b, tree);
+	BlockDesc *b = TREE_FIND(location, BlockDesc, node, tree);
 	if (!b) {
 		client->Unlock();
 		return -1;

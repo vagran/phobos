@@ -21,9 +21,7 @@ phbSource("$Id$");
  * 		| PT map			| PD_PAGES * PT_ENTRIES * PAGE_SIZE
  * 		+-------------------+ PTMAP_ADDRESS = FF800000
  * 		| Alt. PT map		| PD_PAGES * PT_ENTRIES * PAGE_SIZE
- * 		+-------------------+ ALTPTMAP_ADDRESS = FF000000
- * 		| Devices memory	| DEV_AREA_SIZE
- * 		+-------------------+ DEV_AREA_ADDRESS
+ * 		+-------------------+ ALTPTMAP_ADDRESS = FF000000 (KERNEL_END_ADDRESS)
  * 		| Kernel dynamic 	|
  * 		| memory			|
  * 		+-------------------+
@@ -48,12 +46,11 @@ phbSource("$Id$");
  */
 
 #define GATE_AREA_SIZE		(64 << 20)
-#define DEV_AREA_SIZE		(128 << 20)
 #define GATE_AREA_ADDRESS	(KERNEL_ADDRESS - GATE_AREA_SIZE)
 #define PTMAP_SIZE			(PD_PAGES * PT_ENTRIES * PAGE_SIZE)
 #define PTMAP_ADDRESS		((vaddr_t)-PTMAP_SIZE)
 #define ALTPTMAP_ADDRESS	(PTMAP_ADDRESS - PTMAP_SIZE)
-#define DEV_AREA_ADDRESS	(ALTPTMAP_ADDRESS - DEV_AREA_SIZE)
+#define KERNEL_END_ADDRESS	ALTPTMAP_ADDRESS
 
 class MM {
 public:

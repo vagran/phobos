@@ -156,8 +156,11 @@ public:
 
 #define TREE_PARENT(type, entry, value) ((value)->entry.parent ? TREE_DATA(type, entry, (value)->entry.parent) : 0)
 
-#define TREE_FIND(keyValue, type, entry, var, root) \
-	((var) = (type *)Tree<typeof ((var)->entry.key)>::FindNode(root, keyValue), (var) = TREE_DATA(type, entry, var))
+#define TREE_FIND(keyValue, type, entry, root) \
+	({ \
+		void *__p = Tree<typeof ((root).rootnode->key)>::FindNode(root, keyValue); \
+		TREE_DATA(type, entry, __p); \
+	})
 
 #define TREE_ADD(entry, var, root) Tree<typeof ((var)->entry.key)>::AddNode((root), &(var)->entry)
 
