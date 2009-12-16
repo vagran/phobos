@@ -150,16 +150,16 @@ public:
 
 #define TREE_ROOT(type, entry, root) TREE_DATA(type, entry, (root).rootnode)
 
-#define TREE_LEFT(type, entry, value) ((value)->entry.left ? TREE_DATA(type, entry, (value)->entry.left) : 0)
+#define TREE_LEFT(type, entry, value) TREE_DATA(type, entry, (value)->entry.left)
 
-#define TREE_RIGHT(type, entry, value) ((value)->entry.right ? TREE_DATA(type, entry, (value)->entry.right) : 0)
+#define TREE_RIGHT(type, entry, value) TREE_DATA(type, entry, (value)->entry.right)
 
-#define TREE_PARENT(type, entry, value) ((value)->entry.parent ? TREE_DATA(type, entry, (value)->entry.parent) : 0)
+#define TREE_PARENT(type, entry, value) TREE_DATA(type, entry, (value)->entry.parent)
 
 #define TREE_FIND(keyValue, type, entry, root) \
 	({ \
-		void *__p = Tree<typeof ((root).rootnode->key)>::FindNode(root, keyValue); \
-		TREE_DATA(type, entry, __p); \
+		void *p = Tree<typeof ((root).rootnode->key)>::FindNode(root, keyValue); \
+		TREE_DATA(type, entry, p); \
 	})
 
 #define TREE_ADD(entry, var, root) Tree<typeof ((var)->entry.key)>::AddNode((root), &(var)->entry)

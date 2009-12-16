@@ -123,7 +123,7 @@ public:
 		BuddyAllocator<vaddr_t> alloc; /* kernel virtual address space allocator */
 		u32			numEntries;
 		ListHead	entries;
-		Mutex		entriesLock;
+		Mutex		entriesLock; /* entries list lock */
 
 		class Entry {
 		public:
