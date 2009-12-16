@@ -206,4 +206,46 @@ sldt()
 	return sel;
 }
 
+static __inline u64
+rdmsr(u32 msr)
+{
+	u64 rc;
+	__asm__ __volatile__ (
+		"rdmsr"
+		: "=A"(rc)
+		: "c"(msr)
+	);
+	return rc;
+}
+
+static __inline void
+wrmsr(u32 msr, u64 value)
+{
+	__asm__ __volatile__ (
+		"wrmsr"
+		:
+		: "c"(msr), "A"(value)
+	);
+}
+
+static __inline void
+sysenter(u32 cs, u32 eip, u32 esp)
+{
+	wrmsr(MSR_SYSENTER_CS_MSR, cs);
+	wrmsr(MSR_SYSENTER_EIP_MSR, eip);
+	wrmsr(MSR_SYSENTER_ESP_MSR, esp);
+	__asm__ __volatile__ ("sysenter");
+}
+
+static __inline void
+sysexit(u32 cs, u32 eip, u32 esp)
+{
+	wrmsr(MSR_SYSENTER_CS_MSR, cs);
+	__asm__ __volatile__ (
+		"sysexit"
+		:
+		: "d"(eip), "c"(esp)
+	);
+}
+
 #endif /* CPU_INSTR_H_ */
