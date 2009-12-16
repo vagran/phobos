@@ -127,6 +127,11 @@ public:
 
 		class Entry {
 		public:
+			enum Flags {
+				F_SPACE =		0x1, /* space only allocation */
+				F_RESERVE =		0x2, /* space reservation */
+			};
+
 			ListEntry	list;
 			Map			*map;
 			vaddr_t		base;
@@ -146,7 +151,11 @@ public:
 		Map();
 		~Map();
 		int SetRange(vaddr_t base, vsize_t size, int minBlockOrder = 4, int maxBlockOrder = 30);
-		int Allocate(vsize_t size, vaddr_t *base);
+
+		Entry *Allocate(vsize_t size, vaddr_t *base);
+		Entry *AllocateSpace(vsize_t size, vaddr_t *base);
+		Entry *ReserveSpace(vaddr_t base, vsize_t size);
+		Entry *Lookup(vaddr_t base);
 		int Free(vaddr_t base);
 	};
 

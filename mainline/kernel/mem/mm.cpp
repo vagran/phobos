@@ -474,7 +474,7 @@ MM::malloc(u32 size, u32 align)
 	}
 	assert(initState == IS_NORMAL);
 	vaddr_t m;
-	if (mm->kmemMap->Allocate(size, &m)) {
+	if (!mm->kmemMap->Allocate(size, &m)) {
 		return 0;
 	}
 	return (void *)m;
@@ -590,18 +590,59 @@ MM::Map::DeleteEntry(Entry *e)
 	return 0;
 }
 
-int
+MM::Map::Entry *
 MM::Map::Allocate(vsize_t size, vaddr_t *base)
 {
 	Entry *e = NEW(Entry, this);
 	if (!e) {
-		return -1;
+		return 0;
 	}
 	if (alloc.Allocate(size, base, e)) {
 		DELETE(e);
-		return -1;
+		return 0;
 	}
-	return 0;
+	return e;
+}
+
+MM::Map::Entry *
+MM::Map::AllocateSpace(vsize_t size, vaddr_t *base)
+{
+	Entry *e = NEW(Entry, this);
+	if (!e) {
+		return 0;
+	}
+	e->flags |= Entry::F_SPACE;
+	if (alloc.Allocate(size, base, e)) {
+		DELETE(e);
+		return 0;
+	}
+	return e;
+}
+
+MM::Map::Entry *
+MM::Map::ReserveSpace(vaddr_t base, vsize_t size)
+{
+	Entry *e = NEW(Entry, this);
+	if (!e) {
+		return 0;
+	}
+	e->flags |= Entry::F_RESERVE;
+	if (alloc.Reserve(base, size, e)) {
+		DELETE(e);
+		return 0;
+	}
+	return e;
+}
+
+MM::Map::Entry *
+MM::Map::Lookup(vaddr_t base)
+{
+	Entry *e;
+	if (alloc.Lookup(base, 0, 0, (void **)&e,
+		BuddyAllocator<vaddr_t>::LUF_ALLOCATED | BuddyAllocator<vaddr_t>::LUF_RESERVED)) {
+		return 0;
+	}
+	return e;
 }
 
 int
