@@ -137,14 +137,14 @@ MM::InitAvailMem()
 void
 MM::InitMM()
 {
-	kmemSlabClient = NEW(KmemSlabClient);
+	kmemSlabClient = NEWSINGLE(KmemSlabClient);
 	assert(kmemSlabClient);
 	kmemSlabInitialMem = malloc(KMEM_SLAB_INITIALMEM_SIZE);
 	assert(kmemSlabInitialMem);
 	kmemSlab = NEW(SlabAllocator, kmemSlabClient, kmemSlabInitialMem,
 		KMEM_SLAB_INITIALMEM_SIZE);
 	assert(kmemSlab);
-	kmemVirtClient = NEW(KmemVirtClient, kmemSlab);
+	kmemVirtClient = NEWSINGLE(KmemVirtClient, kmemSlab);
 	assert(kmemVirtClient);
 	if (CreatePageDescs()) {
 		panic("MM::CreatePageDescs() failed");
@@ -193,7 +193,7 @@ MM::VtoP(vaddr_t va)
 }
 
 void *
-MM::OpNew(u32 size)
+MM::OpNew(u32 size, int isSingle)
 {
 	u32 bSize = size + sizeof(ObjOverhead);
 	ObjOverhead *m;
@@ -201,7 +201,11 @@ MM::OpNew(u32 size)
 		m = (ObjOverhead *)malloc(bSize);
 	} else {
 		/* use slab allocator for kernel objects */
-		m = (ObjOverhead *)mm->kmemSlab->AllocateStruct(bSize);
+		if (isSingle) {
+			m = (ObjOverhead *)mm->kmemSlab->malloc(bSize);
+		} else {
+			m = (ObjOverhead *)mm->kmemSlab->AllocateStruct(bSize);
+		}
 	}
 	if (!m) {
 		return 0;
@@ -218,9 +222,9 @@ MM::OpNew(u32 size)
 }
 
 void *
-MM::OpNew(u32 size, const char *className, const char *fileName, int line)
+MM::OpNew(u32 size, int isSingle, const char *className, const char *fileName, int line)
 {
-	ObjOverhead *m = (ObjOverhead *)OpNew(size);
+	ObjOverhead *m = (ObjOverhead *)OpNew(size, isSingle);
 	if (!m) {
 		return 0;
 	}
@@ -244,9 +248,9 @@ MM::OpDelete(void *p)
 }
 
 void *
-operator new(size_t size)
+operator new(size_t size, int isSingle)
 {
-	return MM::OpNew(size);
+	return MM::OpNew(size, isSingle);
 }
 
 void *
@@ -268,9 +272,9 @@ operator delete[](void *p)
 }
 
 void *
-operator new(size_t size, const char *className, const char *fileName, int line)
+operator new(size_t size, int isSingle, const char *className, const char *fileName, int line)
 {
-	return MM::OpNew(size, className, fileName, line);
+	return MM::OpNew(size, isSingle, className, fileName, line);
 }
 
 void *
@@ -533,8 +537,9 @@ MM::VMObject::VMObject(vaddr_t base, vsize_t size)
 	numPages = 0;
 	this->base = base;
 	this->size = size;
-	shadowObj = 0;
 	copyObj = 0;
+	copyOffset = 0;
+	LIST_INIT(shadowObj);
 	refCount = 1;
 }
 

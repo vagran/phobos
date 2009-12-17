@@ -80,14 +80,19 @@ public:
 			F_FILE =		0x1,
 		};
 
-		ListEntry	list;
+		ListEntry	list; /* list of all objects */
 		vaddr_t		base;
 		vsize_t		size;
 		u32			flags;
 		ListHead	pages; /* resident pages list */
 		u32			numPages; /* resident pages count */
-		VMObject	*shadowObj;
-		VMObject	*copyObj;
+		ListHead	shadowObj; /* shadow objects */
+		/* list of shadow objects in copy object,
+		 * when copyObj == 0 (the object is not a shadow), this is
+		 * entry in list of top-level objects.
+		 */
+		ListEntry	shadowList;
+		VMObject	*copyObj; /* object to copy changed pages from */
 		vaddr_t		copyOffset; /* offset in copy object */
 		u32			refCount;
 
@@ -237,8 +242,8 @@ public:
 	static paddr_t VtoP(vaddr_t va);
 	static inline PTE::PDEntry *VtoPDE(vaddr_t va) {return &PTD[va >> PD_SHIFT];}
 	static inline PTE::PTEntry *VtoPTE(vaddr_t va) {return &PTmap[va >> PT_SHIFT];}
-	static inline void *OpNew(u32 size);
-	static inline void *OpNew(u32 size, const char *className, const char *fileName, int line);
+	static inline void *OpNew(u32 size, int isSingle);
+	static inline void *OpNew(u32 size, int isSingle, const char *className, const char *fileName, int line);
 	static inline void OpDelete(void *p);
 	static void *malloc(u32 size, u32 align = 4);
 	static void mfree(void *p);
@@ -251,13 +256,15 @@ public:
 #define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
 
 #ifndef DEBUG_MALLOC
-#define NEW(className,...)		new className(__VA_ARGS__)
+#define NEW(className,...)			new((int)0) className(__VA_ARGS__)
+#define NEWSINGLE(className,...)	new(1) className(__VA_ARGS__)
 #else /* DEBUG_MALLOC */
-#define NEW(className,...)		new(__STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
+#define NEW(className,...)			new((int)0, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
+#define NEWSINGLE(className,...)	new(1, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
 #endif /* DEBUG_MALLOC */
 
-void *operator new(size_t size);
-void *operator new(size_t size, const char *className, const char *fileName, int line);
+void *operator new(size_t size, int isSingle);
+void *operator new(size_t size, int isSingle, const char *className, const char *fileName, int line);
 
 #define DELETE(ptr)				delete (ptr)
 

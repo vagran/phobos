@@ -120,7 +120,7 @@ extern DeviceManager devMan;
 
 #define DefineDevFactory(className) Device *className::_DeviceFactory(Device::Type type, \
 	u32 unit, u32 classID, void *arg) { \
-	return new className(type, unit, classID); \
+	return NEW(className, type, unit, classID); \
 	}
 
 #define _RegDevClass(devClass, type, factory, factoryArg) static DeviceManager::DeviceRegistrator \
