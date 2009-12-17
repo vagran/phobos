@@ -12,6 +12,7 @@
 	.globl start, _start
 start:
 _start:
+	cli
 	jmp		boot_entry
 
 /* Multiboot header */

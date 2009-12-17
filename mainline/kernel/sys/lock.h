@@ -23,7 +23,7 @@ public:
 
 class AtomicOp {
 public:
-	static inline void Increment(u32 *value) {
+	static inline void Inc(u32 *value) {
 		__asm__ __volatile__ (
 			"lock incl %0"
 			:
@@ -32,7 +32,7 @@ public:
 		);
 	}
 
-	static inline int Decrement(u32 *value) { /* return zero if value is zero after decrement */
+	static inline int Dec(u32 *value) { /* return zero if value is zero after decrement */
 		int rc;
 		__asm__ __volatile__ (
 			"xorl	%%eax, %%eax\n"
