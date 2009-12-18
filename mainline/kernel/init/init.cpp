@@ -353,7 +353,9 @@ Bootstrap(u32 mbSignature, MBInfo *mbi)
 	}
 
 	IdlePDPT = (paddr_t)bsIdlePDPT;
+	vIdlePDPT = (vaddr_t)(bsIdlePDPT - LOAD_ADDRESS + KERNEL_ADDRESS);
 	IdlePTD = (paddr_t)bsIdlePTD;
+	vIdlePTD = (vaddr_t)(bsIdlePTD - LOAD_ADDRESS + KERNEL_ADDRESS);
 	pMBInfo = pmbi ? (MBInfo *)((u8 *)pmbi - LOAD_ADDRESS + KERNEL_ADDRESS) : 0;
 	quickMap = (vaddr_t)(bsQuickMap - LOAD_ADDRESS + KERNEL_ADDRESS);
 

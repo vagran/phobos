@@ -16,6 +16,7 @@ phbSource("$Id$");
 #include <mem/segments.h>
 
 extern paddr_t IdlePDPT, IdlePTD;
+extern vaddr_t vIdlePDPT, vIdlePTD;
 extern vaddr_t quickMap;
 
 #endif /* MEM_H_ */

@@ -51,6 +51,23 @@ phbSource("$Id$");
 #define PTMAP_ADDRESS		((vaddr_t)-PTMAP_SIZE)
 #define ALTPTMAP_ADDRESS	(PTMAP_ADDRESS - PTMAP_SIZE)
 #define KERNEL_END_ADDRESS	ALTPTMAP_ADDRESS
+#define PTDPTDI				(PTMAP_ADDRESS >> PD_SHIFT)
+#define APTDPTDI			(ALTPTMAP_ADDRESS >> PD_SHIFT)
+
+#define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
+
+#ifndef DEBUG_MALLOC
+#define NEW(className,...)			new((int)0) className(__VA_ARGS__)
+#define NEWSINGLE(className,...)	new(1) className(__VA_ARGS__)
+#else /* DEBUG_MALLOC */
+#define NEW(className,...)			new((int)0, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
+#define NEWSINGLE(className,...)	new(1, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
+#endif /* DEBUG_MALLOC */
+
+void *operator new(size_t size, int isSingle);
+void *operator new(size_t size, int isSingle, const char *className, const char *fileName, int line);
+
+#define DELETE(ptr)				delete (ptr)
 
 class MM {
 public:
@@ -105,6 +122,10 @@ public:
 
 	VMObject *kmemObj;
 
+	enum PageAllocFlags {
+		PAF_NOWAIT =		0x1,
+	};
+
 	class Page {
 	public:
 		enum Flags {
@@ -124,7 +145,12 @@ public:
 		ListEntry	objList; /*entry in VMObject pages list */
 
 		Page(paddr_t pa, u16 flags);
+		int Unqueue(); /* must be called with pages queues locked */
 	};
+
+	ListHead pagesFree, pagesCache, pagesActive, pagesInactive;
+	u32	numPgFree, numPgCache, numPgActive, numPgInactive, numPgWired;
+	SpinLock pgqLock;
 
 	class Map {
 	public:
@@ -135,6 +161,9 @@ public:
 		u32			numEntries;
 		ListHead	entries;
 		Mutex		entriesLock; /* entries list lock */
+		int			freeTables;
+		PTE::PDEntry *pdpt; /* PDPT map in kernel KVAS */
+		PTE::PDEntry *ptd; /* PTD map in kernel KVAS */
 
 		class MapEntryAllocator;
 
@@ -199,8 +228,10 @@ public:
 			virtual void mfree(void *p);
 		};
 
+		int Initialize();
 	public:
-		Map();
+		Map(Map *copyFrom = 0);
+		Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree);
 		~Map();
 		int SetRange(vaddr_t base, vsize_t size, int minBlockOrder = 4, int maxBlockOrder = 30);
 
@@ -211,6 +242,12 @@ public:
 		int Free(vaddr_t base);
 		Entry *InsertObject(VMObject *obj);
 		Entry *InsertObject(VMObject *obj, vaddr_t base);
+		PTE::PDEntry *GetPDE(vaddr_t va);
+		PTE::PTEntry *GetPTE(vaddr_t va);
+		paddr_t Extract(vaddr_t va);
+		int IsCurrent();
+		int IsAlt();
+		void SetAlt(); /* set this map as current alternative AS */
 	};
 
 	Map *kmemMap;
@@ -290,9 +327,12 @@ private:
 	int CreatePageDescs();
 public:
 	static void PreInitialize(vaddr_t addr);
-	static paddr_t VtoP(vaddr_t va);
+	static paddr_t VtoP(vaddr_t va); /* in current AS */
+	static paddr_t Kextract(vaddr_t va); /* in kernel AS */
 	static inline PTE::PDEntry *VtoPDE(vaddr_t va) {return &PTD[va >> PD_SHIFT];}
+	static inline PTE::PDEntry *VtoAPDE(vaddr_t va) {return &altPTD[va >> PD_SHIFT];}
 	static inline PTE::PTEntry *VtoPTE(vaddr_t va) {return &PTmap[va >> PT_SHIFT];}
+	static inline PTE::PTEntry *VtoAPTE(vaddr_t va) {return &altPTmap[va >> PT_SHIFT];}
 	static inline void *OpNew(u32 size, int isSingle);
 	static inline void *OpNew(u32 size, int isSingle, const char *className, const char *fileName, int line);
 	static inline void OpDelete(void *p);
@@ -302,22 +342,8 @@ public:
 	static void QuickMapRemove(vaddr_t va);
 
 	MM();
+	Page *AllocatePage(int flags);
 };
-
-#define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
-
-#ifndef DEBUG_MALLOC
-#define NEW(className,...)			new((int)0) className(__VA_ARGS__)
-#define NEWSINGLE(className,...)	new(1) className(__VA_ARGS__)
-#else /* DEBUG_MALLOC */
-#define NEW(className,...)			new((int)0, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
-#define NEWSINGLE(className,...)	new(1, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
-#endif /* DEBUG_MALLOC */
-
-void *operator new(size_t size, int isSingle);
-void *operator new(size_t size, int isSingle, const char *className, const char *fileName, int line);
-
-#define DELETE(ptr)				delete (ptr)
 
 extern MM *mm;
 

@@ -182,7 +182,7 @@ Main(paddr_t firstAddr)
 		mem[i] = NEW(u64);
 	}
 	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
-		delete (u64 *)mem[i];
+		DELETE((u64 *)mem[i]);
 	}
 
 

@@ -12,6 +12,7 @@ phbSource("$Id$");
 #include <boot.h>
 
 paddr_t IdlePDPT, IdlePTD;
+vaddr_t vIdlePDPT, vIdlePTD; /* virtual addresses */
 
 vaddr_t quickMap;
 
@@ -25,16 +26,16 @@ PTE::PTEntry *MM::PTmap = (PTE::PTEntry *)PTMAP_ADDRESS;
 PTE::PTEntry *MM::altPTmap = (PTE::PTEntry *)ALTPTMAP_ADDRESS;
 
 PTE::PDEntry *MM::PTD = (PTE::PDEntry *)(PTMAP_ADDRESS +
-	(PTMAP_ADDRESS >> PD_SHIFT) * PAGE_SIZE);
+	PTDPTDI * PAGE_SIZE);
 
 PTE::PDEntry *MM::altPTD = (PTE::PDEntry *)(ALTPTMAP_ADDRESS +
-	(ALTPTMAP_ADDRESS >> PD_SHIFT) * PAGE_SIZE);
+	APTDPTDI * PAGE_SIZE);
 
 PTE::PDEntry *MM::PTDpde = (PTE::PDEntry *)(PTMAP_ADDRESS +
-	(PTMAP_ADDRESS >> PD_SHIFT) * (PAGE_SIZE + sizeof(PTE::PTEntry)));
+	PTDPTDI * (PAGE_SIZE + sizeof(PTE::PTEntry)));
 
 PTE::PDEntry *MM::altPTDpde = (PTE::PDEntry *)(ALTPTMAP_ADDRESS +
-	(ALTPTMAP_ADDRESS >> PD_SHIFT) * (PAGE_SIZE + sizeof(PTE::PTEntry)));
+	APTDPTDI * (PAGE_SIZE + sizeof(PTE::PTEntry)));
 
 PTE::PTEntry *MM::quickMapPTE;
 
@@ -52,6 +53,15 @@ MM::MM()
 	LIST_INIT(objects);
 	LIST_INIT(topObjects);
 	numObjects = 0;
+	LIST_INIT(pagesFree);
+	LIST_INIT(pagesCache);
+	LIST_INIT(pagesActive);
+	LIST_INIT(pagesInactive);
+	numPgFree = 0;
+	numPgCache = 0;
+	numPgActive = 0;
+	numPgInactive = 0;
+	numPgWired = 0;
 	InitAvailMem();
 	InitMM();
 }
@@ -154,7 +164,7 @@ MM::InitMM()
 	kmemObj = NEW(VMObject, KERNEL_END_ADDRESS - KERNEL_ADDRESS);
 	assert(kmemObj);
 
-	kmemMap = NEW(Map);
+	kmemMap = NEW(Map, (PTE::PDEntry *)vIdlePDPT, (PTE::PDEntry *)vIdlePTD, 1);
 	assert(kmemMap);
 	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
 	kmemMap->SetRange(firstAddr, KERNEL_END_ADDRESS - firstAddr,
@@ -202,6 +212,12 @@ MM::VtoP(vaddr_t va)
 		return 0;
 	}
 	return (VtoPTE(va)->raw & PG_FRAME) | (va & ~PG_FRAME);
+}
+
+paddr_t
+MM::Kextract(vaddr_t va)
+{
+	return mm->kmemMap->Extract(va);
 }
 
 void *
@@ -468,11 +484,28 @@ MM::CreatePageDescs()
 			flags = Page::F_NOTAVAIL;
 		} else {
 			flags = Page::F_FREE;
+			numPgFree++;
+			LIST_ADD(queue, &pages[i], pagesFree);
 		}
 		construct(&pages[i], Page, pa, flags);
 	}
 
 	return 0;
+}
+
+MM::Page *
+MM::AllocatePage(int flags)
+{
+	/* XXX need management implementation */
+	mm->pgqLock.Lock();
+	Page *p = LIST_FIRST(Page, queue, pagesFree);
+	if (!p) {
+		mm->pgqLock.Unlock();
+		return 0;
+	}
+	p->Unqueue();
+	mm->pgqLock.Unlock();
+	return p;
 }
 
 void *
@@ -531,6 +564,32 @@ MM::Page::Page(paddr_t pa, u16 flags)
 	wireCount = 0;
 }
 
+int
+MM::Page::Unqueue()
+{
+	int rc = 0;
+	if (flags & F_FREE) {
+		mm->numPgFree--;
+		LIST_DELETE(queue, this, mm->pagesFree);
+		flags &= ~F_FREE;
+	} else if (flags & F_CACHE) {
+		mm->numPgCache--;
+		LIST_DELETE(queue, this, mm->pagesCache);
+		flags &= ~F_CACHE;
+	} else if (flags & F_ACTIVE) {
+		mm->numPgActive--;
+		LIST_DELETE(queue, this, mm->pagesActive);
+		flags &= ~F_ACTIVE;
+	} else if (flags & F_INACTIVE) {
+		mm->numPgInactive--;
+		LIST_DELETE(queue, this, mm->pagesInactive);
+		flags &= ~F_INACTIVE;
+	} else {
+		rc = 1;
+	}
+	return rc;
+}
+
 /*************************************************************/
 /* MM::VMObject class */
 
@@ -568,17 +627,51 @@ MM::VMObject::SetSize(vsize_t size)
 
 /*************************************************************/
 /* MM::Map class */
-MM::Map::Map() : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemSlab)
+MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemSlab)
+{
+	assert(Initialize());
+	freeTables = 1;
+	pdpt = (PTE::PDEntry *)malloc(sizeof(PTE::PDEntry) * PD_PAGES);
+	assert(pdpt);
+	assert((u32)pdpt & (sizeof(PTE::PDEntry) * PD_PAGES - 1));
+	memset(pdpt, 0, sizeof(PTE::PDEntry) * PD_PAGES);
+	ptd = (PTE::PDEntry *)malloc(PD_PAGES * PAGE_SIZE);
+	assert(ptd);
+	assert((u32)ptd & (PAGE_SIZE - 1));
+	memset(ptd, 0, PD_PAGES * PAGE_SIZE);
+	for (int i = 0; i < PD_PAGES; i++) {
+		pdpt[i].raw = Kextract((vaddr_t)ptd + i * PAGE_SIZE) | PTE::F_P;
+	}
+	if (copyFrom) {
+		memcpy(ptd, copyFrom->ptd, PD_PAGES * PAGE_SIZE);
+	}
+}
+
+MM::Map::Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree) :
+	alloc(mm->kmemMapClient), mapEntryClient(mm->kmemSlab)
+{
+	assert(Initialize());
+	freeTables = !noFree;
+	this->pdpt = pdpt;
+	this->ptd = ptd;
+}
+
+MM::Map::~Map()
+{
+	if (freeTables) {
+		mfree(pdpt);
+		mfree(ptd);
+	}
+}
+
+int
+MM::Map::Initialize()
 {
 	base = 0;
 	size = 0;
 	numEntries = 0;
 	LIST_INIT(entries);
-}
-
-MM::Map::~Map()
-{
-
+	return 0;
 }
 
 int
@@ -713,15 +806,93 @@ MM::Map::InsertObject(VMObject *obj, vaddr_t base)
 }
 
 int
+MM::Map::IsCurrent()
+{
+	/* compare this map PTD addresses with currently mapped */
+	for (int i = 0; i < PD_PAGES; i++) {
+		if ((ptd[PTDPTDI + i].raw ^ PTDpde[i].raw) & PG_FRAME) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int
+MM::Map::IsAlt()
+{
+	/* compare this map PTD addresses with currently mapped in alternative AS*/
+	for (int i = 0; i < PD_PAGES; i++) {
+		if ((ptd[PTDPTDI + i].raw ^ altPTDpde[i].raw) & PG_FRAME) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+void
+MM::Map::SetAlt()
+{
+	for (int i = 0; i < PD_PAGES; i++) {
+		altPTDpde[i].raw = ptd[PTDPTDI + i].raw;
+	}
+	FlushTLB();
+}
+
+PTE::PDEntry *
+MM::Map::GetPDE(vaddr_t va)
+{
+	return &ptd[va >> PD_SHIFT];
+}
+
+PTE::PTEntry *
+MM::Map::GetPTE(vaddr_t va)
+{
+	/* first check if we have valid PDE */
+	PTE::PDEntry *pde = GetPDE(va);
+	if (!pde->fields.present) {
+		return 0;
+	}
+	/* second step is ensure we can access PTE by VA */
+	PTE::PTEntry *pte;
+	if (IsCurrent()) {
+		pte = VtoPTE(va);
+	} else {
+		if (!IsAlt()) {
+			SetAlt();
+		}
+		pte = VtoAPTE(va);
+	}
+	return pte;
+}
+
+paddr_t
+MM::Map::Extract(vaddr_t va)
+{
+	PTE::PTEntry *pte = GetPTE(va);
+	if (!pte) {
+		return 0;
+	}
+	if (!pte->fields.present) {
+		return 0;
+	}
+	return (pte->raw & PG_FRAME) | (va & ~PG_FRAME);
+}
+
+int
 MM::Map::Free(vaddr_t base)
 {
 	return alloc.Free(base);
 }
 
+/*************************************************************/
 /* MM::Map::MapEntryClient class */
+/* allocate memory chunk in the map entry, set it resident */
 int
 MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 {
+	Entry *e = (Entry *)arg;
+	assert(base + size < e->base + e->size);
+
 	/* XXX */
 	return 0;
 }
@@ -733,6 +904,7 @@ MM::Map::MapEntryClient::Free(vaddr_t base, vaddr_t size, void *arg)
 	return 0;
 }
 
+/*************************************************************/
 /* MapEntryAllocator class */
 MM::Map::MapEntryAllocator::MapEntryAllocator(Entry *e) :
 	alloc(&e->map->mapEntryClient)

@@ -29,7 +29,7 @@ phbSource("$Id$");
 #define OBJ_RELEASE(refCount)		int inline Release() { \
 	int rc = AtomicOp::Dec(&(refCount)); \
 	if (!rc) { \
-		delete this; \
+		DELETE(this); \
 	} \
 	return rc; \
 }
