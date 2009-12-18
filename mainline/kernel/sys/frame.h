@@ -56,7 +56,6 @@ typedef struct {
 	/* below is CPU hardware assisted */
 	union
 	{
-		u32 origeax; /* for syscall frame, auto restart */
 		u32 errorcode; /* for trap frame */
 		u32 irqno; /* for irq frame */
 	} u;

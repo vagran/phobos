@@ -48,7 +48,9 @@ MM::MM()
 	kmemSlab = 0;
 	kmemMap = 0;
 	kmemObj = 0;
+	kmemAlloc = 0;
 	LIST_INIT(objects);
+	LIST_INIT(topObjects);
 	numObjects = 0;
 	InitAvailMem();
 	InitMM();
@@ -144,12 +146,12 @@ MM::InitMM()
 	kmemSlab = NEW(SlabAllocator, kmemSlabClient, kmemSlabInitialMem,
 		KMEM_SLAB_INITIALMEM_SIZE);
 	assert(kmemSlab);
-	kmemVirtClient = NEWSINGLE(KmemVirtClient, kmemSlab);
-	assert(kmemVirtClient);
+	kmemMapClient = NEWSINGLE(KmemMapClient, kmemSlab);
+	assert(kmemMapClient);
 	if (CreatePageDescs()) {
 		panic("MM::CreatePageDescs() failed");
 	}
-	kmemObj = NEW(VMObject, KERNEL_ADDRESS, KERNEL_END_ADDRESS - KERNEL_ADDRESS);
+	kmemObj = NEW(VMObject, KERNEL_END_ADDRESS - KERNEL_ADDRESS);
 	assert(kmemObj);
 
 	kmemMap = NEW(Map);
@@ -157,6 +159,16 @@ MM::InitMM()
 	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
 	kmemMap->SetRange(firstAddr, KERNEL_END_ADDRESS - firstAddr,
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
+	kmemObj->SetSize(KERNEL_END_ADDRESS - firstAddr);
+	/* insert kmem object in the entire map space */
+	kmemEntry = kmemMap->InsertObject(kmemObj, firstAddr);
+	if (!kmemEntry) {
+		panic("Kernel dynamic memory object insertion failed");
+	}
+	/* release initial reference */
+	kmemObj->Release();
+	kmemAlloc = kmemEntry->CreateAllocator();
+	assert(kmemAlloc);
 	initState = IS_NORMAL;
 }
 
@@ -476,12 +488,9 @@ MM::malloc(u32 size, u32 align)
 		panic("MM::malloc() called on IS_INITIALIZING level, "
 			"probably initial pool size for kernel slab allocator should be increased");
 	}
+	/* align is ignored */
 	assert(initState == IS_NORMAL);
-	vaddr_t m;
-	if (!mm->kmemMap->Allocate(size, &m)) {
-		return 0;
-	}
-	return (void *)m;
+	return mm->kmemAlloc->malloc(size);
 }
 
 void
@@ -494,25 +503,18 @@ MM::mfree(void *p)
 		panic("MM::mfree() called on IS_INITIALIZING level");
 	}
 	assert(initState == IS_NORMAL);
-	int rc = mm->kmemMap->Free((vaddr_t)p);
-#ifdef DEBUG_MALLOC
-	if (rc) {
-		panic("MM::mfree() failed for block 0x%08lx", (vaddr_t)p);
-	}
-#else /* DEBUG_MALLOC */
-	(void)rc;
-#endif /* DEBUG_MALLOC */
+	mm->kmemAlloc->mfree(p);
 }
 
 int
-MM::KmemVirtClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
+MM::KmemMapClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 {
 
 	return 0;
 }
 
 int
-MM::KmemVirtClient::Free(vaddr_t base, vaddr_t size, void *arg)
+MM::KmemMapClient::Free(vaddr_t base, vaddr_t size, void *arg)
 {
 
 	return 0;
@@ -526,16 +528,16 @@ MM::Page::Page(paddr_t pa, u16 flags)
 	this->flags = flags;
 	object = 0;
 	offset = 0;
+	wireCount = 0;
 }
 
 /*************************************************************/
 /* MM::VMObject class */
 
-MM::VMObject::VMObject(vaddr_t base, vsize_t size)
+MM::VMObject::VMObject(vsize_t size)
 {
 	LIST_INIT(pages);
 	numPages = 0;
-	this->base = base;
 	this->size = size;
 	copyObj = 0;
 	copyOffset = 0;
@@ -543,9 +545,30 @@ MM::VMObject::VMObject(vaddr_t base, vsize_t size)
 	refCount = 1;
 }
 
+MM::VMObject::~VMObject()
+{
+	assert(!refCount);
+}
+
+int
+MM::VMObject::SetSize(vsize_t size)
+{
+	this->size = size;
+	/* XXX should drop all resident pages */
+	/* truncate shadows */
+	VMObject *obj;
+	LIST_FOREACH(VMObject, shadowList, obj, shadowObj) {
+		vsize_t newSize = size - obj->copyOffset;
+		if (obj->size > newSize) {
+			obj->SetSize(newSize);
+		}
+	}
+	return 0;
+}
+
 /*************************************************************/
 /* MM::Map class */
-MM::Map::Map() : alloc(mm->kmemVirtClient)
+MM::Map::Map() : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemSlab)
 {
 	base = 0;
 	size = 0;
@@ -596,13 +619,19 @@ MM::Map::DeleteEntry(Entry *e)
 }
 
 MM::Map::Entry *
-MM::Map::Allocate(vsize_t size, vaddr_t *base)
+MM::Map::Allocate(vsize_t size, vaddr_t *base, int fixed)
 {
 	Entry *e = NEW(Entry, this);
 	if (!e) {
 		return 0;
 	}
-	if (alloc.Allocate(size, base, e)) {
+	int rc;
+	if (fixed) {
+		rc = alloc.AllocateFixed(*base, size, e);
+	} else {
+		rc = alloc.Allocate(size, base, e);
+	}
+	if (rc) {
 		DELETE(e);
 		return 0;
 	}
@@ -610,14 +639,20 @@ MM::Map::Allocate(vsize_t size, vaddr_t *base)
 }
 
 MM::Map::Entry *
-MM::Map::AllocateSpace(vsize_t size, vaddr_t *base)
+MM::Map::AllocateSpace(vsize_t size, vaddr_t *base, int fixed)
 {
 	Entry *e = NEW(Entry, this);
 	if (!e) {
 		return 0;
 	}
 	e->flags |= Entry::F_SPACE;
-	if (alloc.Allocate(size, base, e)) {
+	int rc;
+	if (fixed) {
+		rc = alloc.AllocateFixed(*base, size, e);
+	} else {
+		rc = alloc.Allocate(size, base, e);
+	}
+	if (rc) {
 		DELETE(e);
 		return 0;
 	}
@@ -650,10 +685,84 @@ MM::Map::Lookup(vaddr_t base)
 	return e;
 }
 
+MM::Map::Entry *
+MM::Map::InsertObject(VMObject *obj)
+{
+	vaddr_t base;
+	Entry *e = Allocate(obj->size, &base);
+	if (!e) {
+		return 0;
+	}
+	obj->AddRef();
+	e->object = obj;
+	e->offset = 0;
+	return e;
+}
+
+MM::Map::Entry *
+MM::Map::InsertObject(VMObject *obj, vaddr_t base)
+{
+	Entry *e = Allocate(obj->size, &base, 1);
+	if (!e) {
+		return 0;
+	}
+	obj->AddRef();
+	e->object = obj;
+	e->offset = 0;
+	return e;
+}
+
 int
 MM::Map::Free(vaddr_t base)
 {
 	return alloc.Free(base);
+}
+
+/* MM::Map::MapEntryClient class */
+int
+MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
+{
+	/* XXX */
+	return 0;
+}
+
+int
+MM::Map::MapEntryClient::Free(vaddr_t base, vaddr_t size, void *arg)
+{
+	/* XXX */
+	return 0;
+}
+
+/* MapEntryAllocator class */
+MM::Map::MapEntryAllocator::MapEntryAllocator(Entry *e) :
+	alloc(&e->map->mapEntryClient)
+{
+	refCount = 1;
+	alloc.Initialize(e->base, e->size, MIN_BLOCK, MAX_BLOCK);
+	this->e = e;
+	assert(!e->alloc);
+	e->alloc = this;
+}
+
+MM::Map::MapEntryAllocator::~MapEntryAllocator()
+{
+
+}
+
+void *
+MM::Map::MapEntryAllocator::malloc(u32 size)
+{
+	vaddr_t addr;
+	if (alloc.Allocate(size, &addr, e)) {
+		return 0;
+	}
+	return (void *)addr;
+}
+
+void
+MM::Map::MapEntryAllocator::mfree(void *p)
+{
+	alloc.Free((vaddr_t)p);
 }
 
 /*************************************************************/
@@ -666,10 +775,20 @@ MM::Map::Entry::Entry(Map *map)
 	object = 0;
 	offset = 0;
 	flags = 0;
+	alloc = 0;
 	map->AddEntry(this);
 }
 
 MM::Map::Entry::~Entry()
 {
+	if (alloc)	{
+		alloc->Release();
+	}
 	map->DeleteEntry(this);
+}
+
+MemAllocator *
+MM::Map::Entry::CreateAllocator()
+{
+	return NEW(MapEntryAllocator, this);
 }

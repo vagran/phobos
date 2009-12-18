@@ -17,7 +17,11 @@
 
 #define __UID(str)			__CONCAT(str, __COUNTER__)
 
-#define OFFSETOF(struc_name, field_name) ((unsigned int)&((struc_name *)0)->field_name)
+/*
+ * Use trick with 1 offset to allow this macro usage for classes, perhaps compiler
+ * will optimize this to single constant.
+ */
+#define OFFSETOF(struc_name, field_name) (((unsigned int)&((struc_name *)1)->field_name) - 1)
 
 #define FIELDTYPE(struc_name, field_name) typeof(((struc_name *)0)->field_name)
 

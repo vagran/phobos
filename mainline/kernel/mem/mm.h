@@ -24,7 +24,7 @@ phbSource("$Id$");
  * 		+-------------------+ ALTPTMAP_ADDRESS = FF000000 (KERNEL_END_ADDRESS)
  * 		| Kernel dynamic 	|
  * 		| memory			|
- * 		+-------------------+
+ * 		+-------------------+ firstAddr
  * 		| Kernel image,		|
  * 		| initial memory	|
  * 		+-------------------+ KERNEL_ADDRESS
@@ -71,7 +71,8 @@ public:
 	u32 availMemSize;
 	u32 totalMem;
 	SlabAllocator *kmemSlab;
-	ListHead objects;
+	ListHead objects; /* all objects */
+	ListHead topObjects; /* top-level objects */
 	u32 numObjects;
 
 	class VMObject {
@@ -81,7 +82,6 @@ public:
 		};
 
 		ListEntry	list; /* list of all objects */
-		vaddr_t		base;
 		vsize_t		size;
 		u32			flags;
 		ListHead	pages; /* resident pages list */
@@ -96,7 +96,11 @@ public:
 		vaddr_t		copyOffset; /* offset in copy object */
 		u32			refCount;
 
-		VMObject(vaddr_t base, vsize_t size);
+		VMObject(vsize_t size);
+		~VMObject();
+		OBJ_ADDREF(refCount);
+		OBJ_RELEASE(refCount);
+		int SetSize(vsize_t size);
 	};
 
 	VMObject *kmemObj;
@@ -107,11 +111,13 @@ public:
 			F_FREE =		0x1,
 			F_ACTIVE =		0x2,
 			F_INACTIVE =	0x4,
-			F_NOTAVAIL =	0x8,
+			F_CACHE =		0x8,
+			F_NOTAVAIL =	0x10,
 		};
 
 		paddr_t		pa;
 		u16			flags;
+		u16			wireCount;
 		VMObject	*object;
 		vaddr_t		offset; /* offset in object */
 		ListEntry	queue; /* entry in free, active, inactive or cached pages queue */
@@ -130,6 +136,8 @@ public:
 		ListHead	entries;
 		Mutex		entriesLock; /* entries list lock */
 
+		class MapEntryAllocator;
+
 		class Entry {
 		public:
 			enum Flags {
@@ -137,31 +145,72 @@ public:
 				F_RESERVE =		0x2, /* space reservation */
 			};
 
-			ListEntry	list;
-			Map			*map;
-			vaddr_t		base;
-			vsize_t		size;
-			VMObject	*object;
-			vaddr_t		offset; /* offset in object */
-			u32			flags;
+			ListEntry			list;
+			Map					*map;
+			vaddr_t				base;
+			vsize_t				size;
+			VMObject			*object;
+			vaddr_t				offset; /* offset in object */
+			u32					flags;
+			MapEntryAllocator	*alloc;
 
 			Entry(Map *map);
 			~Entry();
+			MemAllocator *CreateAllocator();
 		};
 
 		int AddEntry(Entry *e);
 		int DeleteEntry(Entry *e);
+
+		class MapEntryClient : public BuddyAllocator<vaddr_t>::BuddyClient {
+		private:
+			MemAllocator *m;
+			Mutex mtx;
+		public:
+			MapEntryClient(MemAllocator *m) { this->m = m; }
+			virtual void *malloc(u32 size) { return m->malloc(size); }
+			virtual void mfree(void *p) { return m->mfree(p); }
+			virtual void *AllocateStruct(u32 size) {return m->AllocateStruct(size);}
+			virtual void FreeStruct(void *p, u32 size) {return m->FreeStruct(p, size);}
+			virtual int Allocate(vaddr_t base, vaddr_t size, void *arg = 0);
+			virtual int Free(vaddr_t base, vaddr_t size, void *arg = 0);
+			virtual void Lock() { mtx.Lock(); }
+			virtual void Unlock() { mtx.Unlock(); }
+		};
+
+		MapEntryClient	mapEntryClient;
+
+		class MapEntryAllocator : public MemAllocator {
+		public:
+			enum {
+				MIN_BLOCK =		4,
+				MAX_BLOCK =		30,
+			};
+			u32 refCount;
+			Entry *e;
+			BuddyAllocator<vaddr_t> alloc;
+
+			MapEntryAllocator(Entry *e);
+			virtual ~MapEntryAllocator();
+			OBJ_ADDREF(refCount);
+			OBJ_RELEASE(refCount);
+
+			virtual void *malloc(u32 size);
+			virtual void mfree(void *p);
+		};
 
 	public:
 		Map();
 		~Map();
 		int SetRange(vaddr_t base, vsize_t size, int minBlockOrder = 4, int maxBlockOrder = 30);
 
-		Entry *Allocate(vsize_t size, vaddr_t *base);
-		Entry *AllocateSpace(vsize_t size, vaddr_t *base);
+		Entry *Allocate(vsize_t size, vaddr_t *base, int fixed = 0);
+		Entry *AllocateSpace(vsize_t size, vaddr_t *base, int fixed = 0);
 		Entry *ReserveSpace(vaddr_t base, vsize_t size);
 		Entry *Lookup(vaddr_t base);
 		int Free(vaddr_t base);
+		Entry *InsertObject(VMObject *obj);
+		Entry *InsertObject(VMObject *obj, vaddr_t base);
 	};
 
 	Map *kmemMap;
@@ -209,12 +258,12 @@ private:
 		virtual void Unlock() { mtx.Unlock(); }
 	};
 
-	class KmemVirtClient : public BuddyAllocator<vaddr_t>::BuddyClient {
+	class KmemMapClient : public BuddyAllocator<vaddr_t>::BuddyClient {
 	private:
 		MemAllocator *m;
 		Mutex mtx;
 	public:
-		KmemVirtClient(MemAllocator *m) { this->m = m; }
+		KmemMapClient(MemAllocator *m) { this->m = m; }
 		virtual void *malloc(u32 size) { return m->malloc(size); }
 		virtual void mfree(void *p) { return m->mfree(p); }
 		virtual void *AllocateStruct(u32 size) {return m->AllocateStruct(size);}
@@ -227,7 +276,9 @@ private:
 
 	KmemSlabClient *kmemSlabClient;
 	void *kmemSlabInitialMem;
-	KmemVirtClient *kmemVirtClient;
+	KmemMapClient *kmemMapClient;
+	Map::Entry *kmemEntry;
+	MemAllocator *kmemAlloc;
 
 	static inline void FlushTLB() {wcr3(rcr3());}
 	static void GrowMem(vaddr_t addr);

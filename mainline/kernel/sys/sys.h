@@ -17,6 +17,23 @@ phbSource("$Id$");
 #define atop(x)			((x) >> PAGE_SHIFT)
 #define ptoa(x)			((x) << PAGE_SHIFT)
 
+#define tracec(c) __asm __volatile ("movl $0x3f8, %%edx; outb %%al, %%dx;" \
+	: : "a"(c) : "edx")
+
+/* standard methods declarations for kernel objects */
+#define OBJ_ADDREF(refCount)	void inline AddRef() { \
+	AtomicOp::Inc(&(refCount)); \
+}
+
+/* return zero if object was actually freed */
+#define OBJ_RELEASE(refCount)		int inline Release() { \
+	int rc = AtomicOp::Dec(&(refCount)); \
+	if (!rc) { \
+		delete this; \
+	} \
+	return rc; \
+}
+
 #ifndef ASSEMBLER
 #include <types.h>
 #include <queue.h>
@@ -24,10 +41,6 @@ phbSource("$Id$");
 #include <frame.h>
 #include <stdlib.h>
 #include <cpu_instr.h>
-#include <lock.h>
-#include <mem.h>
-#include <dev/device.h>
-#include <dev/condev.h>
 
 #ifdef DEBUG
 #define assert(x) {if (!(x)) __assert(__FILE__, __LINE__, __STR(x));}
@@ -36,8 +49,10 @@ phbSource("$Id$");
 #endif /* DEBUG */
 extern void __assert(const char *file, u32 line, const char *cond);
 
-#define tracec(c) __asm __volatile ("movl $0x3f8, %%edx; outb %%al, %%dx;" \
-	: : "a"(c) : "edx")
+#include <lock.h>
+#include <mem.h>
+#include <dev/device.h>
+#include <dev/condev.h>
 
 #ifdef KERNEL
 
