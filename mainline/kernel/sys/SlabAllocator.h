@@ -71,13 +71,14 @@ private:
 	} Block;
 
 	ListHead slabGroups;
+	SlabGroup groupGroup;
 	u8 *initialPool;
 	u32 initialPoolSize;
 	u32 initialPoolPtr;
 	SlabClient *client;
 
-	void *Allocate(u32 size);
-	int Free(void *p, u32 size = 0);
+	void *Allocate(u32 size); /* must be called locked */
+	int Free(void *p, u32 size = 0); /* must be called locked */
 	Slab *GetSlab(u32 size);
 	SlabGroup *GetGroup(u32 size);
 	Slab *AllocateSlab(SlabGroup *g);

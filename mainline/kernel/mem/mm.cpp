@@ -1010,13 +1010,14 @@ MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 {
 	Entry *e = (Entry *)arg;
 	VMObject *obj = e->object;
-	assert(base + size < e->base + e->size);
+	assert(base + size <= e->base + e->size);
 
 	vaddr_t sva = rounddown2(base, PAGE_SIZE);
 	vaddr_t eva = roundup2(base + size, PAGE_SIZE);
 	while (sva < eva) {
 		Page *pg = mm->AllocatePage();
 		if (!pg) {
+			/* XXX should free all pages allocated so far */
 			return -1;
 		}
 		obj->InsertPage(pg, sva - e->base);

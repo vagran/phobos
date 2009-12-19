@@ -46,15 +46,17 @@ SlabAllocator::GetGroup(u32 size)
 		}
 	}
 	/* no group in list, create new */
-	if (initialPool && (initialPoolSize - initialPoolPtr) > sizeof(SlabGroup)) {
+	if (size == sizeof(SlabGroup)) {
+		g = &groupGroup;
+		memset(g, 0, sizeof(*g));
+		g->flags = F_INITIALPOOL;
+	} else if (initialPool && (initialPoolSize - initialPoolPtr) > sizeof(SlabGroup)) {
 		g = (SlabGroup *)&initialPool[initialPoolPtr];
 		initialPoolPtr += sizeof(SlabGroup);
 		memset(g, 0, sizeof(*g));
 		g->flags = F_INITIALPOOL;
 	} else {
-		client->Unlock();
-		g = (SlabGroup *)client->AllocateStruct(sizeof(SlabGroup));
-		client->Lock();
+		g = (SlabGroup *)Allocate(sizeof(SlabGroup));
 		if (!g) {
 			return 0;
 		}
@@ -135,11 +137,9 @@ SlabAllocator::GetSlab(u32 size)
 void *
 SlabAllocator::Allocate(u32 size)
 {
-	client->Lock();
 	size = roundup2(size, BLOCK_GRAN);
 	Slab *slab = GetSlab(size);
 	if (!slab) {
-		client->Unlock();
 		return 0;
 	}
 	SlabGroup *g = slab->group;
@@ -164,7 +164,6 @@ SlabAllocator::Allocate(u32 size)
 		}
 	}
 	g->usedBlocks++;
-	client->Unlock();
 	return &b->data[0];
 }
 
@@ -177,13 +176,13 @@ SlabAllocator::Free(void *p, u32 size)
 		return 0;
 	}
 	if (b->type == BT_DIRECT) {
+		client->Unlock();
 		client->mfree(b);
+		client->Lock();
 		return 0;
 	}
-	client->Lock();
 	Slab *slab = b->slab;
 	if (size && slab->blockSize != size) {
-		client->Unlock();
 		return -1;
 	}
 	SlabGroup *g = slab->group;
@@ -220,7 +219,6 @@ SlabAllocator::Free(void *p, u32 size)
 			}
 		}
 	}
-	client->Unlock();
 	return 0;
 }
 
@@ -267,7 +265,7 @@ SlabAllocator::FreeGroup(SlabGroup *g)
 	}
 	LIST_DELETE(list, g, slabGroups);
 	if (!(g->flags & F_INITIALPOOL)) {
-		client->FreeStruct(g, sizeof(*g));
+		Free(g, sizeof(*g));
 	}
 }
 
@@ -297,17 +295,24 @@ SlabAllocator::malloc(u32 size)
 void
 SlabAllocator::mfree(void *p)
 {
+	client->Lock();
 	Free(p);
+	client->Unlock();
 }
 
 void *
 SlabAllocator::AllocateStruct(u32 size)
 {
-	return Allocate(size);
+	client->Lock();
+	void *p = Allocate(size);
+	client->Unlock();
+	return p;
 }
 
 void
 SlabAllocator::FreeStruct(void *p, u32 size)
 {
+	client->Lock();
 	Free(p, size);
+	client->Unlock();
 }
