@@ -194,11 +194,11 @@ MM::PreInitialize(vaddr_t addr)
 	for (u32 i = 0; i < PD_PAGES; i++) {
 		pde[i].raw = (IdlePTD + i * PAGE_SIZE) | PTE::F_S | PTE::F_W | PTE::F_P;
 	}
+	FlushTLB();
 
 	/* invalidate identity mapping */
-	paddr_t maxMapped = roundup2(addr, PAGE_SIZE) - KERNEL_ADDRESS + LOAD_ADDRESS;
-	memset((void *)IdlePTD, 0, maxMapped / (PT_ENTRIES * PAGE_SIZE) * sizeof(PTE::PDEntry));
-
+	paddr_t maxMapped = roundup2(addr, PAGE_SIZE * PT_ENTRIES) - KERNEL_ADDRESS + LOAD_ADDRESS;
+	memset((void *)PTD, 0, maxMapped / (PT_ENTRIES * PAGE_SIZE) * sizeof(PTE::PDEntry));
 	FlushTLB();
 
 	quickMapPTE = VtoPTE(quickMap);
@@ -225,7 +225,7 @@ MM::OpNew(u32 size, int isSingle)
 {
 	u32 bSize = size + sizeof(ObjOverhead);
 	ObjOverhead *m;
-	if (initState < IS_NORMAL) {
+	if (initState < IS_INITIALIZING) {
 		m = (ObjOverhead *)malloc(bSize);
 	} else {
 		/* use slab allocator for kernel objects */
@@ -262,7 +262,7 @@ MM::OpNew(u32 size, int isSingle, const char *className, const char *fileName, i
 	m->fileName = fileName;
 	m->line = line;
 #endif /* DEBUG_MALLOC */
-	return m - 1;
+	return m + 1;
 }
 
 void
@@ -337,6 +337,15 @@ MM::QuickMapRemove(vaddr_t va)
 	invlpg(va);
 }
 
+void
+MM::ZeroPage(paddr_t pa)
+{
+	assert(!(pa & ~PG_FRAME));
+	void *p = QuickMapEnter(pa);
+	memset(p, 0, PAGE_SIZE);
+	QuickMapRemove((vaddr_t)p);
+}
+
 /* usable while memory management is not initialized */
 void
 MM::GrowMem(vaddr_t addr)
@@ -356,6 +365,7 @@ MM::GrowMem(vaddr_t addr)
 			} else {
 				ptepa = _AllocPage();
 			}
+			ZeroPage(ptepa);
 			pde->raw = ptepa | PTE::F_S | PTE::F_W | PTE::F_P;
 		}
 		PTE::PTEntry *pte = VtoPTE(va);
@@ -443,6 +453,7 @@ MM::CreatePageDescs()
 			PTE::PDEntry *pde = VtoPDE(firstAddr);
 			if (!pde->fields.present) {
 				paddr_t ptepa = _AllocPage();
+				ZeroPage(ptepa);
 				pde->raw = ptepa | PTE::F_S | PTE::F_W | PTE::F_P;
 				paTopMapped = ptepa;
 				pgSize = PAGE_SIZE;
@@ -494,6 +505,16 @@ MM::CreatePageDescs()
 }
 
 MM::Page *
+MM::GetPage(paddr_t pa)
+{
+	u32 pgIdx = atop(pa);
+	if (pgIdx < firstPage || pgIdx >= firstPage + pagesRange) {
+		return 0;
+	}
+	return &pages[pgIdx];
+}
+
+MM::Page *
 MM::AllocatePage(int flags)
 {
 	/* XXX need management implementation */
@@ -542,14 +563,16 @@ MM::mfree(void *p)
 int
 MM::KmemMapClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 {
-
+	Map::Entry *e = (Map::Entry *)arg;
+	e->base = base;
+	e->size = size;
 	return 0;
 }
 
 int
 MM::KmemMapClient::Free(vaddr_t base, vaddr_t size, void *arg)
 {
-
+	/* XXX */
 	return 0;
 }
 
@@ -560,7 +583,6 @@ MM::Page::Page(paddr_t pa, u16 flags)
 	this->pa = pa;
 	this->flags = flags;
 	object = 0;
-	offset = 0;
 	wireCount = 0;
 }
 
@@ -590,12 +612,43 @@ MM::Page::Unqueue()
 	return rc;
 }
 
+int
+MM::Page::Activate()
+{
+	assert(!wireCount);
+	assert(!(flags & F_FREE));
+	if (wireCount || (flags & F_FREE)) {
+		return -1;
+	}
+	if (flags & F_ACTIVE) {
+		return 0;
+	}
+	mm->pgqLock.Lock();
+	if (flags & (F_INACTIVE | F_CACHE)) {
+		Unqueue();
+	}
+	mm->numPgActive++;
+	LIST_ADD(queue, this, mm->pagesActive);
+	mm->pgqLock.Unlock();
+	return 0;
+}
+
+int
+MM::Page::Wire()
+{
+	if (flags & (F_FREE | F_ACTIVE | F_INACTIVE | F_CACHE)) {
+		return -1;
+	}
+	AtomicOp::Inc(&wireCount);
+	return 0;
+}
+
 /*************************************************************/
 /* MM::VMObject class */
 
 MM::VMObject::VMObject(vsize_t size)
 {
-	LIST_INIT(pages);
+	TREE_INIT(pages);
 	numPages = 0;
 	this->size = size;
 	copyObj = 0;
@@ -625,11 +678,45 @@ MM::VMObject::SetSize(vsize_t size)
 	return 0;
 }
 
+int
+MM::VMObject::InsertPage(Page *pg, vaddr_t offset)
+{
+	int rc;
+	lock.Lock();
+	if (flags & F_NOTPAGEABLE) {
+		rc = pg->Wire();
+	} else {
+		rc = pg->Activate();
+	}
+	if (rc)	 {
+		lock.Unlock();
+		return rc;
+	}
+
+	pg->objEntry.key = offset;
+	pg->object = this;
+	TREE_ADD(objEntry, pg, pages);
+	numPages++;
+	lock.Unlock();
+	return 0;
+}
+
+MM::Page *
+MM::VMObject::LookupPage(vaddr_t offset)
+{
+	lock.Lock();
+	Page *pg = TREE_FIND(rounddown2(offset, PAGE_SIZE), Page, objEntry, pages);
+	lock.Unlock();
+	return pg;
+}
+
 /*************************************************************/
 /* MM::Map class */
 MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemSlab)
 {
-	assert(Initialize());
+	int rc = Initialize();
+	assert(!rc);
+	(void)rc;
 	freeTables = 1;
 	pdpt = (PTE::PDEntry *)malloc(sizeof(PTE::PDEntry) * PD_PAGES);
 	assert(pdpt);
@@ -643,14 +730,28 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 		pdpt[i].raw = Kextract((vaddr_t)ptd + i * PAGE_SIZE) | PTE::F_P;
 	}
 	if (copyFrom) {
+		copyFrom->tablesLock.Lock();
 		memcpy(ptd, copyFrom->ptd, PD_PAGES * PAGE_SIZE);
+		for (u32 i = 0; i < PT_ENTRIES * PD_PAGES; i++) {
+			PTE::PDEntry *pde = &ptd[i];
+			if (pde->fields.present) {
+				paddr_t ptpa = pde->raw & PG_FRAME;
+				Page *pg = mm->GetPage(ptpa);
+				if (pg) {
+					pg->Wire();
+				}
+			}
+		}
+		copyFrom->tablesLock.Unlock();
 	}
 }
 
 MM::Map::Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree) :
 	alloc(mm->kmemMapClient), mapEntryClient(mm->kmemSlab)
 {
-	assert(Initialize());
+	int rc = Initialize();
+	assert(!rc);
+	(void)rc;
 	freeTables = !noFree;
 	this->pdpt = pdpt;
 	this->ptd = ptd;
@@ -884,6 +985,23 @@ MM::Map::Free(vaddr_t base)
 	return alloc.Free(base);
 }
 
+int
+MM::Map::AddPT(vaddr_t va)
+{
+	PTE::PDEntry *pde = GetPDE(va);
+	if (pde->fields.present) {
+		return 0;
+	}
+	Page *pg = mm->AllocatePage();
+	if (!pg) {
+		return -1;
+	}
+	pg->Wire();
+	ZeroPage(pg->pa);
+	pde->raw = pg->pa | PTE::F_P | PTE::F_S | PTE::F_W;
+	return 0;
+}
+
 /*************************************************************/
 /* MM::Map::MapEntryClient class */
 /* allocate memory chunk in the map entry, set it resident */
@@ -891,9 +1009,20 @@ int
 MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 {
 	Entry *e = (Entry *)arg;
+	VMObject *obj = e->object;
 	assert(base + size < e->base + e->size);
 
-	/* XXX */
+	vaddr_t sva = rounddown2(base, PAGE_SIZE);
+	vaddr_t eva = roundup2(base + size, PAGE_SIZE);
+	while (sva < eva) {
+		Page *pg = mm->AllocatePage();
+		if (!pg) {
+			return -1;
+		}
+		obj->InsertPage(pg, sva - e->base);
+		e->MapPage(sva, pg);
+		sva += PAGE_SIZE;
+	}
 	return 0;
 }
 
@@ -963,4 +1092,34 @@ MemAllocator *
 MM::Map::Entry::CreateAllocator()
 {
 	return NEW(MapEntryAllocator, this);
+}
+
+int
+MM::Map::Entry::MapPage(vaddr_t va, Page *pg)
+{
+	assert(!(va & ~PG_FRAME));
+	if (va < base || va >= base + size) {
+		return -1;
+	}
+	if (!pg) {
+		pg = object->LookupPage(va);
+		if (!pg) {
+			return -1;
+		}
+	}
+
+	map->tablesLock.Lock();
+	PTE::PDEntry *pde = map->GetPDE(va);
+	if (!pde->fields.present) {
+		if (map->AddPT(va)) {
+			map->tablesLock.Unlock();
+			return -1;
+		}
+	}
+	PTE::PTEntry *pte = map->GetPTE(va);
+	/* XXX should use entry protection */
+	pte->raw = pg->pa | PTE::F_P | PTE::F_S | PTE::F_W;
+	invlpg(va);
+	map->tablesLock.Unlock();
+	return 0;
 }

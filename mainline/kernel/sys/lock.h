@@ -124,6 +124,108 @@ public:
 		);
 		return rc;
 	}
+
+	static inline void Inc(u16 *value) {
+		__asm__ __volatile__ (
+			"lock incw %0"
+			:
+			: "m"(*value)
+			: "cc"
+		);
+	}
+
+	static inline int Dec(u16 *value) { /* return zero if value is zero after decrement */
+		int rc;
+		__asm__ __volatile__ (
+			"xorl	%%eax, %%eax\n"
+			"lock decw	%1\n"
+			"setnz	%%al"
+			: "=&a"(rc)
+			: "m"(*value)
+			: "cc"
+		);
+		return rc;
+	}
+
+	static inline u16 Add(u16 *dst, u16 src) { /* return previous value */
+		u16 rc;
+		__asm__ __volatile__ (
+			"movw	%2, %%ax\n"
+			"1:\n"
+			"movw	%1, %%cx\n"
+			"addw	%%ax, %%cx\n"
+			"lock cmpxchgw %%cx, %2\n"
+			"jnz	1b\n"
+			: "=&a"(rc)
+			: "r"(src), "m"(*dst)
+			: "cx", "cc"
+		);
+		return rc;
+	}
+
+	static inline u16 Sub(u16 *dst, u16 src) { /* return previous value */
+		u16 rc;
+		__asm__ __volatile__ (
+			"movw	%2, %%ax\n"
+			"1:\n"
+			"movw	%%ax, %%cx\n"
+			"subw	%1, %%cx\n"
+			"lock cmpxchgw %%cx, %2\n"
+			"jnz	1b\n"
+			: "=&a"(rc)
+			: "r"(src), "m"(*dst)
+			: "cx", "cc"
+		);
+		return rc;
+	}
+
+	static inline u16 And(u16 *dst, u16 src) { /* return previous value */
+		u16 rc;
+		__asm__ __volatile__ (
+			"movw	%2, %%ax\n"
+			"1:\n"
+			"movw	%1, %%cx\n"
+			"andw	%%ax, %%cx\n"
+			"lock cmpxchgw %%cx, %2\n"
+			"jnz	1b\n"
+			: "=&a"(rc)
+			: "r"(src), "m"(*dst)
+			: "cx", "cc"
+		);
+		return rc;
+	}
+
+	static inline u16 Or(u16 *dst, u16 src) { /* return previous value */
+		u16 rc;
+		__asm__ __volatile__ (
+			"movw	%2, %%ax\n"
+			"1:\n"
+			"movw	%1, %%cx\n"
+			"orw	%%ax, %%cx\n"
+			"lock cmpxchgw %%cx, %2\n"
+			"jnz	1b\n"
+			: "=&a"(rc)
+			: "r"(src), "m"(*dst)
+			: "cx", "cc"
+		);
+		return rc;
+	}
+
+	static inline u16 Xor(u16 *dst, u16 src) { /* return previous value */
+		u16 rc;
+		__asm__ __volatile__ (
+			"movw	%2, %%ax\n"
+			"1:\n"
+			"movw	%1, %%cx\n"
+			"xorw	%%ax, %%cx\n"
+			"lock cmpxchgw %%cx, %2\n"
+			"jnz	1b\n"
+			: "=&a"(rc)
+			: "r"(src), "m"(*dst)
+			: "cx", "cc"
+		);
+		return rc;
+	}
 };
 
 /* Mutually exclusive access between threads */

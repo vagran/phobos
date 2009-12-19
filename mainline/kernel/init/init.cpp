@@ -309,11 +309,12 @@ LoadMBInfo(MBInfo *p)
 		out->cmdLine = (char *)bs_malloc(len);
 		bs_memcpy(out->cmdLine, p->cmdLine, len);
 		TRACE("Command line: '%s'\n", out->cmdLine);
+		out->cmdLine += KERNEL_ADDRESS - LOAD_ADDRESS;
 	}
 	if (out->flags & MBIF_MEMMAP) {
 		void *buf = bs_malloc(p->mmapLength);
 		bs_memcpy(buf, p->mmapAddr, p->mmapLength);
-		out->mmapAddr = (MBIMmapEntry *)buf;
+		out->mmapAddr = (MBIMmapEntry *)((vaddr_t)buf - LOAD_ADDRESS + KERNEL_ADDRESS);
 	}
 	return out;
 }
@@ -353,9 +354,9 @@ Bootstrap(u32 mbSignature, MBInfo *mbi)
 	}
 
 	IdlePDPT = (paddr_t)bsIdlePDPT;
-	vIdlePDPT = (vaddr_t)(bsIdlePDPT - LOAD_ADDRESS + KERNEL_ADDRESS);
+	vIdlePDPT = (vaddr_t)bsIdlePDPT - LOAD_ADDRESS + KERNEL_ADDRESS;
 	IdlePTD = (paddr_t)bsIdlePTD;
-	vIdlePTD = (vaddr_t)(bsIdlePTD - LOAD_ADDRESS + KERNEL_ADDRESS);
+	vIdlePTD = (vaddr_t)bsIdlePTD - LOAD_ADDRESS + KERNEL_ADDRESS;
 	pMBInfo = pmbi ? (MBInfo *)((u8 *)pmbi - LOAD_ADDRESS + KERNEL_ADDRESS) : 0;
 	quickMap = (vaddr_t)(bsQuickMap - LOAD_ADDRESS + KERNEL_ADDRESS);
 

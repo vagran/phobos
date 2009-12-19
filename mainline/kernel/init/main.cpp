@@ -170,16 +170,20 @@ Main(paddr_t firstAddr)
 	void *mem[1024];
 	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
 		mem[i] = MM::malloc(16384);
-		memset(mem[i], 237, 16384);
 		if (!mem[i]) {
 			panic("MM::malloc() failed");
 		}
+		memset(mem[i], 237, 16384);
 	}
 	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
 		MM::mfree(mem[i]);
 	}
 	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
 		mem[i] = NEW(u64);
+		if (!mem[i]) {
+			panic("MM::malloc() failed");
+		}
+		memset(mem[i], 237, sizeof(u64));
 	}
 	for (size_t i = 0; i < sizeof(mem) / sizeof(mem[0]); i++) {
 		DELETE((u64 *)mem[i]);

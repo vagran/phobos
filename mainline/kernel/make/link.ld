@@ -29,6 +29,10 @@ SECTIONS {
 	. = ALIGN(0x1000);
 	_etext = ABSOLUTE(.);
 	
+	/DISCARD/ : {
+		*/init.o(.ctors .dtors)
+	}
+	
 	.rodata : AT(_etext - _btext + _eboot) {
 		*(.rodata*)
 		*(.gnu.linkonce.r.*)
@@ -82,6 +86,5 @@ SECTIONS {
 	
 	/DISCARD/ : {
 		*(.comment)
-		*/init.o(.ctors .dtors)
 	}
 }

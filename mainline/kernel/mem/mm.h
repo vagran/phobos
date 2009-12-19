@@ -92,16 +92,19 @@ public:
 	ListHead topObjects; /* top-level objects */
 	u32 numObjects;
 
+	class Page;
+
 	class VMObject {
 	public:
 		enum Flags {
 			F_FILE =		0x1,
+			F_NOTPAGEABLE =	0x2,
 		};
 
 		ListEntry	list; /* list of all objects */
 		vsize_t		size;
 		u32			flags;
-		ListHead	pages; /* resident pages list */
+		Tree<vaddr_t>::TreeRoot		pages; /* resident pages tree */
 		u32			numPages; /* resident pages count */
 		ListHead	shadowObj; /* shadow objects */
 		/* list of shadow objects in copy object,
@@ -112,12 +115,15 @@ public:
 		VMObject	*copyObj; /* object to copy changed pages from */
 		vaddr_t		copyOffset; /* offset in copy object */
 		u32			refCount;
+		SpinLock	lock;
 
 		VMObject(vsize_t size);
 		~VMObject();
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
 		int SetSize(vsize_t size);
+		int InsertPage(Page *pg, vaddr_t offset);
+		Page *LookupPage(vaddr_t offset);
 	};
 
 	VMObject *kmemObj;
@@ -140,12 +146,14 @@ public:
 		u16			flags;
 		u16			wireCount;
 		VMObject	*object;
-		vaddr_t		offset; /* offset in object */
 		ListEntry	queue; /* entry in free, active, inactive or cached pages queue */
-		ListEntry	objList; /*entry in VMObject pages list */
+		/* entry in VMObject pages list, key is offset */
+		Tree<vaddr_t>::TreeEntry	objEntry;
 
 		Page(paddr_t pa, u16 flags);
 		int Unqueue(); /* must be called with pages queues locked */
+		int Activate();
+		int Wire();
 	};
 
 	ListHead pagesFree, pagesCache, pagesActive, pagesInactive;
@@ -164,6 +172,7 @@ public:
 		int			freeTables;
 		PTE::PDEntry *pdpt; /* PDPT map in kernel KVAS */
 		PTE::PDEntry *ptd; /* PTD map in kernel KVAS */
+		SpinLock	tablesLock;
 
 		class MapEntryAllocator;
 
@@ -186,6 +195,7 @@ public:
 			Entry(Map *map);
 			~Entry();
 			MemAllocator *CreateAllocator();
+			int MapPage(vaddr_t va, Page *pg = 0);
 		};
 
 		int AddEntry(Entry *e);
@@ -248,6 +258,7 @@ public:
 		int IsCurrent();
 		int IsAlt();
 		void SetAlt(); /* set this map as current alternative AS */
+		int AddPT(vaddr_t va); /* must be called with locked tables */
 	};
 
 	Map *kmemMap;
@@ -260,7 +271,7 @@ private:
 	} InitState;
 
 	enum {
-		KMEM_SLAB_INITIALMEM_SIZE = 128 * 1024,
+		KMEM_SLAB_INITIALMEM_SIZE = 64 * 1024,
 	};
 
 	typedef enum {
@@ -340,9 +351,11 @@ public:
 	static void mfree(void *p);
 	static void *QuickMapEnter(paddr_t pa);
 	static void QuickMapRemove(vaddr_t va);
+	static void ZeroPage(paddr_t pa);
 
 	MM();
-	Page *AllocatePage(int flags);
+	Page *AllocatePage(int flags = 0);
+	Page *GetPage(paddr_t pa);
 };
 
 extern MM *mm;

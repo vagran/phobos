@@ -679,6 +679,10 @@ Debugger::ReadMemory()
 		GDBSend("E01");
 		return -1;
 	}
+	/* handle reading and writing to boot code to make GDB happy */
+	if (addr >= LOAD_ADDRESS && addr < (u32)&_eboot) {
+		addr += KERNEL_ADDRESS - LOAD_ADDRESS;
+	}
 	size = strtoul(eptr + 1, &eptr, 16);
 	while (size) {
 		u32 toRead = roundup2(addr + 1, PAGE_SIZE) - addr;

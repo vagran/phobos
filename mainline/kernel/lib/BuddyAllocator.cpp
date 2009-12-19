@@ -104,7 +104,7 @@ BuddyAllocator<range_t>::Initialize(range_t base, range_t size, u16 minOrder, u1
 {
 	client->Lock();
 	assert(!isInitialized);
-	if (isInitialized || maxOrder <= minOrder) {
+	if (isInitialized || maxOrder <= minOrder || size < ((range_t)1 << (minOrder + 1))) {
 		client->Unlock();
 		return -1;
 	}
@@ -253,6 +253,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	if (!size || location < base || location + size > base + this->size) {
 		return -1;
 	}
+	client->Lock();
 	/* pass 1, verify that area is free */
 	range_t loc = location;
 	/* find the first block */
@@ -262,6 +263,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 		b = TREE_FIND(loc, BlockDesc, node, tree);
 		if (b) {
 			if (!(b->flags & BF_FREE)) {
+				client->Unlock();
 				return -1;
 			}
 			loc += 1 << b->order;
@@ -282,6 +284,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 		b = TREE_FIND(loc, BlockDesc, node, tree);
 		assert(b);
 		if (!(b->flags & BF_FREE)) {
+			client->Unlock();
 			return -1;
 		}
 		loc += (range_t)1 << b->order;
@@ -335,6 +338,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 			b->flags |= reserve ? BF_RESERVED : BF_BUSY;
 			b->busyHead.allocArg = arg;
 			b->busyHead.blockSize = size;
+			LIST_INIT(b->busyHead.chain);
 			head = b;
 		} else {
 			b->flags |= reserve ? BF_RESCHAIN : BF_BUSYCHAIN;
@@ -346,6 +350,10 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 			b = TREE_FIND(location, BlockDesc, node, tree);
 			assert(b);
 		}
+	}
+	client->Unlock();
+	if (!reserve) {
+		client->Allocate(head->node.key, head->busyHead.blockSize, head->busyHead.allocArg);
 	}
 	return 0;
 }
@@ -359,10 +367,7 @@ BuddyAllocator<range_t>::Reserve(range_t location, range_t size, void *arg)
 		return -1;
 	}
 	KeepBlocks();
-	client->Lock();
-	int rc = AllocateArea(location, size, arg, 1);
-	client->Unlock();
-	return rc;
+	return AllocateArea(location, size, arg, 1);
 }
 
 template <typename range_t>
@@ -374,10 +379,7 @@ BuddyAllocator<range_t>::AllocateFixed(range_t location, range_t size, void *arg
 		return -1;
 	}
 	KeepBlocks();
-	client->Lock();
-	int rc = AllocateArea(location, size, arg, 0);
-	client->Unlock();
-	return rc;
+	return AllocateArea(location, size, arg, 0);
 }
 
 template <typename range_t>
