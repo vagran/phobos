@@ -17,7 +17,7 @@ class IM {
 public:
 	enum IsrStatus {
 		IS_PROCESSED,
-		IS_NOINTR,
+		IS_NOINTR, /* for shared lines, ISR must return this code if no interrupts pending */
 		IS_ERROR,
 	};
 
@@ -26,7 +26,7 @@ public:
 		AF_SPEC =			0x2, /* allocate at specified index */
 	};
 
-	typedef IsrStatus (*ISR)(void *arg);
+	typedef IsrStatus (*ISR)(HANDLE h, void *arg);
 
 private:
 	enum {
@@ -63,9 +63,13 @@ private:
 	IrqSlot swIrq[NUM_SWIRQ];
 	SpinLock slotLock;
 	irqmask_t hwValid, swValid;
+	irqmask_t swPending;
+	irqmask_t hwMasked, swMasked;
 
 	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags);
 	static inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }
+	int Irq(IrqType type, u32 idx);
+	IsrStatus ProcessInterrupt(IrqType type, u32 idx);
 public:
 	IM();
 
@@ -73,8 +77,11 @@ public:
 	HANDLE AllocateSwirq(ISR isr, void *arg = 0, u32 idx = 0, u32 flags = AF_EXCLUSIVE);
 	int ReleaseIrq(HANDLE h);
 	inline u32 GetIndex(HANDLE h) { assert(h); return ((IrqClient *)h)->idx; }
-	u32 DisableIntr(); /* return value used in RestoreIntr() */
+	u32 DisableIntr(); /* return value used for RestoreIntr() */
 	u32 RestoreIntr(u32 saved);
+	int Hwirq(u32 idx);
+	int Swirq(u32 idx);
+	int Poll();
 };
 
 extern IM *im;

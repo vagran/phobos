@@ -14,10 +14,13 @@ phbSource("$Id$");
 int debugFaults = 1;
 int debugPanics = 1;
 
+/* called before returning to ring 3 from interrupt/exception or system call */
 ASMCALL void
 OnUserRet(u32 idx, Frame *frame)
 {
-
+	if (im) {
+		im->Poll();
+	}
 }
 
 void
