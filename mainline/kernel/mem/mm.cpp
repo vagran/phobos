@@ -693,9 +693,8 @@ MM::VMObject::InsertPage(Page *pg, vaddr_t offset)
 		return rc;
 	}
 
-	pg->objEntry.key = offset;
 	pg->object = this;
-	TREE_ADD(objEntry, pg, pages);
+	TREE_ADD(objEntry, pg, pages, offset);
 	numPages++;
 	lock.Unlock();
 	return 0;

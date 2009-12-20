@@ -509,8 +509,7 @@ BuddyAllocator<range_t>::AddBlock(u16 order, range_t location)
 	}
 	b->order = order;
 	b->flags = 0;
-	b->node.key = location;
-	TREE_ADD(node, b, tree);
+	TREE_ADD(node, b, tree, location);
 	numBlocks++;
 	return b;
 }

@@ -29,7 +29,7 @@ typedef enum {
 	EFLAGS_VIF =	0x00080000,
 	EFLAGS_VIP =	0x00100000,
 	EFLAGS_ID =		0x00200000,
-}EFLAGSBits;
+} EFLAGSBits;
 
 typedef enum {
 /*

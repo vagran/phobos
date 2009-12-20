@@ -672,7 +672,7 @@ gethash64(u8 *data, u32 size)
 }
 
 /* XXX should be moved */
-void klog(KLogLevel level, const char *fmt,...)
+void _klog(const char *funcName, int line, KLogLevel level, const char *fmt,...)
 {
 	static KLogLevel curLevel = KLOG_DEBUG;
 	static const char *levelStr[] = {"DEBUG", "INFO", "WARNING", "ERROR"};
@@ -680,7 +680,7 @@ void klog(KLogLevel level, const char *fmt,...)
 	if (level >= curLevel) {
 		va_list va;
 		va_start(va, fmt);
-		printf("[%s] kernel: ", levelStr[level]);
+		printf("[%s] %s@%d: ", levelStr[level], funcName, line);
 		vprintf(fmt, va);
 		printf("\n");
 	}

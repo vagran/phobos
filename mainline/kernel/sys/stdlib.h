@@ -56,7 +56,7 @@ u64 gethash64(const char *s);
 u64 gethash64(u8 *data, u32 size);
 
 typedef void (*PutcFunc)(int c, void *arg);
-int kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap);
+int kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap) __format(printf, 1, 0);
 int sprintf(char *buf, const char *fmt,...) __format(printf, 2, 3);
 #define printf(fmt,...)		{if (sysCons) sysCons->Printf(fmt, ## __VA_ARGS__);}
 #define vprintf(fmt, va)	{if (sysCons) sysCons->VPrintf(fmt, va);}
@@ -74,6 +74,7 @@ typedef enum {
 	KLOG_ERROR,
 } KLogLevel;
 
-void klog(KLogLevel level, const char *fmt,...) __format(printf, 2, 3);
+#define klog(level, fmt,...) _klog(__PRETTY_FUNCTION__, __LINE__, level, fmt, ## __VA_ARGS__)
+void _klog(const char *funcName, int line, KLogLevel level, const char *fmt,...) __format(printf, 4, 5);
 
 #endif /* STDLIB_H_ */

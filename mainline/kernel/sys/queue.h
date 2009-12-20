@@ -96,8 +96,6 @@ typedef struct {
 	} \
 }
 
-#define LIST_ADDLAST LIST_ADD
-
 #define LIST_DELETE(entry, var, head) { \
 	if ((head).first) { \
 		if (&(var)->entry == (head).first) { \
@@ -148,6 +146,8 @@ public:
 
 #define TREE_DATA(type, entry, value) ((value) ? ((type *)(((u8 *)(value)) - OFFSETOF(type, entry))) : 0)
 
+#define TREE_KEY(entry, var)	((var)->entry.key)
+
 #define TREE_ROOT(type, entry, root) TREE_DATA(type, entry, (root).rootnode)
 
 #define TREE_LEFT(type, entry, value) TREE_DATA(type, entry, (value)->entry.left)
@@ -158,11 +158,14 @@ public:
 
 #define TREE_FIND(keyValue, type, entry, root) \
 	({ \
-		void *p = Tree<typeof ((root).rootnode->key)>::FindNode(root, keyValue); \
-		TREE_DATA(type, entry, p); \
+		void *__Xp = Tree<typeof ((root).rootnode->key)>::FindNode(root, keyValue); \
+		TREE_DATA(type, entry, __Xp); \
 	})
 
-#define TREE_ADD(entry, var, root) Tree<typeof ((var)->entry.key)>::AddNode((root), &(var)->entry)
+#define TREE_ADD(entry, var, root, keyValue) { \
+	(var)->entry.key = keyValue; \
+	Tree<typeof ((var)->entry.key)>::AddNode((root), &(var)->entry); \
+}
 
 #define TREE_DELETE(entry, var, root) Tree<typeof ((var)->entry.key)>::DeleteNode((root), &(var)->entry)
 

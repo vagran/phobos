@@ -186,8 +186,7 @@ TreeTest::Run()
 			}
 		}
 		items[idx].data = idx;
-		items[idx].tree.key = idx;
-		TREE_ADD(tree, &items[idx], root);
+		TREE_ADD(tree, &items[idx], root, idx);
 		numLeft--;
 	}
 

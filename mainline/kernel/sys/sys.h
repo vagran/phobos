@@ -51,14 +51,17 @@ extern void __assert(const char *file, u32 line, const char *cond);
 
 #include <lock.h>
 #include <mem.h>
+#include <kern/im.h>
 #include <dev/device.h>
 #include <dev/condev.h>
 
 #ifdef KERNEL
 
 extern void Main(paddr_t firstAddr) __noreturn;
-extern void panic(const char *fmt,...) __format(printf, 1, 2) __noreturn;
 extern void RunDebugger(const char *fmt,...) __format(printf, 1, 2);
+
+extern void _panic(const char *fileName, int line, const char *fmt,...) __format(printf, 3, 4) __noreturn;
+#define panic(msg,...)	_panic(__FILE__, __LINE__, msg, ## __VA_ARGS__)
 
 #endif /* KERNEL */
 

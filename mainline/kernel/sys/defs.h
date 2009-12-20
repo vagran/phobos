@@ -19,11 +19,12 @@
 
 /*
  * Use trick with 1 offset to allow this macro usage for classes, perhaps compiler
- * will optimize this to single constant.
+ * will optimize this to single constant. It's hack for classes and it will probably not
+ * work with virtual inheritance.
  */
 #define OFFSETOF(struc_name, field_name) (((unsigned int)&((struc_name *)1)->field_name) - 1)
 
-#define FIELDTYPE(struc_name, field_name) typeof(((struc_name *)0)->field_name)
+#define FIELDTYPE(struc_name, field_name) typeof(((struc_name *)1)->field_name)
 
 #define BIN(x) ((x & 0x1) | ((x & 0x10) ? 0x2 : 0) | \
 	((x & 0x100) ? 0x4 : 0) | ((x & 0x1000) ? 0x8 : 0) | \

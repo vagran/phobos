@@ -166,6 +166,8 @@ Main(paddr_t firstAddr)
 	}
 	mm = NEWSINGLE(MM);
 	/* from now kernel memory management is fully operational */
+	im = NEWSINGLE(IM);
+	/* ... as well as interrupts management */
 
 	panic("Main exited");
 	/* NOTREACHED */

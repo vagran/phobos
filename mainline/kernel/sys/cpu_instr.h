@@ -244,4 +244,28 @@ sysexit(u32 eip, u32 esp)
 	);
 }
 
+/* pseudo instructions */
+static __inline u32
+GetEflags()
+{
+	u32 rc;
+	__asm__ __volatile__ (
+		"pushfl\n"
+		"popl	%0\n"
+		: "=r"(rc)
+	);
+	return rc;
+}
+
+static __inline void
+SetEflags(u32 value)
+{
+	__asm__ __volatile__ (
+		"pushl	%0\n"
+		"popfl\n"
+		:
+		: "r"(value)
+	);
+}
+
 #endif /* CPU_INSTR_H_ */

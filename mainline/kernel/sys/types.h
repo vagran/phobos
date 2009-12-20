@@ -36,6 +36,8 @@ typedef u64		psize_t;
 
 typedef __SIZE_TYPE__ size_t;
 
+typedef void *HANDLE;
+
 /* variable arguments */
 typedef u8* va_list;
 

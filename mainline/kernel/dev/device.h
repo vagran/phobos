@@ -23,7 +23,8 @@ public:
 
 	typedef enum {
 		T_CHAR,
-		T_BLOCK
+		T_BLOCK,
+		T_SPECIAL,
 	} Type;
 
 	typedef enum {
@@ -81,32 +82,48 @@ public:
 			DeviceFactory factory, void *factoryArg = 0);
 	};
 private:
+
 	typedef struct {
-		Tree<u32>::TreeEntry node;
+		ListEntry list; /* list is sorted by unit number */
+		Tree<u32>::TreeEntry tree; /* keyed by unit number */
+		Device *device;
+	} DevInst;
+
+	typedef struct {
+		Tree<u32>::TreeEntry node; /* keyed by ID */
 		char *name;
-		u32 id;
 		Device::Type type;
 		DeviceFactory factory;
 		void *factoryArg;
-		int availUnit;
-	}DevClass;
+		Tree<u32>::TreeRoot devTree;
+		ListHead devList;
+		u32 numDevs;
+		u32 firstAvailUnit;
+		u32 numAvailUnits;
+	} DevClass;
 
 	enum {
 		INIT_MAGIC = 0xdede1357,
 	};
 
 	Tree<u32>::TreeRoot devTree;
+	SpinLock lock;
 	u32 isInitialized;
 
 	void Initialize();
 	u32 AllocateUnit(DevClass *p);
+	int ReleaseUnit(DevClass *p, u32 unit);
 	Device *CreateDevice(DevClass *p);
+	void ScanAvailUnits(DevClass *p);
+	u32 inline Lock();
+	void inline Unlock(u32 x);
 public:
 	DeviceManager();
 	static inline u32 GetClassID(const char *classID)	{return gethash(classID);}
 	char *GetClass(u32 devClassID);
 	Device *CreateDevice(const char *devClass);
 	Device *CreateDevice(u32 devClassID);
+	int DestroyDevice(Device *dev);
 
 	u32 RegisterClass(const char *devClass, Device::Type type,
 		DeviceFactory factory, void *factoryArg = 0);
@@ -120,8 +137,8 @@ extern DeviceManager devMan;
 
 #define DefineDevFactory(className) Device *className::_DeviceFactory(Device::Type type, \
 	u32 unit, u32 classID, void *arg) { \
-	return NEW(className, type, unit, classID); \
-	}
+	return NEWSINGLE(className, type, unit, classID); \
+}
 
 #define _RegDevClass(devClass, type, factory, factoryArg) static DeviceManager::DeviceRegistrator \
 	__UID(DeviceRegistrator)(devClass, type, factory, factoryArg)

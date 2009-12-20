@@ -21,11 +21,12 @@ OnUserRet(u32 idx, Frame *frame)
 }
 
 void
-panic(const char *fmt,...)
+_panic(const char *fileName, int line, const char *fmt,...)
 {
+	cli();
 	va_list va;
 	va_start(va, fmt);
-	printf("panic: ");
+	printf("panic: %s@%d: ", fileName, line);
 	vprintf(fmt, va);
 	printf("\n");
 	if (debugPanics) {
@@ -33,7 +34,6 @@ panic(const char *fmt,...)
 			sysDebugger->Break();
 		}
 	}
-	cli();
 	hlt();
 	while (1);
 }
