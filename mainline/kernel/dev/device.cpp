@@ -15,6 +15,12 @@ Device::Device(Type type, u32 unit, u32 classID)
 	devType = type;
 	devUnit = unit;
 	devClassID = classID;
+	devState = S_DOWN;
+}
+
+Device::~Device()
+{
+
 }
 
 /**************************************************************
@@ -109,9 +115,9 @@ BlkDevice::Strategy(IOBuf *buf)
 DeviceManager devMan;
 
 DeviceManager::DeviceRegistrator::DeviceRegistrator(const char *devClass, Device::Type type,
-	DeviceFactory factory, void *factoryArg)
+	const char *desc, DeviceFactory factory, void *factoryArg)
 {
-	devMan.RegisterClass(devClass, type, factory, factoryArg);
+	devMan.RegisterClass(devClass, type, desc, factory, factoryArg);
 }
 
 DeviceManager::DeviceManager()
@@ -129,19 +135,51 @@ void DeviceManager::Initialize()
 	isInitialized = INIT_MAGIC;
 }
 
-Device *
-DeviceManager::CreateDevice(DevClass *p)
+DeviceManager::DevInst *
+DeviceManager::FindDevice(DevClass *p, u32 unit)
 {
-	u32 unit = AllocateUnit(p);
+	u32 x = Lock();
+	DevInst *di = TREE_FIND(unit, DevInst, tree, p->devTree);
+	Unlock(x);
+	return di;
+}
+
+Device *
+DeviceManager::CreateDevice(DevClass *p, u32 unit)
+{
+	int unitAllocated;
+	if (unit == DEF_UNIT) {
+		unit = AllocateUnit(p);
+		unitAllocated = 1;
+	} else {
+		if (FindDevice(p, unit)) {
+			klog(KLOG_ERROR, "'%s' class device unit %lu already exists",
+				p->name, unit);
+			return 0;
+		}
+		unitAllocated = 0;
+	}
 	Device *dev = p->factory(p->type, unit, TREE_KEY(node, p), p->factoryArg);
 	if (!dev) {
-		ReleaseUnit(p, unit);
+		if (unitAllocated) {
+			ReleaseUnit(p, unit);
+		}
+		return 0;
+	}
+	Device::State state = dev->GetState();
+	if (state != Device::S_UP) {
+		DELETE(dev);
+		if (unitAllocated) {
+			ReleaseUnit(p, unit);
+		}
 		return 0;
 	}
 	DevInst *di = NEW(DevInst);
 	if (!di) {
 		klog(KLOG_ERROR, "Memory allocation failed for DevInst");
-		ReleaseUnit(p, unit);
+		if (unitAllocated) {
+			ReleaseUnit(p, unit);
+		}
 		return 0;
 	}
 	di->device = dev;
@@ -166,14 +204,14 @@ DeviceManager::CreateDevice(DevClass *p)
 }
 
 Device *
-DeviceManager::CreateDevice(const char *devClass)
+DeviceManager::CreateDevice(const char *devClass, u32 unit)
 {
 	u32 id = GetClassID(devClass);
-	return CreateDevice(id);
+	return CreateDevice(id, unit);
 }
 
 Device *
-DeviceManager::CreateDevice(u32 devClassID)
+DeviceManager::CreateDevice(u32 devClassID, u32 unit)
 {
 	u32 x = Lock();
 	DevClass *p = TREE_FIND(devClassID, DevClass, node, devTree);
@@ -181,7 +219,7 @@ DeviceManager::CreateDevice(u32 devClassID)
 	if (!p) {
 		panic("Attempted to create device of non-existing class (0x%lx)", devClassID);
 	}
-	return CreateDevice(p);
+	return CreateDevice(p, unit);
 }
 
 int
@@ -212,7 +250,7 @@ DeviceManager::DestroyDevice(Device *dev)
 
 /* returns registered device class ID, zero if error */
 u32
-DeviceManager::RegisterClass(const char *devClass, Device::Type type,
+DeviceManager::RegisterClass(const char *devClass, Device::Type type, const char *desc,
 	DeviceFactory factory, void *factoryArg)
 {
 	/* our constructor can be called after DeviceRegistrator constructors */
@@ -236,6 +274,7 @@ DeviceManager::RegisterClass(const char *devClass, Device::Type type,
 	}
 	klog(KLOG_DEBUG, "Registering device class '%s' (id = 0x%08lX)", devClass, id);
 	p->name = strdup(devClass);
+	p->desc = desc ? strdup(desc) : 0;
 	p->type = type;
 	p->factory = factory;
 	p->factoryArg = factoryArg;

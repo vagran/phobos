@@ -36,11 +36,11 @@ SysConsole::SysSerial::SysSerial(Type type, u32 unit, u32 classID) :
 		iobase = 0x2e8;
 		break;
 	default:
-		panic("SysSerial device supports only 4 units (attempted to create unit %lu)",
-			unit);
+		return;
 	}
 	SetSpeed(SERIAL_SPEED);
 	Initialize();
+	devState = S_UP;
 }
 
 void
@@ -127,7 +127,7 @@ SysConsole::SysSerial::Putc(u8 c)
 
 DefineDevFactory(SysConsole::SysSerial);
 
-RegDevClass(SysConsole::SysSerial, "sysser", Device::T_CHAR);
+RegDevClass(SysConsole::SysSerial, "sysser", Device::T_CHAR, "System serial interface");
 
 /* System console device */
 
@@ -137,8 +137,9 @@ SysConsole::SysConsole(Type type, u32 unit, u32 classID) :
 	ChrDevice *dev = (ChrDevice *)devMan.CreateDevice("sysser");
 	SetInputDevice(dev);
 	SetOutputDevice(dev);
+	devState = S_UP;
 }
 
 DefineDevFactory(SysConsole);
 
-RegDevClass(SysConsole::SysSerial, "syscons", Device::T_CHAR);
+RegDevClass(SysConsole::SysSerial, "syscons", Device::T_CHAR, "System serial console");

@@ -28,6 +28,12 @@ public:
 	} Type;
 
 	typedef enum {
+		S_DOWN,
+		S_UP,
+		S_NOTFOUND,
+	} State;
+
+	typedef enum {
 		IOS_OK,			/* operation completed successfully */
 		IOS_PENDING,	/* operation queued and will be executed later */
 		IOS_NODATA,		/* no data currently available (for non-blocking read) */
@@ -35,17 +41,20 @@ public:
 		IOS_ERROR,
 	} IOStatus;
 
-private:
+protected:
 	Type devType;
 	u32 devUnit;
 	u32 devClassID;
+	State devState;
 
 public:
 	Device(Type type, u32 unit, u32 classID);
+	virtual ~Device();
 
 	inline Type GetType() {return devType;}
 	inline u32 GetClassID() {return devClassID;}
 	inline u32 GetUnit() {return devUnit;}
+	inline State GetState() {return devState;}
 };
 
 class ChrDevice : public Device {
@@ -78,7 +87,7 @@ public:
 
 	class DeviceRegistrator {
 	public:
-		DeviceRegistrator(const char *devClass, Device::Type type,
+		DeviceRegistrator(const char *devClass, Device::Type type, const char *desc,
 			DeviceFactory factory, void *factoryArg = 0);
 	};
 private:
@@ -92,6 +101,7 @@ private:
 	typedef struct {
 		Tree<u32>::TreeEntry node; /* keyed by ID */
 		char *name;
+		char *desc;
 		Device::Type type;
 		DeviceFactory factory;
 		void *factoryArg;
@@ -104,6 +114,7 @@ private:
 
 	enum {
 		INIT_MAGIC = 0xdede1357,
+		DEF_UNIT = 0xffffffff,
 	};
 
 	Tree<u32>::TreeRoot devTree;
@@ -112,8 +123,9 @@ private:
 
 	void Initialize();
 	u32 AllocateUnit(DevClass *p);
+	DevInst *FindDevice(DevClass *p, u32 unit);
 	int ReleaseUnit(DevClass *p, u32 unit);
-	Device *CreateDevice(DevClass *p);
+	Device *CreateDevice(DevClass *p, u32 unit = DEF_UNIT);
 	void ScanAvailUnits(DevClass *p);
 	u32 inline Lock();
 	void inline Unlock(u32 x);
@@ -121,11 +133,11 @@ public:
 	DeviceManager();
 	static inline u32 GetClassID(const char *classID)	{return gethash(classID);}
 	char *GetClass(u32 devClassID);
-	Device *CreateDevice(const char *devClass);
-	Device *CreateDevice(u32 devClassID);
+	Device *CreateDevice(const char *devClass, u32 unit = DEF_UNIT);
+	Device *CreateDevice(u32 devClassID, u32 unit = DEF_UNIT);
 	int DestroyDevice(Device *dev);
 
-	u32 RegisterClass(const char *devClass, Device::Type type,
+	u32 RegisterClass(const char *devClass, Device::Type type, const char *desc,
 		DeviceFactory factory, void *factoryArg = 0);
 	u32 AllocateUnit(u32 devClassID);
 };
@@ -140,10 +152,10 @@ extern DeviceManager devMan;
 	return NEWSINGLE(className, type, unit, classID); \
 }
 
-#define _RegDevClass(devClass, type, factory, factoryArg) static DeviceManager::DeviceRegistrator \
-	__UID(DeviceRegistrator)(devClass, type, factory, factoryArg)
+#define _RegDevClass(devClass, type, desc, factory, factoryArg) static DeviceManager::DeviceRegistrator \
+	__UID(DeviceRegistrator)(devClass, type, desc, factory, factoryArg)
 
-#define RegDevClass(className, devClass, type) \
-	_RegDevClass(devClass, type, className::_DeviceFactory, 0)
+#define RegDevClass(className, devClass, type, desc) \
+	_RegDevClass(devClass, type, desc, className::_DeviceFactory, 0)
 
 #endif /* DEVICE_H_ */
