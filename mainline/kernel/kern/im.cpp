@@ -24,10 +24,12 @@ IM::IM()
 	}
 	hwValid = 0;
 	swValid = 0;
+	hwPending = 0;
 	swPending = 0;
-	hwMasked = 0;
-	swMasked = 0;
-
+	hwActive = 0;
+	swActive = 0;
+	memset(hwMasked, 0, sizeof(hwMasked));
+	memset(swMasked, 0, sizeof(swMasked));
 }
 
 int
@@ -45,15 +47,20 @@ IM::Swirq(u32 idx)
 int
 IM::Irq(IrqType type, u32 idx)
 {
-	irqmask_t mask, *validMask, *masked;
+	irqmask_t mask, *validMask, *activeMask;
+	u8 *masked;
 	u32 numLines;
 	if (type == IT_HW) {
+		assert(idx <= NUM_HWIRQ);
 		validMask = &hwValid;
-		masked = &hwMasked;
+		masked = &hwMasked[idx];
+		activeMask = &hwActive;
 		numLines = NUM_HWIRQ;
 	} else if (type == IT_SW) {
+		assert(idx <= NUM_SWIRQ);
 		validMask = &swValid;
-		masked = &swMasked;
+		masked = &swMasked[idx];
+		activeMask = &swActive;
 		numLines = NUM_SWIRQ;
 	} else {
 		panic("Invalid interrupt type (%d)", type);
@@ -65,15 +72,18 @@ IM::Irq(IrqType type, u32 idx)
 	if (!(mask & *validMask)) {
 		panic("Interrupt request on invalid line (line %lu, type %d)", idx, type);
 	}
+	/* make it pending */
 	if (type == IT_SW) {
-		swPending |= mask;
+		AtomicOp::Or(&swPending, mask);
 	} else if (type == IT_HW) {
-		if (mask & *masked) {
-			klog(KLOG_WARNING, "Hardware interrupt request on masked line (%lu)", idx);
+		if (mask & hwDisabled) {
+			klog(KLOG_WARNING, "Hardware interrupt request on disabled line (%lu)", idx);
 			return -1;
 		}
+		AtomicOp::Or(&hwPending, mask);
 	}
-	if (!(mask & *masked)) {
+	/* try to handle */
+	if (!*masked) {
 		ProcessInterrupt(type, idx);
 	}
 	return 0;
@@ -82,15 +92,100 @@ IM::Irq(IrqType type, u32 idx)
 int
 IM::Poll()
 {
+	for (u32 idx = 0; idx < NUM_HWIRQ; idx++) {
+		irqmask_t mask = GetMask(idx);
+		if (!(mask & hwValid)) {
+			continue;
+		}
+		if (!(mask & hwPending)) {
+			continue;
+		}
+		if (!hwMasked[idx]) {
+			ProcessInterrupt(IT_HW, idx);
+		}
+	}
 	for (u32 idx = 0; idx < NUM_SWIRQ; idx++) {
 		irqmask_t mask = GetMask(idx);
 		if (!(mask & swValid)) {
 			continue;
 		}
-		if (mask & swMasked) {
+		if (!(mask & swPending)) {
 			continue;
 		}
-		ProcessInterrupt(IT_SW, idx);
+		if (!swMasked[idx]) {
+			ProcessInterrupt(IT_SW, idx);
+		}
+	}
+	return 0;
+}
+
+int
+IM::MaskIrq(IrqType type, u32 idx)
+{
+	irqmask_t *activeMask;
+	u8 *masked;
+
+	irqmask_t mask = GetMask(idx);
+	if (type == IT_HW) {
+		assert(mask & hwValid);
+		assert(idx <= NUM_HWIRQ);
+		masked = &hwMasked[idx];
+		activeMask = &hwActive;
+	} else if (type == IT_SW) {
+		assert(mask & swValid);
+		assert(idx <= NUM_SWIRQ);
+		masked = &swMasked[idx];
+		activeMask = &swActive;
+	} else {
+		panic("Invalid IRQ type %d", type);
+	}
+	while (1) {
+		if (mask & *activeMask) {
+			/* some other CPU is processing interrupt, wait for completion */
+			/* May be we should switch context here? */
+			continue;
+		}
+		maskLock.Lock();
+		if (mask & *activeMask) {
+			maskLock.Unlock();
+			continue;
+		}
+		/* locked by maskLock so doesn't need to be atomic */
+		*masked++;
+		maskLock.Unlock();
+		break;
+	}
+	return 0;
+}
+
+int
+IM::UnMaskIrq(IrqType type, u32 idx)
+{
+	irqmask_t *pendingMask;
+	u8 *masked;
+
+	irqmask_t mask = GetMask(idx);
+	/* Process pending interrupt if present */
+	if (type == IT_HW) {
+		assert(idx <= NUM_HWIRQ);
+		assert(mask & hwValid);
+		masked = &hwMasked[idx];
+		pendingMask = &hwPending;
+	} else if (type == IT_SW) {
+		assert(idx <= NUM_SWIRQ);
+		assert(mask & swValid);
+		masked = &swMasked[idx];
+		pendingMask = &swPending;
+	} else {
+		panic("Invalid IRQ type %d", type);
+	}
+
+	maskLock.Lock();
+	assert(*masked);
+	u8 isMasked = --(*masked);
+	maskLock.Unlock();
+	if (!isMasked && (mask & *pendingMask)) {
+		ProcessInterrupt(type, idx);
 	}
 	return 0;
 }
@@ -99,17 +194,48 @@ IM::IsrStatus
 IM::ProcessInterrupt(IrqType type, u32 idx)
 {
 	IrqSlot *is;
+	irqmask_t *pendingMask, *activeMask;
+	u8 *masked;
+
+	irqmask_t mask = GetMask(idx);
 	if (type == IT_HW) {
 		assert(idx <= NUM_HWIRQ);
+		assert(mask & hwValid);
 		is = &hwIrq[idx];
+		pendingMask = &hwPending;
+		masked = &hwMasked[idx];
+		activeMask = &hwActive;
 	} else if (type == IT_SW) {
 		assert(idx <= NUM_SWIRQ);
+		assert(mask & swValid);
 		is = &swIrq[idx];
+		pendingMask = &swPending;
+		masked = &swMasked[idx];
+		activeMask = &swActive;
 	} else {
 		panic("Invalid IRQ type %d", type);
 	}
 	IrqClient *ic;
 	IsrStatus status = IS_ERROR;
+
+	AtomicOp::Or(activeMask, mask);
+	maskLock.Lock();
+	irqmask_t isMasked = *masked;
+	maskLock.Unlock();
+	if (isMasked) {
+		return IS_PENDING;
+	}
+
+	pendingLock.Lock();
+	if (!(*pendingMask & mask)) {
+		pendingLock.Unlock();
+		AtomicOp::And(activeMask, ~mask);
+		return IS_NOINTR;
+	}
+	/* should still be atomic since bit setting is not protected by lock */
+	AtomicOp::And(pendingMask, ~mask);
+	pendingLock.Unlock();
+	slotLock.Lock(); /* nobody should modify the list while we are processing it */
 	if (!is->numClients) {
 		panic("IRQ processing on empty slot (type %d, line %lu)", type, idx);
 	}
@@ -120,6 +246,8 @@ IM::ProcessInterrupt(IrqType type, u32 idx)
 			break;
 		}
 	}
+	slotLock.Unlock();
+	AtomicOp::And(activeMask, ~mask);
 	return status;
 }
 
