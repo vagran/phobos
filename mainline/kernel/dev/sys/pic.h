@@ -40,7 +40,7 @@ private:
 		ICW4_BUF =			0x8, /* Buffere Mode, must be cleared */
 		ICW4_SFNM =			0x10, /* Special Fully Nested Mode */
 
-		oCW2_LEVEL_MASK =	0x7,
+		OCW2_LEVEL_MASK =	0x7,
 		OCW2_EOI =			0x20, /* End Of Interrupt */
 		OCW2_SL =			0x40, /* Select Level */
 		OCW2_R =			0x80, /* Rotate */
@@ -56,10 +56,16 @@ private:
 
 	enum {
 		NUM_LINES =			8,
+		SLAVE_LINE_IDX =	2,
 	};
 
-	u16 portICW, portOCW, portELCR;
+	typedef u8 irqmask_t;
 
+	u16 portICW, portOCW, portELCR;
+	irqmask_t intMask; /* cached mask value */
+	int isInitialized;
+
+	inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }
 public:
 	PIC(Type type, u32 unit, u32 classID);
 	DeclareDevFactory();
@@ -69,6 +75,7 @@ public:
 	virtual int Initialize(u32 ivtBase);
 	virtual int EnableInterrupt(u32 idx);
 	virtual int DisableInterrupt(u32 idx);
+	virtual int EOI(u32 idx = DEF_IDX); /* End Of Interrupt */
 };
 
 #endif /* PIC_H_ */

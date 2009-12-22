@@ -17,6 +17,12 @@ phbSource("$Id$");
 
 class IM {
 public:
+	enum {
+		NUM_HWIRQ =		16,
+		NUM_SWIRQ =		32,
+		HWIRQ_BASE =	0x20, /* IVT base for hardware interrupts */
+	};
+
 	enum IsrStatus {
 		IS_PROCESSED,
 		IS_NOINTR, /* for shared lines, ISR must return this code if no interrupts pending */
@@ -32,11 +38,6 @@ public:
 	typedef IsrStatus (*ISR)(HANDLE h, void *arg);
 
 private:
-	enum {
-		NUM_HWIRQ =		16,
-		NUM_SWIRQ =		32,
-	};
-
 	enum IrqType {
 		IT_HW,
 		IT_SW,

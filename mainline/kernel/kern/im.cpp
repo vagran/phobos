@@ -9,7 +9,6 @@
 #include <sys.h>
 phbSource("$Id$");
 
-
 IM *im;
 
 IM::IM()
@@ -37,6 +36,12 @@ IM::IM()
 	pic1 = (PIC *)devMan.CreateDevice("pic", 1);
 	if (!pic0) {
 		panic("Failed to create Slave PIC device");
+	}
+	if (pic0->Initialize(HWIRQ_BASE)) {
+		panic("pic0 initialization failed");
+	}
+	if (pic1->Initialize(HWIRQ_BASE + pic0->GetLinesCount())) {
+		panic("pic1 initialization failed");
 	}
 }
 

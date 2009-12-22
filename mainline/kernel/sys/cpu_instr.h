@@ -39,20 +39,20 @@ inl(u16 port)
 }
 
 static __inline void
-outb(u8 value, u16 port)
+outb(u16 port, u8 value)
 {
   __asm__ __volatile__ ("outb %b0,%w1": :"a" (value), "Nd" (port));
 }
 
 static __inline void
-outw(u16 value, u16 port)
+outw(u16 port, u16 value)
 {
   __asm__ __volatile__ ("outw %w0,%w1": :"a" (value), "Nd" (port));
 
 }
 
 static __inline void
-outl(u32 value, u16 port)
+outl(u16 port, u32 value)
 {
   __asm__ __volatile__ ("outl %0,%w1": :"a" (value), "Nd" (port));
 }
