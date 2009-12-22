@@ -47,7 +47,7 @@ dbg_putc(u32 c)
 			return;
 		}
 	}
-	outb(c, SERIAL_PORT + UART_TX);
+	outb(SERIAL_PORT + UART_TX, c);
 }
 
 static void

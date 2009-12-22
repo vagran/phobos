@@ -54,11 +54,7 @@ typedef struct {
 	u16 fs, __fs_pad;
 	u16 gs, __gs_pad;
 	/* below is CPU hardware assisted */
-	union
-	{
-		u32 errorcode; /* for trap frame */
-		u32 irqno; /* for irq frame */
-	} u;
+	u32 code; /* error code for trap frame, vector index for IRQ */
 	u32 eip;
 	u16 cs, __cs_pad;
 	u32 eflags;

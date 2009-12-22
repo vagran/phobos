@@ -73,7 +73,14 @@ _unhandledTrapArg:
 	pushl $0; \
 	TRAP_BODY(idx)
 
+#define IRQ(idx) \
+	.globl __CONCAT(IRQEntry,idx); \
+	__CONCAT(IRQEntry,idx): \
+	pushl $idx; \
+	TRAP_BODY(idx)
+
 .text
+/* Intel exceptions */
 TRAP_NOCODE(0x00)
 TRAP_NOCODE(0x01)
 TRAP_NOCODE(0x02)
@@ -94,3 +101,21 @@ TRAP_NOCODE(0x10)
 TRAP_CODE(0x11)
 TRAP_NOCODE(0x12)
 TRAP_NOCODE(0x13)
+
+/* Hardware interrupts , indices from IM::HWIRQ_BASE */
+IRQ(0x20)
+IRQ(0x21)
+IRQ(0x22)
+IRQ(0x23)
+IRQ(0x24)
+IRQ(0x25)
+IRQ(0x26)
+IRQ(0x27)
+IRQ(0x28)
+IRQ(0x29)
+IRQ(0x2a)
+IRQ(0x2b)
+IRQ(0x2c)
+IRQ(0x2d)
+IRQ(0x2e)
+IRQ(0x2f)

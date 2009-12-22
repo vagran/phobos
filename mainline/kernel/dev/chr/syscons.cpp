@@ -69,24 +69,24 @@ void
 SysConsole::SysSerial::Initialize()
 {
 	/* Turn off the interrupt */
-	outb(0, iobase + UART_IER);
+	outb(iobase + UART_IER, 0);
 
 	/* Set DLAB.  */
-	outb(UART_DLAB, iobase + UART_LCR);
+	outb(iobase + UART_LCR, UART_DLAB);
 
 	/* Set the baud rate */
-	outb(divisor & 0xFF, iobase + UART_DLL);
-	outb(divisor >> 8, iobase + UART_DLH);
+	outb(iobase + UART_DLL, divisor & 0xFF);
+	outb(iobase + UART_DLH, divisor >> 8);
 
 	/* Set the line status */
 	u8 status = UART_8BITS_WORD | UART_NO_PARITY | UART_1_STOP_BIT;
-	outb(status, iobase + UART_LCR);
+	outb(iobase + UART_LCR, status);
 
 	/* Enable the FIFO */
-	outb(UART_ENABLE_FIFO, iobase + UART_FCR);
+	outb(iobase + UART_FCR, UART_ENABLE_FIFO);
 
 	/* Turn on DTR, RTS, and OUT2 */
-	outb(UART_ENABLE_MODEM, iobase + UART_MCR);
+	outb(iobase + UART_MCR, UART_ENABLE_MODEM);
 
 	/* Drain the input buffer */
 	u8 c;
@@ -121,7 +121,7 @@ SysConsole::SysSerial::Putc(u8 c)
 		}
 	}
 
-	outb(c, iobase + UART_TX);
+	outb(iobase + UART_TX, c);
 	return IOS_OK;
 }
 

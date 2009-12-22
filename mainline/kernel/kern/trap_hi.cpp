@@ -44,7 +44,8 @@ _panic(const char *fileName, int line, const char *fmt,...)
 ASMCALL int
 OnTrap(u32 idx, void *arg, Frame *frame)
 {
-	if (debugFaults && idx != IDT::ST_DEBUG && idx != IDT::ST_BREAKPOINT) {
+	if (debugFaults && idx != IDT::ST_DEBUG && idx != IDT::ST_BREAKPOINT &&
+		(idx < IM::HWIRQ_BASE || idx >= IM::HWIRQ_BASE + IM::NUM_HWIRQ)) {
 		if (sysDebugger) {
 			sysDebugger->Trap((IDT::SysTraps)idx, frame);
 		}
@@ -61,10 +62,11 @@ UnhandledTrap(u32 idx, void *arg, Frame *frame)
 	} else {
 		esp = (u32)&frame->esp;
 	}
-	panic("Unhandled trap\nidx = %lx, code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
+	panic("Unhandled trap\nidx = %lx (%s), code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
 		"eax = 0x%08lx, ebx = 0x%08lx, ecx = 0x%08lx, edx = 0x%08lx\n"
 		"esi = 0x%08lx, edi = 0x%08lx, ebp = 0x%08lx, esp = 0x%08lx",
-		idx, frame->u.errorcode, frame->eip, frame->eflags,
+		idx, IDT::StrTrap((IDT::SysTraps)idx),
+		frame->code, frame->eip, frame->eflags,
 		frame->eax, frame->ebx, frame->ecx, frame->edx,
 		frame->esi, frame->edi, frame->ebp, esp);
 	return 0;

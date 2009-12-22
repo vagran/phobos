@@ -97,6 +97,14 @@ GDT::GDT()
 #define SetTrap(idx) SDT::SetGate(&table[idx], (u32)__CONCAT(TrapEntry,idx), \
 	GDT::GetSelector(GDT::SI_KCODE, 0), SDT::SST_TGT32)
 
+#define SetTrapIGT(idx) SDT::SetGate(&table[idx], (u32)__CONCAT(TrapEntry,idx), \
+	GDT::GetSelector(GDT::SI_KCODE, 0), SDT::SST_IGT32)
+
+#define DeclareIRQ(idx)	ASMCALL void __CONCAT(IRQEntry,idx)()
+
+#define SetIRQ(idx) SDT::SetGate(&table[idx], (u32)__CONCAT(IRQEntry,idx), \
+	GDT::GetSelector(GDT::SI_KCODE, 0), SDT::SST_IGT32)
+
 DeclareTrap(0x00);
 DeclareTrap(0x01);
 DeclareTrap(0x02);
@@ -118,6 +126,23 @@ DeclareTrap(0x11);
 DeclareTrap(0x12);
 DeclareTrap(0x13);
 
+DeclareIRQ(0x20);
+DeclareIRQ(0x21);
+DeclareIRQ(0x22);
+DeclareIRQ(0x23);
+DeclareIRQ(0x24);
+DeclareIRQ(0x25);
+DeclareIRQ(0x26);
+DeclareIRQ(0x27);
+DeclareIRQ(0x28);
+DeclareIRQ(0x29);
+DeclareIRQ(0x2a);
+DeclareIRQ(0x2b);
+DeclareIRQ(0x2c);
+DeclareIRQ(0x2d);
+DeclareIRQ(0x2e);
+DeclareIRQ(0x2f);
+
 IDT::IDT()
 {
 	memset(hdlArgs, 0, sizeof(hdlArgs));
@@ -131,7 +156,7 @@ IDT::IDT()
 
 	SetTrap(0x00);
 	SetTrap(0x01);
-	SetTrap(0x02);
+	SetTrapIGT(0x02); /* access NMI handler through interrupt gate */
 	SetTrap(0x03);
 	SetTrap(0x04);
 	SetTrap(0x05);
@@ -149,6 +174,23 @@ IDT::IDT()
 	SetTrap(0x11);
 	SetTrap(0x12);
 	SetTrap(0x13);
+
+	SetIRQ(0x20);
+	SetIRQ(0x21);
+	SetIRQ(0x22);
+	SetIRQ(0x23);
+	SetIRQ(0x24);
+	SetIRQ(0x25);
+	SetIRQ(0x26);
+	SetIRQ(0x27);
+	SetIRQ(0x28);
+	SetIRQ(0x29);
+	SetIRQ(0x2a);
+	SetIRQ(0x2b);
+	SetIRQ(0x2c);
+	SetIRQ(0x2d);
+	SetIRQ(0x2e);
+	SetIRQ(0x2f);
 
 	pd.base = (u32)table;
 	pd.limit = 256 * sizeof(*table) - 1;
@@ -189,7 +231,7 @@ IDT::StrTrap(SysTraps trap)
 		"Invalid opcode",
 		"Device not available",
 		"Double fault",
-		"Coprocessor Segment Overrun",
+		"Co-processor Segment Overrun",
 		"Invalid TSS",
 		"Segment not present",
 		"Stack segment fault",
@@ -202,7 +244,7 @@ IDT::StrTrap(SysTraps trap)
 		"SIMD floating point exception"
 	};
 
-	if ((u32)trap > sizeof(str) / sizeof(str[0])) {
+	if ((u32)trap >= sizeof(str) / sizeof(str[0])) {
 		return "Unknown exception";
 	}
 	return str[trap];

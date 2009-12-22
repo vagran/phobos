@@ -43,6 +43,60 @@ IM::IM()
 	if (pic1->Initialize(HWIRQ_BASE + pic0->GetLinesCount())) {
 		panic("pic1 initialization failed");
 	}
+	/* install our handler in IDT */
+	for (int i = 0; i < NUM_HWIRQ; i++) {
+		idt->RegisterHandler(HWIRQ_BASE + i, HWIRQHandler, this);
+	}
+}
+
+int
+IM::HWIRQHandler(u32 idx, void *arg, Frame *frame)
+{
+	((IM *)arg)->Hwirq(idx - HWIRQ_BASE);
+	PIC *pic;
+	u32 picIdx;
+	if (!((IM *)arg)->GetPIC(idx - HWIRQ_BASE, &pic, &picIdx)) {
+		pic->EOI(picIdx);
+	}
+	return 0;
+}
+
+int
+IM::GetPIC(u32 idx, PIC **ppic, u32 *pidx)
+{
+	if (idx >= NUM_HWIRQ) {
+		return -1;
+	}
+	if (ppic) {
+		*ppic = idx >= 8 ? pic1 : pic0;
+	}
+	if (pidx) {
+		*pidx = idx & 0x7;
+	}
+	return 0;
+}
+
+int
+IM::HwEnable(u32 idx, int f)
+{
+	if (idx >= NUM_HWIRQ) {
+		klog(KLOG_ERROR, "Hardware IRQ index out of range (%lu)", idx);
+		return -1;
+	}
+	irqmask_t mask = GetMask(idx);
+	if (!(mask & hwValid)) {
+		klog(KLOG_ERROR, "Attempted to enable not allocated hardware interrupt");
+		return -1;
+	}
+	PIC *pic;
+	u32 picIdx;
+	GetPIC(idx, &pic, &picIdx);
+	if (f) {
+		pic->EnableInterrupt(picIdx);
+	} else {
+		pic->DisableInterrupt(picIdx);
+	}
+	return 0;
 }
 
 int
@@ -253,10 +307,65 @@ IM::ProcessInterrupt(IrqType type, u32 idx)
 		panic("IRQ processing on empty slot (type %d, line %lu)", type, idx);
 	}
 	assert(!LIST_ISEMPTY(is->clients));
+	irqmask_t hwMask = 0, swMask = 0;
 	LIST_FOREACH(IrqClient, list, ic, is->clients) {
+		/* disable requested interrupts */
+		for (u32 i = 0; i < NUM_HWIRQ; i++) {
+			if (type == IT_HW && i == idx) {
+				continue;
+			}
+			irqmask_t curMask = GetMask(i);
+			if (ic->hwMask & curMask) {
+				if (!(hwMask & curMask)) {
+					hwMask |= curMask;
+					MaskIrq(IT_HW, i);
+				}
+			} else {
+				if (hwMask & curMask) {
+					hwMask &= ~curMask;
+					UnMaskIrq(IT_HW, i);
+				}
+			}
+		}
+		for (u32 i = 0; i < NUM_SWIRQ; i++) {
+			if (type == IT_SW && i == idx) {
+				continue;
+			}
+			irqmask_t curMask = GetMask(i);
+			if (ic->swMask & curMask) {
+				if (!(swMask & curMask)) {
+					swMask |= curMask;
+					MaskIrq(IT_SW, i);
+				}
+			} else {
+				if (swMask & curMask) {
+					swMask &= ~curMask;
+					UnMaskIrq(IT_SW, i);
+				}
+			}
+		}
 		status = ic->isr((HANDLE)ic, ic->arg);
 		if (status != IS_NOINTR) {
 			break;
+		}
+	}
+	/* unmask masked interrupts */
+	for (u32 i = 0; i < NUM_HWIRQ; i++) {
+		if (type == IT_HW && i == idx) {
+			continue;
+		}
+		irqmask_t curMask = GetMask(i);
+		if (hwMask & curMask) {
+			UnMaskIrq(IT_HW, i);
+		}
+	}
+	for (u32 i = 0; i < NUM_SWIRQ; i++) {
+		if (type == IT_SW && i == idx) {
+			continue;
+		}
+		irqmask_t curMask = GetMask(i);
+		if (swMask & curMask) {
+			UnMaskIrq(IT_SW, i);
 		}
 	}
 	slotLock.Unlock();
@@ -265,19 +374,22 @@ IM::ProcessInterrupt(IrqType type, u32 idx)
 }
 
 HANDLE
-IM::AllocateHwirq(ISR isr, void *arg, u32 idx, u32 flags)
+IM::AllocateHwirq(ISR isr, void *arg, u32 idx, u32 flags,
+	irqmask_t hwMask, irqmask_t swMask)
 {
-	return (HANDLE)Allocate(IT_HW, isr, arg, idx, flags);
+	return (HANDLE)Allocate(IT_HW, isr, arg, idx, flags, hwMask, swMask);
 }
 
 HANDLE
-IM::AllocateSwirq(ISR isr, void *arg, u32 idx, u32 flags)
+IM::AllocateSwirq(ISR isr, void *arg, u32 idx, u32 flags,
+	irqmask_t hwMask, irqmask_t swMask)
 {
-	return (HANDLE)Allocate(IT_SW, isr, arg, idx, flags);
+	return (HANDLE)Allocate(IT_SW, isr, arg, idx, flags, hwMask, swMask);
 }
 
 IM::IrqClient *
-IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags)
+IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags,
+	irqmask_t hwMask, irqmask_t swMask)
 {
 	IrqSlot *isa;
 	u32 numSlots;
@@ -358,6 +470,8 @@ IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags)
 	ic->type = type;
 	ic->isr = isr;
 	ic->arg = arg;
+	ic->hwMask = hwMask;
+	ic->swMask = swMask;
 	LIST_ADD(list, ic, is->clients);
 	is->numClients++;
 	if (flags & AF_EXCLUSIVE) {

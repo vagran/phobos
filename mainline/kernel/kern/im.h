@@ -35,6 +35,8 @@ public:
 		AF_SPEC =			0x2, /* allocate at specified index */
 	};
 
+	typedef u32 irqmask_t;
+
 	typedef IsrStatus (*ISR)(HANDLE h, void *arg);
 
 private:
@@ -46,8 +48,6 @@ private:
 	enum IrqSlotFlags {
 		SF_EXCLUSIVE =	0x1,
 	};
-
-	typedef u32 irqmask_t;
 
 	typedef struct {
 		ListHead clients;
@@ -61,6 +61,7 @@ private:
 		int idx;
 		ISR isr;
 		void *arg;
+		irqmask_t hwMask, swMask; /* interrupts to be disabled while calling this client */
 	} IrqClient;
 
 	IrqSlot hwIrq[NUM_HWIRQ];
@@ -85,23 +86,29 @@ private:
 
 	PIC *pic0, *pic1;
 
-	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags);
-	static inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }
+	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags,
+		irqmask_t hwMask, irqmask_t swMask);
 	int Irq(IrqType type, u32 idx);
 	IsrStatus ProcessInterrupt(IrqType type, u32 idx);
 	int MaskIrq(IrqType type, u32 idx);
 	int UnMaskIrq(IrqType type, u32 idx);
+	static int HWIRQHandler(u32 idx, void *arg, Frame *frame);
+	int GetPIC(u32 idx, PIC **ppic, u32 *pidx);
 public:
 	IM();
 
-	HANDLE AllocateHwirq(ISR isr, void *arg = 0, u32 idx = 0, u32 flags = AF_EXCLUSIVE);
-	HANDLE AllocateSwirq(ISR isr, void *arg = 0, u32 idx = 0, u32 flags = AF_EXCLUSIVE);
+	HANDLE AllocateHwirq(ISR isr, void *arg = 0, u32 idx = 0, u32 flags = AF_EXCLUSIVE,
+		irqmask_t hwMask = 0, irqmask_t swMask = 0);
+	HANDLE AllocateSwirq(ISR isr, void *arg = 0, u32 idx = 0, u32 flags = AF_EXCLUSIVE,
+		irqmask_t hwMask = 0, irqmask_t swMask = 0);
 	int ReleaseIrq(HANDLE h);
 	inline u32 GetIndex(HANDLE h) { assert(h); return ((IrqClient *)h)->idx; }
+	static inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }
 	u32 DisableIntr(); /* return value used for RestoreIntr() */
 	u32 RestoreIntr(u32 saved);
 	int Hwirq(u32 idx);
 	int Swirq(u32 idx);
+	int HwEnable(u32 idx, int f = 1);
 	int Poll();
 };
 
