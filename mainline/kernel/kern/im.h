@@ -11,6 +11,8 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#include <dev/sys/pic.h>
+
 /* Interrupts manager */
 
 class IM {
@@ -79,6 +81,8 @@ private:
 	u8 hwMasked[NUM_HWIRQ], swMasked[NUM_SWIRQ];
 	irqmask_t hwActive, swActive;
 	SpinLock maskLock;
+
+	PIC *pic0, *pic1;
 
 	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags);
 	static inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }

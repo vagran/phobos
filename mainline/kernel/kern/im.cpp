@@ -30,6 +30,14 @@ IM::IM()
 	swActive = 0;
 	memset(hwMasked, 0, sizeof(hwMasked));
 	memset(swMasked, 0, sizeof(swMasked));
+	pic0 = (PIC *)devMan.CreateDevice("pic", 0);
+	if (!pic0) {
+		panic("Failed to create Master PIC device");
+	}
+	pic1 = (PIC *)devMan.CreateDevice("pic", 1);
+	if (!pic0) {
+		panic("Failed to create Slave PIC device");
+	}
 }
 
 int

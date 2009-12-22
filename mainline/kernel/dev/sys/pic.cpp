@@ -11,7 +11,7 @@ phbSource("$Id$");
 
 #include <dev/sys/pic.h>
 
-PIC::PIC(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
+PIC::PIC(Type type, u32 unit, u32 classID) : IntController(type, unit, classID)
 {
 	switch (unit) {
 	case 0:
@@ -34,3 +34,30 @@ PIC::PIC(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 DefineDevFactory(PIC);
 
 RegDevClass(PIC, "pic", Device::T_SPECIAL, "Programmable Interrupts Controller (8259)");
+
+u32
+PIC::GetLinesCount()
+{
+	return NUM_LINES;
+}
+
+int
+PIC::Initialize(u32 ivtBase)
+{
+
+	return 0;
+}
+
+int
+PIC::EnableInterrupt(u32 idx)
+{
+	/* notimpl */
+	return 0;
+}
+
+int
+PIC::DisableInterrupt(u32 idx)
+{
+	/* notimpl */
+	return 0;
+}
