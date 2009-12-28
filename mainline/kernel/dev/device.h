@@ -61,6 +61,7 @@ class ChrDevice : public Device {
 
 public:
 	ChrDevice(Type type, u32 unit, u32 classID);
+	virtual ~ChrDevice();
 
 	virtual IOStatus Getc(u8 *c);
 	virtual IOStatus Putc(u8 c);
@@ -77,6 +78,7 @@ public:
 	} BlkIOBuf;
 public:
 	BlkDevice(Type type, u32 unit, u32 classID);
+	~BlkDevice();
 
 	virtual int Strategy(IOBuf *buf);
 };

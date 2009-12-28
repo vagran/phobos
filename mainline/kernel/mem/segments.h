@@ -86,7 +86,8 @@ public:
 	} DataSegType;
 
 public:
-	static void SetDescriptor(Descriptor *d, u32 base, u32 limit, u32 ring, u32 system, u32 type);
+	static void SetDescriptor(Descriptor *d, u32 base, u32 limit, u32 ring, u32 system,
+		u32 type, int is16bit = 0);
 	static void SetGate(Gate *g, u32 offset, u16 selector, u32 type);
 };
 
@@ -96,12 +97,17 @@ public:
 		SI_NULL,
 		SI_KCODE,
 		SI_KDATA,
-		SI_UDATA,
 		SI_UCODE,
+		SI_UDATA,
 		SI_LDT,
 		SI_TSS,
+		SI_CUSTOM,
 	} SelIdx;
 private:
+	enum {
+		GDT_SIZE =		512,
+	};
+
 	typedef struct {
 		SDT::Descriptor
 			null,
@@ -121,10 +127,15 @@ private:
 	ldtTable *ldt;
 
 	SDT::PseudoDescriptor pd;
+	u32 GetIndex(SDT::Descriptor *d);
 public:
 	GDT();
 
-	static inline u16 GetSelector(SelIdx idx, u16 rpl) {return (idx << 3) | rpl;}
+	static inline u16 GetSelector(u32 idx, u16 rpl = 0) {return (idx << 3) | rpl;}
+	u16 GetSelector(SDT::Descriptor *d, u16 rpl = 0);
+	SDT::Descriptor *AllocateSegment();
+	int ReleaseSegment(SDT::Descriptor *d);
+
 };
 
 extern GDT *gdt;

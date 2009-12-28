@@ -21,7 +21,9 @@ phbSource("$Id$");
  * 		| PT map			| PD_PAGES * PT_ENTRIES * PAGE_SIZE
  * 		+-------------------+ PTMAP_ADDRESS = FF800000
  * 		| Alt. PT map		| PD_PAGES * PT_ENTRIES * PAGE_SIZE
- * 		+-------------------+ ALTPTMAP_ADDRESS = FF000000 (KERNEL_END_ADDRESS)
+ * 		+-------------------+ ALTPTMAP_ADDRESS = FF000000 (KERN_MEM_END)
+ * 		| Devices memory	| DEV_MEM_SIZE
+ * 		+-------------------+ DEV_MEM_ADDRESS (KERN_DYN_MEM_END)
  * 		| Kernel dynamic 	|
  * 		| memory			|
  * 		+-------------------+ firstAddr
@@ -50,7 +52,10 @@ phbSource("$Id$");
 #define PTMAP_SIZE			(PD_PAGES * PT_ENTRIES * PAGE_SIZE)
 #define PTMAP_ADDRESS		((vaddr_t)-PTMAP_SIZE)
 #define ALTPTMAP_ADDRESS	(PTMAP_ADDRESS - PTMAP_SIZE)
-#define KERNEL_END_ADDRESS	ALTPTMAP_ADDRESS
+#define KERN_MEM_END		ALTPTMAP_ADDRESS
+#define DEV_MEM_SIZE		(64 << 20)
+#define DEV_MEM_ADDRESS		(ALTPTMAP_ADDRESS - DEV_MEM_SIZE)
+#define KERN_DYN_MEM_END	DEV_MEM_ADDRESS
 #define PTDPTDI				(PTMAP_ADDRESS >> PD_SHIFT)
 #define APTDPTDI			(ALTPTMAP_ADDRESS >> PD_SHIFT)
 
@@ -126,7 +131,7 @@ public:
 		Page *LookupPage(vaddr_t offset);
 	};
 
-	VMObject *kmemObj;
+	VMObject *kmemObj, *devObj;
 
 	enum PageAllocFlags {
 		PAF_NOWAIT =		0x1,
@@ -181,6 +186,7 @@ public:
 			enum Flags {
 				F_SPACE =		0x1, /* space only allocation */
 				F_RESERVE =		0x2, /* space reservation */
+				F_NOCACHE =		0x4, /* disable caching */
 			};
 
 			ListEntry			list;
@@ -196,6 +202,7 @@ public:
 			~Entry();
 			MemAllocator *CreateAllocator();
 			int MapPage(vaddr_t va, Page *pg = 0);
+			int MapPA(vaddr_t va, paddr_t pa);
 		};
 
 		int AddEntry(Entry *e);
@@ -246,7 +253,7 @@ public:
 		int SetRange(vaddr_t base, vsize_t size, int minBlockOrder = 4, int maxBlockOrder = 30);
 
 		Entry *Allocate(vsize_t size, vaddr_t *base, int fixed = 0);
-		Entry *AllocateSpace(vsize_t size, vaddr_t *base, int fixed = 0);
+		Entry *AllocateSpace(vsize_t size, vaddr_t *base = 0, int fixed = 0);
 		Entry *ReserveSpace(vaddr_t base, vsize_t size);
 		Entry *Lookup(vaddr_t base);
 		int Free(vaddr_t base);
@@ -325,8 +332,8 @@ private:
 	KmemSlabClient *kmemSlabClient;
 	void *kmemSlabInitialMem;
 	KmemMapClient *kmemMapClient;
-	Map::Entry *kmemEntry;
-	MemAllocator *kmemAlloc;
+	Map::Entry *kmemEntry, *devEntry;
+	MemAllocator *kmemAlloc, *devAlloc;
 
 	static inline void FlushTLB() {wcr3(rcr3());}
 	static void GrowMem(vaddr_t addr);
@@ -339,7 +346,6 @@ private:
 public:
 	static void PreInitialize(vaddr_t addr);
 	static paddr_t VtoP(vaddr_t va); /* in current AS */
-	static paddr_t Kextract(vaddr_t va); /* in kernel AS */
 	static inline PTE::PDEntry *VtoPDE(vaddr_t va) {return &PTD[va >> PD_SHIFT];}
 	static inline PTE::PDEntry *VtoAPDE(vaddr_t va) {return &altPTD[va >> PD_SHIFT];}
 	static inline PTE::PTEntry *VtoPTE(vaddr_t va) {return &PTmap[va >> PT_SHIFT];}
@@ -356,6 +362,8 @@ public:
 	MM();
 	Page *AllocatePage(int flags = 0);
 	Page *GetPage(paddr_t pa);
+	paddr_t Kextract(vaddr_t va); /* in kernel AS */
+	vaddr_t MapPhys(paddr_t pa, psize_t size); /* map in devices memory region */
 };
 
 extern MM *mm;

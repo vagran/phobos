@@ -32,6 +32,7 @@ protected:
 	int SetOutputDevice(ChrDevice *dev);
 public:
 	ConsoleDev(Type type, u32 unit, u32 classID);
+	virtual ~ConsoleDev();
 
 	virtual IOStatus Getc(u8 *c);
 	virtual IOStatus Putc(u8 c);
@@ -39,7 +40,5 @@ public:
 	int VPrintf(const char *fmt, va_list va);
 	int Printf(const char *fmt,...);
 };
-
-extern ConsoleDev *sysCons;
 
 #endif /* CONDEV_H_ */

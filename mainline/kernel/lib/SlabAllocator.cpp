@@ -182,7 +182,7 @@ SlabAllocator::Free(void *p, u32 size)
 		return 0;
 	}
 	Slab *slab = b->slab;
-	if (size && slab->blockSize != size) {
+	if (size && slab->blockSize < size) {
 		return -1;
 	}
 	SlabGroup *g = slab->group;

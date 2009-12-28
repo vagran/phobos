@@ -24,7 +24,7 @@ static char copyright[]	=
 	"******************************************************\n"
 	"PhobOS operating system\n"
 	"Written by Artemy Lebedev\n"
-	"Copyright ©AST 2009\n";
+	"Copyright (c)AST 2009\n";
 
 static int
 InitTables()
@@ -156,7 +156,7 @@ Main(paddr_t firstAddr)
 	/* call constructors for all static objects */
 	CXA::ConstructStaticObjects();
 	/* create default system console */
-	sysCons = (ConsoleDev *)devMan.CreateDevice("syscons");
+	sysCons = (SysConsole *)devMan.CreateDevice("syscons");
 	printf(copyright);
 	InitTables();
 	sysDebugger = NEWSINGLE(Debugger, sysCons);
@@ -168,6 +168,15 @@ Main(paddr_t firstAddr)
 	/* from now kernel memory management is fully operational */
 	im = NEWSINGLE(IM);
 	/* ... as well as interrupts management */
+
+	/* try to create text terminal on video device if available */
+	ChrDevice *videoTerm = (ChrDevice *)devMan.CreateDevice("vga", 0);
+	if (videoTerm) {
+		sysCons->AddOutputDevice(videoTerm);
+		printf(copyright);
+	} else {
+		klog(KLOG_INFO, "Video terminal could not be created");
+	}
 
 	panic("Main exited");
 	/* NOTREACHED */

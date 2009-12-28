@@ -24,6 +24,8 @@ BuddyAllocator<range_t>::BuddyAllocator(BuddyClient *client)
 	LIST_INIT(blocksPool);
 	numPool = 0;
 	numReqPool = 0;
+	numFreeBlocks = 0;
+	freeSize = 0;
 	client->Unlock();
 }
 
@@ -160,6 +162,8 @@ BuddyAllocator<range_t>::AddFreeBlock(BlockDesc *b)
 	assert(!(b->flags & BF_FREE));
 	LIST_ADD(busyChain.list, b, freeBlocks[b->order - minOrder]);
 	b->flags |= BF_FREE;
+	numFreeBlocks++;
+	freeSize += 1 << b->order;
 }
 
 template <typename range_t>
@@ -169,6 +173,8 @@ BuddyAllocator<range_t>::DeleteFreeBlock(BlockDesc *b)
 	assert(b->flags & BF_FREE);
 	LIST_DELETE(busyChain.list, b, freeBlocks[b->order - minOrder]);
 	b->flags &= ~BF_FREE;
+	numFreeBlocks--;
+	freeSize -= 1 << b->order;
 }
 
 template <typename range_t>

@@ -75,6 +75,8 @@ private:
 	u32 numPool; /* real blocks number in pool */
 	int numReqPool; /* requested blocks number for pool, request processing is pending */
 	u32 numBlocks; /* total number of managed blocks (without pool) */
+	u32 numFreeBlocks; /* total number of free blocks */
+	range_t freeSize; /* total size of free blocks */
 
 	void FreeTree();
 	BlockDesc *AllocateBlock();

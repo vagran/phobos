@@ -11,14 +11,16 @@ phbSource("$Id$");
 
 #include <dev/condev.h>
 
-/* default system console */
-ConsoleDev *sysCons;
-
 ConsoleDev::ConsoleDev(Type type, u32 unit, u32 classID) :
 	ChrDevice(type, unit, classID)
 {
 	inDev = 0;
 	outDev = 0;
+}
+
+ConsoleDev::~ConsoleDev()
+{
+
 }
 
 Device::IOStatus

@@ -49,6 +49,7 @@ MM::MM()
 	kmemSlab = 0;
 	kmemMap = 0;
 	kmemObj = 0;
+	devObj = 0;
 	kmemAlloc = 0;
 	LIST_INIT(objects);
 	LIST_INIT(topObjects);
@@ -161,24 +162,35 @@ MM::InitMM()
 	if (CreatePageDescs()) {
 		panic("MM::CreatePageDescs() failed");
 	}
-	kmemObj = NEW(VMObject, KERNEL_END_ADDRESS - KERNEL_ADDRESS);
+	kmemObj = NEW(VMObject, KERN_DYN_MEM_END - KERNEL_ADDRESS);
 	assert(kmemObj);
+	devObj = NEW(VMObject, DEV_MEM_SIZE);
+	assert(devObj);
 
 	kmemMap = NEW(Map, (PTE::PDEntry *)vIdlePDPT, (PTE::PDEntry *)vIdlePTD, 1);
 	assert(kmemMap);
 	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
-	kmemMap->SetRange(firstAddr, KERNEL_END_ADDRESS - firstAddr,
+	kmemMap->SetRange(firstAddr, KERN_MEM_END - firstAddr,
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
-	kmemObj->SetSize(KERNEL_END_ADDRESS - firstAddr);
-	/* insert kmem object in the entire map space */
+	kmemObj->SetSize(KERN_DYN_MEM_END - firstAddr);
+
 	kmemEntry = kmemMap->InsertObject(kmemObj, firstAddr);
 	if (!kmemEntry) {
 		panic("Kernel dynamic memory object insertion failed");
 	}
+	devEntry = kmemMap->InsertObject(devObj, DEV_MEM_ADDRESS);
+	if (!devEntry) {
+		panic("Kernel devices memory object insertion failed");
+	}
+	devEntry->flags |= Map::Entry::F_SPACE | Map::Entry::F_NOCACHE;
+
 	/* release initial reference */
 	kmemObj->Release();
+	devObj->Release();
 	kmemAlloc = kmemEntry->CreateAllocator();
 	assert(kmemAlloc);
+	devAlloc = devEntry->CreateAllocator();
+	assert(devAlloc);
 	initState = IS_NORMAL;
 }
 
@@ -217,7 +229,25 @@ MM::VtoP(vaddr_t va)
 paddr_t
 MM::Kextract(vaddr_t va)
 {
-	return mm->kmemMap->Extract(va);
+	return kmemMap->Extract(va);
+}
+
+vaddr_t
+MM::MapPhys(paddr_t pa, psize_t size)
+{
+	size = roundup2(size, PAGE_SIZE);
+	vaddr_t sva = (vaddr_t)devAlloc->malloc(size);
+	if (!sva) {
+		return 0;
+	}
+	vaddr_t va = sva;
+	while (size) {
+		devEntry->MapPA(va, pa);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+	return sva;
 }
 
 void *
@@ -726,7 +756,7 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 	assert((u32)ptd & (PAGE_SIZE - 1));
 	memset(ptd, 0, PD_PAGES * PAGE_SIZE);
 	for (int i = 0; i < PD_PAGES; i++) {
-		pdpt[i].raw = Kextract((vaddr_t)ptd + i * PAGE_SIZE) | PTE::F_P;
+		pdpt[i].raw = mm->Kextract((vaddr_t)ptd + i * PAGE_SIZE) | PTE::F_P;
 	}
 	if (copyFrom) {
 		copyFrom->tablesLock.Lock();
@@ -1010,11 +1040,18 @@ MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 	Entry *e = (Entry *)arg;
 	VMObject *obj = e->object;
 	assert(base + size <= e->base + e->size);
+	if ((e->flags & Entry::F_SPACE) || (e->flags & Entry::F_RESERVE)) {
+		return 0;
+	}
 
 	vaddr_t sva = rounddown2(base, PAGE_SIZE);
 	vaddr_t eva = roundup2(base + size, PAGE_SIZE);
 	while (sva < eva) {
-		Page *pg = mm->AllocatePage();
+		Page *pg = obj->LookupPage(sva);
+		if (pg) {
+			continue;
+		}
+		pg = mm->AllocatePage();
 		if (!pg) {
 			/* XXX should free all pages allocated so far */
 			return -1;
@@ -1095,6 +1132,26 @@ MM::Map::Entry::CreateAllocator()
 }
 
 int
+MM::Map::Entry::MapPA(vaddr_t va, paddr_t pa)
+{
+	map->tablesLock.Lock();
+	PTE::PDEntry *pde = map->GetPDE(va);
+	if (!pde->fields.present) {
+		if (map->AddPT(va)) {
+			map->tablesLock.Unlock();
+			return -1;
+		}
+	}
+	PTE::PTEntry *pte = map->GetPTE(va);
+	/* XXX should use entry protection */
+	pte->raw = pa | PTE::F_P | PTE::F_S | PTE::F_W |
+		((flags & F_NOCACHE) ? PTE::F_WT | PTE::F_CD : 0);
+	invlpg(va);
+	map->tablesLock.Unlock();
+	return 0;
+}
+
+int
 MM::Map::Entry::MapPage(vaddr_t va, Page *pg)
 {
 	assert(!(va & ~PG_FRAME));
@@ -1107,19 +1164,5 @@ MM::Map::Entry::MapPage(vaddr_t va, Page *pg)
 			return -1;
 		}
 	}
-
-	map->tablesLock.Lock();
-	PTE::PDEntry *pde = map->GetPDE(va);
-	if (!pde->fields.present) {
-		if (map->AddPT(va)) {
-			map->tablesLock.Unlock();
-			return -1;
-		}
-	}
-	PTE::PTEntry *pte = map->GetPTE(va);
-	/* XXX should use entry protection */
-	pte->raw = pg->pa | PTE::F_P | PTE::F_S | PTE::F_W;
-	invlpg(va);
-	map->tablesLock.Unlock();
-	return 0;
+	return MapPA(va, pg->pa);
 }

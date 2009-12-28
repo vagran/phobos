@@ -28,9 +28,31 @@ public:
 		virtual IOStatus Getc(u8 *c);
 		virtual IOStatus Putc(u8 c);
 	};
+private:
+	ChrDevice *defInput; /* default input device */
+	ChrDevice *defOutput; /* default output device */
+
+	typedef struct {
+		ListEntry list;
+		ChrDevice *dev;
+	} OutputClient;
+
+	ListHead outClients;
+	Mutex outClientsMtx;
 public:
 	DeclareDevFactory();
 	SysConsole(Type type, u32 unit, u32 classID);
+	virtual ~SysConsole();
+
+	/* ConsoleDev implementation */
+	virtual IOStatus Putc(u8 c);
+
+	/* Specific extension */
+	virtual int RestoreDefInputDevice();
+	virtual int AddOutputDevice(ChrDevice *dev);
+	virtual int RemoveOutputDevice(ChrDevice *dev);
 };
+
+extern SysConsole *sysCons;
 
 #endif /* SYSCONS_H_ */

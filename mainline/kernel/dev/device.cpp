@@ -33,6 +33,11 @@ ChrDevice::ChrDevice(Type type, u32 unit, u32 classID) :
 
 }
 
+ChrDevice::~ChrDevice()
+{
+
+}
+
 Device::IOStatus
 ChrDevice::Getc(u8 *c)
 {
@@ -97,6 +102,11 @@ ChrDevice::Write(u8 *buf, u32 size)
 
 BlkDevice::BlkDevice(Type type, u32 unit, u32 classID) :
 	Device(type, unit, classID)
+{
+
+}
+
+BlkDevice::~BlkDevice()
 {
 
 }

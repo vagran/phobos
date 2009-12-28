@@ -12,6 +12,9 @@ phbSource("$Id$");
 #include <dev/chr/syscons.h>
 #include <dev/uart/uart.h>
 
+/* default system console */
+SysConsole *sysCons;
+
 #define SERIAL_SPEED 115200
 
 /*
@@ -134,12 +137,68 @@ RegDevClass(SysConsole::SysSerial, "sysser", Device::T_CHAR, "System serial inte
 SysConsole::SysConsole(Type type, u32 unit, u32 classID) :
 	ConsoleDev(type, unit, classID)
 {
-	ChrDevice *dev = (ChrDevice *)devMan.CreateDevice("sysser");
-	SetInputDevice(dev);
-	SetOutputDevice(dev);
+	defInput = defOutput = (ChrDevice *)devMan.CreateDevice("sysser");
+	SetInputDevice(defInput);
+	SetOutputDevice(defOutput);
+	LIST_INIT(outClients);
 	devState = S_UP;
+}
+
+SysConsole::~SysConsole()
+{
+
+}
+
+Device::IOStatus
+SysConsole::Putc(u8 c)
+{
+	Device::IOStatus rc = defOutput->Putc(c);
+	outClientsMtx.Lock();
+	OutputClient *oc;
+	LIST_FOREACH(OutputClient, list, oc, outClients) {
+		oc->dev->Putc(c);
+	}
+	outClientsMtx.Unlock();
+	return rc;
+}
+
+int
+SysConsole::RestoreDefInputDevice()
+{
+	return SetInputDevice(defInput);
+}
+
+int
+SysConsole::AddOutputDevice(ChrDevice *dev)
+{
+	OutputClient *c = NEWSINGLE(OutputClient);
+	if (!c) {
+		return -1;
+	}
+	c->dev = dev;
+	outClientsMtx.Lock();
+	LIST_ADD(list, c, outClients);
+	outClientsMtx.Unlock();
+	return 0;
+}
+
+int
+SysConsole::RemoveOutputDevice(ChrDevice *dev)
+{
+	outClientsMtx.Lock();
+	OutputClient *c;
+	LIST_FOREACH(OutputClient, list, c, outClients) {
+		if (c->dev == dev) {
+			LIST_DELETE(list, c, outClients);
+			DELETE(c);
+			outClientsMtx.Unlock();
+			return 0;
+		}
+	}
+	outClientsMtx.Unlock();
+	return -1;
 }
 
 DefineDevFactory(SysConsole);
 
-RegDevClass(SysConsole::SysSerial, "syscons", Device::T_CHAR, "System serial console");
+RegDevClass(SysConsole, "syscons", Device::T_CHAR, "System serial console");
