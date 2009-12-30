@@ -16,7 +16,7 @@ int debugPanics = 1;
 
 /* called before returning to ring 3 from interrupt/exception or system call */
 ASMCALL void
-OnUserRet(u32 idx, Frame *frame)
+OnUserRet(Frame *frame)
 {
 	if (im) {
 		im->Poll();
@@ -42,19 +42,22 @@ _panic(const char *fileName, int line, const char *fmt,...)
 }
 
 ASMCALL int
-OnTrap(u32 idx, void *arg, Frame *frame)
+OnTrap(Frame *frame)
 {
-	if (debugFaults && idx != IDT::ST_DEBUG && idx != IDT::ST_BREAKPOINT &&
-		(idx < IM::HWIRQ_BASE || idx >= IM::HWIRQ_BASE + IM::NUM_HWIRQ)) {
+	if (debugFaults && frame->vectorIdx != IDT::ST_DEBUG && frame->vectorIdx != IDT::ST_BREAKPOINT &&
+		(frame->vectorIdx < IM::HWIRQ_BASE || frame->vectorIdx >= IM::HWIRQ_BASE + IM::NUM_HWIRQ)) {
 		if (sysDebugger) {
-			sysDebugger->Trap((IDT::SysTraps)idx, frame);
+			sysDebugger->Trap(frame);
 		}
+	}
+	if (idt) {
+		return idt->HandleTrap(frame);
 	}
 	return 0;
 }
 
-static int
-UnhandledTrap(u32 idx, void *arg, Frame *frame)
+int
+UnhandledTrap(Frame *frame, void *arg)
 {
 	u32 esp;
 	if (((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
@@ -65,15 +68,9 @@ UnhandledTrap(u32 idx, void *arg, Frame *frame)
 	panic("Unhandled trap\nidx = %lx (%s), code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
 		"eax = 0x%08lx, ebx = 0x%08lx, ecx = 0x%08lx, edx = 0x%08lx\n"
 		"esi = 0x%08lx, edi = 0x%08lx, ebp = 0x%08lx, esp = 0x%08lx",
-		idx, IDT::StrTrap((IDT::SysTraps)idx),
+		frame->vectorIdx, IDT::StrTrap((IDT::SysTraps)frame->vectorIdx),
 		frame->code, frame->eip, frame->eflags,
 		frame->eax, frame->ebx, frame->ecx, frame->edx,
 		frame->esi, frame->edi, frame->ebp, esp);
 	return 0;
-}
-
-void
-IDT::InitHandlers()
-{
-	RegisterUTHandler(UnhandledTrap);
 }

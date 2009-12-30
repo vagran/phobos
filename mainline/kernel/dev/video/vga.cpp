@@ -15,8 +15,8 @@ DefineDevFactory(VgaTerminal);
 
 RegDevClass(VgaTerminal, "vga", Device::T_CHAR, "VGA text video terminal");
 
-u8 VgaTerminal::defColTable[] = { 0, 4, 2, 6, 1, 5, 3, 7,
-	8, 12, 10, 14, 9, 13, 11, 15 };
+u8 VgaTerminal::defColTable[] = { 0, 1, 2, 3, 4, 5, 6, 7,
+	8, 9, 10, 11, 12, 13, 14, 15 };
 
 /* the default colour table, for VGA+ colour systems */
 VgaTerminal::PalColor VgaTerminal::defPal[] = {
@@ -38,13 +38,16 @@ VgaTerminal::PalColor VgaTerminal::defPal[] = {
 	{ 0xff, 0xff, 0xff },
 };
 
-VgaTerminal::VgaTerminal(Type type, u32 unit, u32 classID) : ChrDevice(type, unit, classID)
+VgaTerminal::VgaTerminal(Type type, u32 unit, u32 classID) : ConsoleDev(type, unit, classID)
 {
 	/* only unit 0 is supported */
 	if (unit) {
 		return;
 	}
 	curPos = 0;
+	curTop = 0;
+	fgCol = DEF_FG_COLOR;
+	bgCol = DEF_BG_COLOR;
 	if (Initialize()) {
 		return;
 	}
@@ -99,18 +102,17 @@ VgaTerminal::Initialize()
 
 	Resize(DEF_NUM_COLS, DEF_NUM_LINES);
 	SetCursorSize(FONT_HEIGHT - 3, FONT_HEIGHT - 2);
-	SetOrigin(0);
-	SetCursor(0);
-	curAttr = BuildAttr(COL_WHITE | COL_LIGHT, COL_BLACK);
+	curAttr = BuildAttr(fgCol, bgCol);
 	Unlock(x);
+	Clear();
 	return 0;
 }
 
 int
 VgaTerminal::Resize(u32 cx, u32 cy)
 {
-	curCX = cx;
-	curCY = cy;
+	this->cx = cx;
+	this->cy = cy;
 	u32 scanLines = cy * FONT_HEIGHT;
 	xRes = cx * FONT_WIDTH;
 	yRes = scanLines;
@@ -195,10 +197,43 @@ VgaTerminal::SetCursor(u32 pos)
 	return 0;
 }
 
+int
+VgaTerminal::Clear()
+{
+	u32 x = Lock();
+	curPos = 0;
+	curTop = 0;
+	SetOrigin(0);
+	SetCursor(0);
+	u32 size = cx * cy;
+	u16 data = ' ' | (curAttr << 8);
+	for (u32 i = 0; i < size; i++) {
+		fb[i] = data;
+	}
+	Unlock(x);
+	return ConsoleDev::Clear();
+}
+
 u8
 VgaTerminal::BuildAttr(u8 fgCol, u8 bgCol)
 {
 	return (fgCol & 0xf) | ((bgCol & 0xf) << 4);
+}
+
+int
+VgaTerminal::SetFgColor(int col)
+{
+	int r = ConsoleDev::SetFgColor(col);
+	curAttr = BuildAttr(fgCol, bgCol);
+	return r;
+}
+
+int
+VgaTerminal::SetBgColor(int col)
+{
+	int r = ConsoleDev::SetBgColor(col);
+	curAttr = BuildAttr(fgCol, bgCol);
+	return r;
 }
 
 u32
@@ -219,7 +254,61 @@ VgaTerminal::Unlock(u32 x)
 Device::IOStatus
 VgaTerminal::Putc(u8 c)
 {
-	u16 data = c | ((u16)curAttr << 8);
-	fb[curPos++] = data;
+	u32 maxIdx = rounddown(MEM_SIZE / 2, cx);
+	u32 screenSize = cx * cy;
+	u32 x = (curPos - curTop) % cx;
+	if (c == '\r') {
+		curPos = rounddown(curPos, cx);
+		int lck = Lock();
+		SetCursor(curPos);
+		Unlock(lck);
+		return IOS_OK;
+	}
+	if (c == '\b') {
+		if (curPos != rounddown(curPos, cx)) {
+			curPos--;
+		}
+		int lck = Lock();
+		SetCursor(curPos);
+		Unlock(lck);
+		return IOS_OK;
+	}
+	if (c == '\n') {
+		curPos = roundup(curPos + 1, cx);
+	} else if (c == '\t') {
+		u32 newX = roundup(x + 1, tabSize);
+		if (newX >= cx) {
+			curPos = roundup(curPos + 1, cx);
+		} else {
+			curPos = curTop + rounddown(curPos - curTop, cx) + newX;
+		}
+	} else {
+		fb[curPos] = c | ((u16)curAttr << 8);
+		curPos++;
+	}
+	u32 prevTop = curTop;
+	if (curPos >= maxIdx) {
+		curPos -= maxIdx;
+		for (u32 i = 0; i < screenSize; i++) {
+			fb[i] = fb[curTop + i];
+		}
+		curPos += screenSize;
+		curTop = 0;
+	}
+	if (curPos >= curTop + screenSize) {
+		curTop = roundup(curPos - screenSize + 1, cx);
+	}
+	int lck = Lock();
+	SetCursor(curPos);
+	if (curTop != prevTop) {
+		if (curTop > prevTop) {
+			u16 data = ' ' | (curAttr << 8);
+			for (u32 i = prevTop + screenSize; i < curTop + screenSize; i++) {
+				fb[i] = data;
+			}
+		}
+		SetOrigin(curTop);
+	}
+	Unlock(lck);
 	return IOS_OK;
 }

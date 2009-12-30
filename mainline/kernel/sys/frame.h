@@ -11,12 +11,12 @@
 #include <sys.h>
 phbSource("$Id$");
 
-#define PUSHALL \
+#define PUSH_FRAME \
 	pushl %gs; pushl %fs; pushl %es; pushl %ds; \
 	pushl %eax; pushl %ebp; \
 	pushl %edi; pushl %esi; pushl %edx; pushl %ecx; pushl %ebx
 
-#define POPALL \
+#define POP_FRAME \
 	popl %ebx; popl %ecx; popl %edx; popl %esi; popl %edi; \
 	popl %ebp; popl %eax; \
 	popl %ds; popl %es; popl %fs; popl %gs;
@@ -32,12 +32,14 @@ phbSource("$Id$");
 #define FRAME_DS		28
 #define FRAME_ES		32
 #define FRAME_FS		36
-#define FRAME_CODE		40
-#define FRAME_EIP		44
-#define FRAME_CS		48
-#define FRAME_EFLAGS	52
-#define FRAME_ESP		56
-#define FRAME_SS		60
+#define FRAME_GS		40
+#define FRAME_IDX		44
+#define FRAME_CODE		48
+#define FRAME_EIP		52
+#define FRAME_CS		56
+#define FRAME_EFLAGS	60
+#define FRAME_ESP		64
+#define FRAME_SS		68
 
 #ifndef ASSEMBLER
 
@@ -53,8 +55,9 @@ typedef struct {
 	u16 es, __es_pad;
 	u16 fs, __fs_pad;
 	u16 gs, __gs_pad;
+	u32 vectorIdx;
 	/* below is CPU hardware assisted */
-	u32 code; /* error code for trap frame, vector index for IRQ */
+	u32 code; /* error code for trap frame, zero if not used */
 	u32 eip;
 	u16 cs, __cs_pad;
 	u32 eflags;

@@ -11,7 +11,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
-class VgaTerminal : public ChrDevice {
+class VgaTerminal : public ConsoleDev {
 private:
 	enum Regs {
 		REG_MO_W =			0x3cc, /* Miscellaneous Output Register */
@@ -141,18 +141,6 @@ private:
 		REG_DAC_STATE =		0x3c7, /* DAC State Register */
 	};
 
-	enum Colors {
-		COL_BLACK,
-		COL_RED,
-		COL_GREEN,
-		COL_YELLOW,
-		COL_BLUE,
-		COL_MAGENTA,
-		COL_CYAN,
-		COL_WHITE,
-		COL_LIGHT = 0x10,
-	};
-
 	enum {
 		MEM_LOCATION =		0xb8000,
 		MEM_SIZE =			0x8000,
@@ -160,6 +148,8 @@ private:
 		FONT_HEIGHT =		16,
 		DEF_NUM_COLS =		80,
 		DEF_NUM_LINES =		40,
+		DEF_FG_COLOR =		COL_WHITE | COL_BRIGHT,
+		DEF_BG_COLOR =		COL_BLACK,
 	};
 
 	SpinLock lock;
@@ -170,9 +160,9 @@ private:
 	} PalColor;
 	static PalColor defPal[16];
 	u16 *fb;
-	u32 curCX, curCY, xRes, yRes;
+	u32 cx, cy, xRes, yRes;
 	u8 curAttr;
-	u32 curPos;
+	u32 curPos, curTop;
 
 	int Initialize();
 	u32 Lock();
@@ -187,6 +177,9 @@ public:
 	VgaTerminal(Type type, u32 unit, u32 classID);
 
 	virtual IOStatus Putc(u8 c);
+	virtual int SetFgColor(int col); /* return previous value */
+	virtual int SetBgColor(int col); /* return previous value */
+	virtual int Clear();
 };
 
 #endif /* VGA_H_ */

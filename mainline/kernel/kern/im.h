@@ -92,7 +92,7 @@ private:
 	IsrStatus ProcessInterrupt(IrqType type, u32 idx);
 	int MaskIrq(IrqType type, u32 idx);
 	int UnMaskIrq(IrqType type, u32 idx);
-	static int HWIRQHandler(u32 idx, void *arg, Frame *frame);
+	static int HWIRQHandler(Frame *frame, void *arg);
 	int GetPIC(u32 idx, PIC **ppic, u32 *pidx);
 public:
 	IM();

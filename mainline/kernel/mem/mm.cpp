@@ -51,6 +51,7 @@ MM::MM()
 	kmemObj = 0;
 	devObj = 0;
 	kmemAlloc = 0;
+	devMemAlloc = 0;
 	LIST_INIT(objects);
 	LIST_INIT(topObjects);
 	numObjects = 0;
@@ -93,16 +94,47 @@ MM::InitAvailMem()
 		panic("No information about system memory map");
 	}
 	physMemSize = 0;
+	biosMemSize = 0;
+	physMemTotal = 0;
+	devPhysMem = 0;
 	int len = pMBInfo->mmapLength;
 	MBIMmapEntry *pe = pMBInfo->mmapAddr;
 	while (len > 0) {
-		printf("[%016llx - %016llx] %s (%d)\n",
-			pe->baseAddr, pe->baseAddr + pe->length,
-			StrMemType((SMMemType)pe->type), pe->type);
+		biosMem[biosMemSize].location = pe->baseAddr;
+		biosMem[biosMemSize].size = pe->length;
+		biosMem[biosMemSize].type = (SMMemType)pe->type;
+		biosMemSize++;
+		/* find suitable space for memory mapped devices */
+		if (!devPhysMem) {
+			psize_t sz = biosMem[biosMemSize - 1].location -
+				(biosMemSize > 1 ?
+				biosMem[biosMemSize - 2].location + biosMem[biosMemSize - 2].size : 0);
+			if (sz >= DEV_MEM_SIZE && biosMem[biosMemSize - 1].location > 16 * 1024 * 1024) {
+				/* try to maximally align the address */
+				devPhysMem = biosMem[biosMemSize - 1].location - DEV_MEM_SIZE;
+				if (biosMemSize > 1) {
+					int order = 1;
+					paddr_t minAddr = biosMem[biosMemSize - 2].location + biosMem[biosMemSize - 2].size;
+					while (order < 32) {
+						paddr_t addr = devPhysMem & ~((1 << order) - 1);
+						if (addr < minAddr) {
+							break;
+						}
+						devPhysMem = addr;
+						order++;
+					}
+				} else {
+					devPhysMem = 0;
+				}
+				klog(KLOG_INFO, "Devices memory at 0x%016llx - 0x%016llx",
+					devPhysMem, devPhysMem + DEV_MEM_SIZE);
+			}
+		}
 		if (pe->type == SMMT_MEMORY) {
 			physMem[physMemSize].start = pe->baseAddr;
 			physMem[physMemSize].end = pe->baseAddr + pe->length;
 			physMemSize++;
+			physMemTotal += pe->length;
 		}
 		len -= pe->size + sizeof(pe->size);
 		pe = (MBIMmapEntry *)((u8 *)pe + pe->size + sizeof(pe->size));
@@ -144,7 +176,19 @@ MM::InitAvailMem()
 	}
 
 	initState = IS_MEMCOUNTED;
-	printf("Total %dM of physical memory\n", (u32)(ptoa(totalMem) >> 20));
+}
+
+int
+MM::PrintMemInfo(ConsoleDev *dev)
+{
+	for (u32 i = 0; i < biosMemSize; i++) {
+		BiosMemChunk *bmc = &biosMem[i];
+		printf("[%016llx - %016llx] %s (%d)\n",
+					bmc->location, bmc->location + bmc->size,
+					StrMemType((SMMemType)bmc->type), bmc->type);
+	}
+	dev->Printf("Total %luM of physical memory\n", (u32)(physMemTotal >> 20));
+	return 0;
 }
 
 void
@@ -159,6 +203,13 @@ MM::InitMM()
 	assert(kmemSlab);
 	kmemMapClient = NEWSINGLE(KmemMapClient, kmemSlab);
 	assert(kmemMapClient);
+	devMemClient = NEWSINGLE(PABuddyClient, kmemSlab);
+	assert(devMemClient);
+	devMemAlloc = NEWSINGLE(BuddyAllocator<paddr_t>, devMemClient);
+	assert(devMemAlloc);
+	if (devMemAlloc->Initialize(devPhysMem, DEV_MEM_SIZE, PAGE_SHIFT, 30)) {
+		panic("Devices physical memory allocator initialization failed");
+	}
 	if (CreatePageDescs()) {
 		panic("MM::CreatePageDescs() failed");
 	}
@@ -192,6 +243,27 @@ MM::InitMM()
 	devAlloc = devEntry->CreateAllocator();
 	assert(devAlloc);
 	initState = IS_NORMAL;
+}
+
+paddr_t
+MM::AllocDevPhys(psize_t size)
+{
+	paddr_t addr;
+	size = roundup2(size, PAGE_SIZE);
+	if (devMemAlloc->Allocate(size, &addr)) {
+		klog(KLOG_WARNING,
+			"Failed to allocate %llu bytes of devices physical memory space",
+			size);
+		return 0;
+	}
+	return addr;
+}
+
+
+int
+MM::FreeDevPhys(paddr_t addr)
+{
+	return devMemAlloc->Free(addr);
 }
 
 void

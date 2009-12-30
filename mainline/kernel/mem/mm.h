@@ -87,11 +87,21 @@ public:
 		paddr_t	start, end;
 	} MemChunk;
 
+	typedef struct {
+		paddr_t location;
+		psize_t size;
+		SMMemType type;
+	} BiosMemChunk;
+
 	MemChunk physMem[MEM_MAX_CHUNKS];
 	u32 physMemSize;
+	psize_t physMemTotal;
 	MemChunk availMem[MEM_MAX_CHUNKS];
 	u32 availMemSize;
+	BiosMemChunk biosMem[MEM_MAX_CHUNKS];
+	u32 biosMemSize;
 	u32 totalMem;
+	paddr_t devPhysMem; /* physical memory space for memory-mapped devices */
 	SlabAllocator *kmemSlab;
 	ListHead objects; /* all objects */
 	ListHead topObjects; /* top-level objects */
@@ -323,8 +333,24 @@ private:
 		virtual void mfree(void *p) { return m->mfree(p); }
 		virtual void *AllocateStruct(u32 size) {return m->AllocateStruct(size);}
 		virtual void FreeStruct(void *p, u32 size) {return m->FreeStruct(p, size);}
-		virtual int Allocate(vaddr_t base, vaddr_t size, void *arg = 0);
-		virtual int Free(vaddr_t base, vaddr_t size, void *arg = 0);
+		virtual int Allocate(vaddr_t base, vsize_t size, void *arg = 0);
+		virtual int Free(vaddr_t base, vsize_t size, void *arg = 0);
+		virtual void Lock() { mtx.Lock(); }
+		virtual void Unlock() { mtx.Unlock(); }
+	};
+
+	class PABuddyClient : public BuddyAllocator<paddr_t>::BuddyClient {
+	private:
+		MemAllocator *m;
+		Mutex mtx;
+	public:
+		PABuddyClient(MemAllocator *m) { this->m = m; }
+		virtual void *malloc(u32 size) { return m->malloc(size); }
+		virtual void mfree(void *p) { return m->mfree(p); }
+		virtual void *AllocateStruct(u32 size) {return m->AllocateStruct(size);}
+		virtual void FreeStruct(void *p, u32 size) {return m->FreeStruct(p, size);}
+		virtual int Allocate(paddr_t base, psize_t size, void *arg = 0) { return 0; }
+		virtual int Free(paddr_t base, psize_t size, void *arg = 0) { return 0; }
 		virtual void Lock() { mtx.Lock(); }
 		virtual void Unlock() { mtx.Unlock(); }
 	};
@@ -332,8 +358,10 @@ private:
 	KmemSlabClient *kmemSlabClient;
 	void *kmemSlabInitialMem;
 	KmemMapClient *kmemMapClient;
+	PABuddyClient *devMemClient;
 	Map::Entry *kmemEntry, *devEntry;
 	MemAllocator *kmemAlloc, *devAlloc;
+	BuddyAllocator<paddr_t> *devMemAlloc;
 
 	static inline void FlushTLB() {wcr3(rcr3());}
 	static void GrowMem(vaddr_t addr);
@@ -363,7 +391,10 @@ public:
 	Page *AllocatePage(int flags = 0);
 	Page *GetPage(paddr_t pa);
 	paddr_t Kextract(vaddr_t va); /* in kernel AS */
-	vaddr_t MapPhys(paddr_t pa, psize_t size); /* map in devices memory region */
+	vaddr_t MapPhys(paddr_t pa, psize_t size); /* map in devices memory region, can be unmapped by mfree() */
+	int PrintMemInfo(ConsoleDev *dev);
+	paddr_t AllocDevPhys(psize_t size); /* allocate physical memory in devices region */
+	int FreeDevPhys(paddr_t addr);
 };
 
 extern MM *mm;

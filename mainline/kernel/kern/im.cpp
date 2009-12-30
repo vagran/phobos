@@ -50,12 +50,12 @@ IM::IM()
 }
 
 int
-IM::HWIRQHandler(u32 idx, void *arg, Frame *frame)
+IM::HWIRQHandler(Frame *frame, void *arg)
 {
-	((IM *)arg)->Hwirq(idx - HWIRQ_BASE);
+	((IM *)arg)->Hwirq(frame->vectorIdx - HWIRQ_BASE);
 	PIC *pic;
 	u32 picIdx;
-	if (!((IM *)arg)->GetPIC(idx - HWIRQ_BASE, &pic, &picIdx)) {
+	if (!((IM *)arg)->GetPIC(frame->vectorIdx - HWIRQ_BASE, &pic, &picIdx)) {
 		pic->EOI(picIdx);
 	}
 	return 0;

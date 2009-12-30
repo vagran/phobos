@@ -163,30 +163,38 @@ public:
 		ST_ALIGNMENT,
 		ST_MACHINECHECK,
 		ST_SIMD,
+		ST_NUMRESERVED = 32, /* reserved by Intel */
 	} SysTraps;
 
-	typedef int (*TrapHandler)(u32 idx, void *arg, Frame *frame);
+	typedef int (*TrapHandler)(Frame *frame, void *arg);
 
 private:
-	SDT::Gate *table;
-	TrapHandler handlersTable[256];
-	void *hdlArgs[256];
-	SDT::PseudoDescriptor pd;
+	enum {
+		NUM_VECTORS =		0x100,
+	};
 
-	void InitHandlers();
+	SDT::Gate *table;
+	SDT::PseudoDescriptor pd;
+	typedef struct {
+		TrapHandler handler;
+		void *arg;
+	} TableEntry;
+	TableEntry handlers[NUM_VECTORS];
+	TableEntry utHandler;
+	u32 trapEntrySize;
+
 public:
 	static const char *StrTrap(SysTraps trap);
 
 	IDT();
+	int HandleTrap(Frame *frame);
 
 	TrapHandler RegisterHandler(u32 idx, TrapHandler h, void *arg = 0);
 	TrapHandler RegisterUTHandler(TrapHandler h, void *arg = 0);
 };
 
 extern IDT *idt;
-extern "C" IDT::TrapHandler *_trapHandlersTable;
-extern "C" void **_trapHandlersArgs;
-extern "C" IDT::TrapHandler _unhandledTrap;
-extern "C" void *_unhandledTrapArg;
+extern "C" u8 TrapEntry, TrapEntryEnd;
+extern "C" void *TrapTable;
 
 #endif /* SEGMENTS_H_ */

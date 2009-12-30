@@ -64,8 +64,8 @@ private:
 	int gdbSkipCont;
 	int requestedBreak;
 
-	static int _BPHandler(u32 idx, Debugger *d, Frame *frame);
-	static int _DebugHandler(u32 idx, Debugger *d, Frame *frame);
+	static int _BPHandler(Frame *frame, Debugger *d);
+	static int _DebugHandler(Frame *frame, Debugger *d);
 	int BPHandler(Frame *frame);
 	int Shell();
 	void Prompt();
@@ -99,7 +99,7 @@ public:
 	int SetConsole(ConsoleDev *con);
 	int Break();
 	int SetGDBMode(int f);
-	int Trap(IDT::SysTraps idx, Frame *frame);
+	int Trap(Frame *frame);
 };
 
 extern Debugger *sysDebugger;

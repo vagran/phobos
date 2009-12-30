@@ -50,9 +50,10 @@ phbSource("$Id$");
 extern void __assert(const char *file, u32 line, const char *cond);
 
 #include <lock.h>
-#include <mem.h>
 #include <dev/chr/syscons.h>
+#include <mem.h>
 #include <kern/im.h>
+#include <dev/sys/cpu.h>
 
 #ifdef KERNEL
 

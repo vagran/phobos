@@ -70,22 +70,22 @@ Debugger::SetConsole(ConsoleDev *con)
 }
 
 int
-Debugger::_BPHandler(u32 idx, Debugger *d, Frame *frame)
+Debugger::_BPHandler(Frame *frame, Debugger *d)
 {
 	return d->BPHandler(frame);
 }
 
 int
-Debugger::_DebugHandler(u32 idx, Debugger *d, Frame *frame)
+Debugger::_DebugHandler(Frame *frame, Debugger *d)
 {
 	d->requestedBreak = 1; /* prevent from eip decrementing */
 	return d->BPHandler(frame);
 }
 
 int
-Debugger::Trap(IDT::SysTraps idx, Frame *frame)
+Debugger::Trap(Frame *frame)
 {
-	con->Printf("Trap: %d - %s\n", idx, IDT::StrTrap(idx));
+	con->Printf("Trap: %lu - %s\n", frame->vectorIdx, IDT::StrTrap((IDT::SysTraps)frame->vectorIdx));
 	requestedBreak = 1;
 	return BPHandler(frame);
 }
@@ -132,14 +132,14 @@ Debugger::BPHandler(Frame *frame)
 int
 Debugger::PrintFrameInfo(Frame *frame)
 {
-	con->Printf("Stopped at 0x%08x\n", frame->eip);
+	con->Printf("Stopped at 0x%08lx\n", frame->eip);
 	return 0;
 }
 
 void
 Debugger::Prompt()
 {
-	con->Printf("PhobOS debugger [%08x]> ", frame->eip);
+	con->Printf("PhobOS debugger [%08lx]> ", frame->eip);
 }
 
 int
@@ -361,21 +361,21 @@ Debugger::HdlStatus
 Debugger::cmd_registers(char **argv, u32 argc)
 {
 	con->Printf(
-		"eax = 0x%08x\n"
-		"ebx = 0x%08x\n"
-		"ecx = 0x%08x\n"
-		"edx = 0x%08x\n"
-		"esi = 0x%08x\n"
-		"edi = 0x%08x\n"
-		"ebp = 0x%08x\n"
-		"esp = 0x%08x\n"
-		"eip = 0x%08x\n"
-		"eflags = 0x%08x\n"
-		"cs = 0x%08x\n"
-		"ds = 0x%08x\n"
-		"es = 0x%08x\n"
-		"fs = 0x%08x\n"
-		"gs = 0x%08x\n"
+		"eax = 0x%08lx\n"
+		"ebx = 0x%08lx\n"
+		"ecx = 0x%08lx\n"
+		"edx = 0x%08lx\n"
+		"esi = 0x%08lx\n"
+		"edi = 0x%08lx\n"
+		"ebp = 0x%08lx\n"
+		"esp = 0x%08lx\n"
+		"eip = 0x%08lx\n"
+		"eflags = 0x%08lx\n"
+		"cs = 0x%08lx\n"
+		"ds = 0x%08lx\n"
+		"es = 0x%08lx\n"
+		"fs = 0x%08lx\n"
+		"gs = 0x%08lx\n"
 		"ss = 0x%04hx\n",
 		frame->eax,
 		frame->ebx,

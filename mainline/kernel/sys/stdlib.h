@@ -74,7 +74,7 @@ typedef enum {
 	KLOG_ERROR,
 } KLogLevel;
 
-#define klog(level, fmt,...) _klog(__PRETTY_FUNCTION__, __LINE__, level, fmt, ## __VA_ARGS__)
+#define klog(level, fmt,...) _klog(__func__, __LINE__, level, fmt, ## __VA_ARGS__)
 void _klog(const char *funcName, int line, KLogLevel level, const char *fmt,...) __format(printf, 4, 5);
 
 #endif /* STDLIB_H_ */

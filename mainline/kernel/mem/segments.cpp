@@ -136,129 +136,76 @@ GDT::GetSelector(SDT::Descriptor *d, u16 rpl)
 
 /*************************************************************/
 
-#define DeclareTrap(idx)	ASMCALL void __CONCAT(TrapEntry,idx)()
-
-#define SetTrap(idx) SDT::SetGate(&table[idx], (u32)__CONCAT(TrapEntry,idx), \
-	GDT::GetSelector(GDT::SI_KCODE, 0), SDT::SST_TGT32)
-
-#define SetTrapIGT(idx) SDT::SetGate(&table[idx], (u32)__CONCAT(TrapEntry,idx), \
-	GDT::GetSelector(GDT::SI_KCODE, 0), SDT::SST_IGT32)
-
-#define DeclareIRQ(idx)	ASMCALL void __CONCAT(IRQEntry,idx)()
-
-#define SetIRQ(idx) SDT::SetGate(&table[idx], (u32)__CONCAT(IRQEntry,idx), \
-	GDT::GetSelector(GDT::SI_KCODE, 0), SDT::SST_IGT32)
-
-DeclareTrap(0x00);
-DeclareTrap(0x01);
-DeclareTrap(0x02);
-DeclareTrap(0x03);
-DeclareTrap(0x04);
-DeclareTrap(0x05);
-DeclareTrap(0x06);
-DeclareTrap(0x07);
-DeclareTrap(0x08);
-DeclareTrap(0x09);
-DeclareTrap(0x0a);
-DeclareTrap(0x0b);
-DeclareTrap(0x0c);
-DeclareTrap(0x0d);
-DeclareTrap(0x0e);
-DeclareTrap(0x0f);
-DeclareTrap(0x10);
-DeclareTrap(0x11);
-DeclareTrap(0x12);
-DeclareTrap(0x13);
-
-DeclareIRQ(0x20);
-DeclareIRQ(0x21);
-DeclareIRQ(0x22);
-DeclareIRQ(0x23);
-DeclareIRQ(0x24);
-DeclareIRQ(0x25);
-DeclareIRQ(0x26);
-DeclareIRQ(0x27);
-DeclareIRQ(0x28);
-DeclareIRQ(0x29);
-DeclareIRQ(0x2a);
-DeclareIRQ(0x2b);
-DeclareIRQ(0x2c);
-DeclareIRQ(0x2d);
-DeclareIRQ(0x2e);
-DeclareIRQ(0x2f);
+int UnhandledTrap(Frame *frame, void *arg);
 
 IDT::IDT()
 {
-	memset(hdlArgs, 0, sizeof(hdlArgs));
-	_trapHandlersTable = handlersTable;
-	_trapHandlersArgs = hdlArgs;
-	memset(handlersTable, 0, sizeof(handlersTable));
-	InitHandlers();
+	memset(handlers, 0, sizeof(handlers));
+	memset(&utHandler, 0, sizeof(utHandler));
+	RegisterUTHandler(UnhandledTrap);
 
-	table = (SDT::Gate *)MM::malloc(256 * sizeof(*table), sizeof(*table));
-	memset(table, 0, 256 * sizeof(*table));
+	table = (SDT::Gate *)MM::malloc(NUM_VECTORS * sizeof(*table), sizeof(*table));
+	memset(table, 0, NUM_VECTORS * sizeof(*table));
 
-	SetTrap(0x00);
-	SetTrap(0x01);
-	SetTrapIGT(0x02); /* access NMI handler through interrupt gate */
-	SetTrap(0x03);
-	SetTrap(0x04);
-	SetTrap(0x05);
-	SetTrap(0x06);
-	SetTrap(0x07);
-	SetTrap(0x08);
-	SetTrap(0x09);
-	SetTrap(0x0a);
-	SetTrap(0x0b);
-	SetTrap(0x0c);
-	SetTrap(0x0d);
-	SetTrap(0x0e);
-	SetTrap(0x0f);
-	SetTrap(0x10);
-	SetTrap(0x11);
-	SetTrap(0x12);
-	SetTrap(0x13);
+	trapEntrySize = roundup2((u32)&TrapEntryEnd - (u32)&TrapEntry, 0x10);
+	TrapTable = MM::malloc(NUM_VECTORS * trapEntrySize, 0x10);
+	/* initialize with NOPs */
+	memset(TrapTable, 0x90, NUM_VECTORS * trapEntrySize);
 
-	SetIRQ(0x20);
-	SetIRQ(0x21);
-	SetIRQ(0x22);
-	SetIRQ(0x23);
-	SetIRQ(0x24);
-	SetIRQ(0x25);
-	SetIRQ(0x26);
-	SetIRQ(0x27);
-	SetIRQ(0x28);
-	SetIRQ(0x29);
-	SetIRQ(0x2a);
-	SetIRQ(0x2b);
-	SetIRQ(0x2c);
-	SetIRQ(0x2d);
-	SetIRQ(0x2e);
-	SetIRQ(0x2f);
+	for (u32 idx = 0; idx < NUM_VECTORS; idx++) {
+		SDT::SysSegType type;
+		if (idx < ST_NUMRESERVED && idx != ST_NMI) {
+			type = SDT::SST_TGT32;
+		} else {
+			type = SDT::SST_IGT32;
+		}
+		void *entry = (void *)((u32)TrapTable + idx * trapEntrySize);
+		SDT::SetGate(&table[idx], (u32)entry,
+			GDT::GetSelector(GDT::SI_KCODE, 0), type);
+		memcpy(entry, &TrapEntry, (u32)&TrapEntryEnd - (u32)&TrapEntry);
+	}
 
 	pd.base = (u32)table;
-	pd.limit = 256 * sizeof(*table) - 1;
+	pd.limit = NUM_VECTORS * sizeof(*table) - 1;
 	lidt(&pd);
+}
+
+int
+IDT::HandleTrap(Frame *frame)
+{
+	/*printf("ebx=0x%08lx, idx=%lu, code=0x%08lx, eip=0x%08lx\n", frame->ebx, frame->vectorIdx, frame->code, frame->eip);//temp
+	for (u32 i = 0; i < sizeof(Frame) / 4; i++) {
+		printf("%lu: 0x%08lx\n", i * 4, ((u32 *)frame)[i]);
+	}*/
+	assert(frame->vectorIdx < NUM_VECTORS);
+	TableEntry *p = &handlers[frame->vectorIdx];
+	if (!p->handler) {
+		if (!utHandler.handler) {
+			return 0;
+		}
+		return utHandler.handler(frame, utHandler.arg);
+	}
+	return p->handler(frame, p->arg);
 }
 
 IDT::TrapHandler
 IDT::RegisterHandler(u32 idx, TrapHandler h, void *arg)
 {
-	if (idx >= 256) {
+	if (idx >= NUM_VECTORS) {
 		return 0;
 	}
-	TrapHandler ret = handlersTable[idx];
-	handlersTable[idx] = h;
-	hdlArgs[idx] = arg;
+	TrapHandler ret = handlers[idx].handler;
+	handlers[idx].handler = h;
+	handlers[idx].arg = arg;
 	return ret;
 }
 
 IDT::TrapHandler
 IDT::RegisterUTHandler(TrapHandler h, void *arg)
 {
-	TrapHandler ret = _unhandledTrap;
-	_unhandledTrap = h;
-	_unhandledTrapArg = arg;
+	TrapHandler ret = utHandler.handler;
+	utHandler.handler = h;
+	utHandler.arg = arg;
 	return ret;
 }
 

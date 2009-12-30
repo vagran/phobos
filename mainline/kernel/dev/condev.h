@@ -22,12 +22,28 @@ public:
 		K_RIGHT =			67,
 		K_LEFT =			68,
 	} Keys;
+
+	typedef enum {
+		COL_BLACK,
+		COL_RED,
+		COL_GREEN,
+		COL_YELLOW,
+		COL_BLUE,
+		COL_MAGENTA,
+		COL_CYAN,
+		COL_WHITE,
+		COL_BRIGHT = 0x10,
+	} Colors;
+
 private:
 	ChrDevice *inDev, *outDev;
 
 	static void _Putc(int c, ConsoleDev *p);
 
 protected:
+	int fgCol, bgCol;
+	int tabSize;
+
 	int SetInputDevice(ChrDevice *dev);
 	int SetOutputDevice(ChrDevice *dev);
 public:
@@ -36,9 +52,13 @@ public:
 
 	virtual IOStatus Getc(u8 *c);
 	virtual IOStatus Putc(u8 c);
+	virtual int SetFgColor(int col); /* return previous value */
+	virtual int SetBgColor(int col); /* return previous value */
+	virtual int Clear();
+	virtual int SetTabSize(int sz); /* return previous value */
 
-	int VPrintf(const char *fmt, va_list va);
-	int Printf(const char *fmt,...);
+	int VPrintf(const char *fmt, va_list va) __format(printf, 2, 0);
+	int Printf(const char *fmt,...) __format(printf, 2, 3);
 };
 
 #endif /* CONDEV_H_ */

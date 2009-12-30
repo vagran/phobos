@@ -210,6 +210,7 @@ DeviceManager::CreateDevice(DevClass *p, u32 unit)
 	}
 	p->numDevs++;
 	Unlock(x);
+	klog(KLOG_INFO, "Device created: %s%lu - %s", p->name, unit, p->desc);
 	return dev;
 }
 

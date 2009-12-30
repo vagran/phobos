@@ -16,6 +16,9 @@ ConsoleDev::ConsoleDev(Type type, u32 unit, u32 classID) :
 {
 	inDev = 0;
 	outDev = 0;
+	fgCol = COL_WHITE | COL_BRIGHT;
+	bgCol = COL_BLACK;
+	tabSize = 8;
 }
 
 ConsoleDev::~ConsoleDev()
@@ -39,6 +42,37 @@ ConsoleDev::Getc(u8 *c)
 		return IOS_NOTSPRT;
 	}
 	return inDev->Getc(c);
+}
+
+int
+ConsoleDev::SetFgColor(int col)
+{
+	int r = fgCol;
+	fgCol = col;
+	return r;
+}
+
+int
+ConsoleDev::SetBgColor(int col)
+{
+	int r = bgCol;
+	bgCol = col;
+	return r;
+}
+
+int
+ConsoleDev::SetTabSize(int sz)
+{
+	int r = tabSize;
+	tabSize = sz;
+	return r;
+}
+
+int
+ConsoleDev::Clear()
+{
+	/* could be implemented in derived classes */
+	return 0;
 }
 
 int

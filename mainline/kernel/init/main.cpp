@@ -170,13 +170,20 @@ Main(paddr_t firstAddr)
 	/* ... as well as interrupts management */
 
 	/* try to create text terminal on video device if available */
-	ChrDevice *videoTerm = (ChrDevice *)devMan.CreateDevice("vga", 0);
+	ConsoleDev *videoTerm = (ConsoleDev *)devMan.CreateDevice("vga", 0);
 	if (videoTerm) {
 		sysCons->AddOutputDevice(videoTerm);
-		printf(copyright);
+		videoTerm->Printf("%s\n", copyright);
+		mm->PrintMemInfo(videoTerm);
 	} else {
 		klog(KLOG_INFO, "Video terminal could not be created");
 	}
+
+	/* Attach bootstrap processor and try to involve others */
+	if (!CPU::Startup()) {
+		panic("Unable to create device object for bootstrap CPU");
+	}
+	while (1) hlt();//temp
 
 	panic("Main exited");
 	/* NOTREACHED */
