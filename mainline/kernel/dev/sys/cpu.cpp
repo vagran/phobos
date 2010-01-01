@@ -9,6 +9,12 @@
 #include <sys.h>
 phbSource("$Id$");
 
+/*
+ * Our per-CPU private data stored in specially created segments (CPU::PrivSegment).
+ * The segments are referenced by %fs register if each CPU and contain at least
+ * pointer to CPU class instance associated with the given CPU.
+ */
+
 DefineDevFactory(CPU);
 
 RegDevClass(CPU, "cpu", Device::T_SPECIAL, "Central Processing Unit");
@@ -20,6 +26,32 @@ SpinLock CPU::startupLock;
 CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 {
 	smpGDT = 0;
+	initialStack = 0;
+
+	if (numCpus) { /* for APs */
+		lidt(idt->GetPseudoDescriptor());
+		lgdt(gdt->GetPseudoDescriptor());
+		lldt(gdt->GetSelector(GDT::SI_LDT));
+		/* create temporal stack */
+		initialStack = (u8 *)MM::malloc(INITIAL_STACK_SIZE);
+		vaddr_t oldStack = ((u32)&APstack - (u32)&APBootEntry) + APentryAddr;
+		/* shift frame base pointer, copy old stack content and switch stack pointer */
+		__asm__ __volatile__ (
+			"movl	%%edi, %%eax\n"
+			"subl	%%esi, %%eax\n"
+			"addl	%%eax, %%ebp\n"
+			"movl	%%esi, %%ecx\n"
+			"subl	%%esp, %%ecx\n"
+			"incl	%%ecx\n"
+			"std\n"
+			"rep movsb\n"
+			"movl	%%edi, %%esp\n"
+			"incl	%%esp\n"
+			:
+			: "S"(oldStack - 1), "D"(initialStack + INITIAL_STACK_SIZE - 1)
+			: "eax", "ecx", "cc"
+		);
+	}
 
 	if (unit != numCpus) {
 		panic("Attempted to create CPU device with invalid unit index (%lu/%lu)",
@@ -58,13 +90,28 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	devState = S_UP;
 }
 
+u32
+CPU::GetID()
+{
+	if (!lapic) {
+		return 0;
+	}
+	return lapic->GetID();
+}
+
 CPU *
 CPU::GetCurrent()
 {
 	CPU *cpu;
 	__asm__ __volatile__ (
-		"movl	%%fs:0, %0"
-		: "=r"(cpu)
+		"xorl	%0, %0\n"
+		"movl	%%fs, %0\n"
+		"testl	%0, %0\n"
+		"jz		1f\n"
+		"movl	%%fs:%1, %0\n"
+		"1:\n"
+		: "=&r"(cpu)
+		: "m"(*(u32 *)OFFSETOF(PrivSegment, cpu))
 	);
 	return cpu;
 }
@@ -86,6 +133,9 @@ CPU::Startup()
 	startupLock.Lock();
 	CPU *dev = (CPU *)devMan.CreateDevice("cpu", numCpus);
 	startupLock.Unlock();
+	if (dev) {
+		AtomicOp::Inc(&numCpus);
+	}
 	return dev;
 }
 
@@ -149,6 +199,10 @@ CPU::UninstallTrampoline(vaddr_t va)
 		/* FreePage() */
 		va += PAGE_SIZE;
 	}
+	if (initialStack) {
+		MM::mfree((void *)initialStack);
+		initialStack = 0;
+	}
 }
 
 vaddr_t
@@ -179,7 +233,7 @@ CPU::InstallTrampoline()
 	 * Since pages are not continuously allocated paging must be
 	 * enabled in the first 4kb of code.
 	 */
-	vaddr_t sva;
+	vaddr_t sva = 0;
 	for (u32 pgIdx = 0; pgIdx < pgNum; pgIdx++) {
 		pg = mm->AllocatePage(0, MM::ZONE_1MB);
 		if (!pg) {
@@ -198,10 +252,12 @@ CPU::InstallTrampoline()
 	return sva;
 }
 
+/* every AP enters here after protected mode and paging is enabled */
 ASMCALL void
-APBootstrap()
+APBootstrap(vaddr_t entryAddr)
 {
-	tracec('B');
-	AtomicOp::And(&APLock, 0);
+	CPU::Startup();
+	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + entryAddr);
+	AtomicOp::And(lock, 0);
 	hlt();
 }

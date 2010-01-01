@@ -191,6 +191,7 @@ public:
 
 	TrapHandler RegisterHandler(u32 idx, TrapHandler h, void *arg = 0);
 	TrapHandler RegisterUTHandler(TrapHandler h, void *arg = 0);
+	SDT::PseudoDescriptor *GetPseudoDescriptor() { return &pd; }
 };
 
 extern IDT *idt;

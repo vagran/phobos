@@ -254,12 +254,12 @@ VgaTerminal::Unlock(u32 x)
 Device::IOStatus
 VgaTerminal::Putc(u8 c)
 {
+	int lck = Lock();
 	u32 maxIdx = rounddown(MEM_SIZE / 2, cx);
 	u32 screenSize = cx * cy;
 	u32 x = (curPos - curTop) % cx;
 	if (c == '\r') {
 		curPos = rounddown(curPos, cx);
-		int lck = Lock();
 		SetCursor(curPos);
 		Unlock(lck);
 		return IOS_OK;
@@ -268,7 +268,6 @@ VgaTerminal::Putc(u8 c)
 		if (curPos != rounddown(curPos, cx)) {
 			curPos--;
 		}
-		int lck = Lock();
 		SetCursor(curPos);
 		Unlock(lck);
 		return IOS_OK;
@@ -298,7 +297,6 @@ VgaTerminal::Putc(u8 c)
 	if (curPos >= curTop + screenSize) {
 		curTop = roundup(curPos - screenSize + 1, cx);
 	}
-	int lck = Lock();
 	SetCursor(curPos);
 	if (curTop != prevTop) {
 		if (curTop > prevTop) {

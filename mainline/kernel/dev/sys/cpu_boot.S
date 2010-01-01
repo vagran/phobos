@@ -15,9 +15,9 @@ phbSource("$Id$");
 #define CR0_PG		0x80000000
 #define CR4_PAE		0x00000020
 
-#define AP_STACK_SIZE	256
+#define AP_STACK_SIZE	1024
 
-/* this code will be copied from here to the memory accessible from real mode */
+/* This code is copied from here to the memory accessible from real mode */
 .data
 .globl APBootEntry
 APBootEntry:
@@ -26,11 +26,12 @@ APBootEntry:
 	movw	%cs, %ax
 	movw	%ax, %ds
 	movw	%ax, %es
-	movw	%ax, %fs
-	movw	%ax, %gs
 	movw	%ax, %ss
 
-	/* turn on protected mode */
+	/*
+	 * Turn on protected mode. It is safe to do this now because segments attributes
+	 * are updated only when writing selectors to segment registers.
+	 */
 	movl	%cr0, %eax
 	orl		$CR0_PE, %eax
 	movl	%eax, %cr0
@@ -42,7 +43,10 @@ APBootEntry:
 	 * * Enable paging and utilize kernel address space.
 	 */
 
-	/* Since stack is shared between all APs, we need to establish lock for its access */
+	/*
+	 * Since stack is shared between all APs and all of them are started simultaneously,
+	 * we need to establish spin lock for its access.
+	 */
 1:	lock btsl $0, APLock - APBootEntry
 	pause
 	jc		1b
@@ -69,9 +73,10 @@ code32:
 	/* switch data segments */
 	movw	%dx, %ds
 	movw	%dx, %es
+	movw	%dx, %ss
+	xorl	%edx, %edx
 	movw	%dx, %fs
 	movw	%dx, %gs
-	movw	%dx, %ss
 	addl	%ebx, %esp
 
 	/* enable paging */
@@ -83,17 +88,19 @@ code32:
 	movl	%eax, %cr0
 
 	/* and jump to C */
-	pushl	$APBootstrap
-	ret
+	pushl	%ebx /* entry linear address */
+	movl	$APBootstrap, %eax
+	call	*%eax
 
 	.space AP_STACK_SIZE
+.globl APstack
 APstack: /* temporal stack */
 	.long 0, 0, 0, 0
 .globl APLock
 APLock: /* APs lock, required since they share the stack during initialization */
 	.long 0
 
-/* the values below must be initialized before wakening APs */
+/* the values below must be initialized before wakening APs up */
 .globl APentryAddr
 APentryAddr:
 	.long 0

@@ -42,6 +42,7 @@ LAPIC::LAPIC(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	WriteReg(REG_LINT1, LVTEB_DM_NMI); /* accept NMI from external sources */
 
 	ID = ReadReg(REG_ID) >> 24;
+	klog(KLOG_INFO, "LAPIC attached, ID = %lu", ID);
 	devState = S_UP;
 }
 

@@ -39,6 +39,11 @@ private:
 	} GDBRegs;
 
 	typedef enum {
+		DRQ_STOP,
+		DRQ_CONTINUE,
+	} DebugRequests;
+
+	typedef enum {
 		HS_OK,
 		HS_ERROR,
 		HS_EXIT,		/* exit from command loop */
@@ -63,9 +68,12 @@ private:
 	int gdbMode;
 	int gdbSkipCont;
 	int requestedBreak;
+	SpinLock dbgLock; /* only one CPU can enter debugger, others should wait */
+	CPU *curCpu;
 
 	static int _BPHandler(Frame *frame, Debugger *d);
 	static int _DebugHandler(Frame *frame, Debugger *d);
+	static int _SMPDbgReqHandler(Frame *frame, Debugger *d);
 	int BPHandler(Frame *frame);
 	int Shell();
 	void Prompt();
@@ -87,6 +95,7 @@ private:
 	int Continue();
 	int WriteRegisters();
 	int Step();
+	int DebugRequest(Frame *frame);
 
 	/* commands handlers */
 	HdlStatus cmd_continue(char **argv, u32 argc);
@@ -94,6 +103,9 @@ private:
 	HdlStatus cmd_registers(char **argv, u32 argc);
 	HdlStatus cmd_gdb(char **argv, u32 argc);
 public:
+	static int debugFaults;
+	static int debugPanics;
+
 	Debugger(ConsoleDev *con);
 
 	int SetConsole(ConsoleDev *con);

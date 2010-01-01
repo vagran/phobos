@@ -127,6 +127,7 @@ public:
 	DeclareDevFactory();
 	LAPIC(Type type, u32 unit, u32 classID);
 
+	inline u32 GetID() { return ID; }
 	int SetCpu(CPU *cpu);
 	int SendIPI(DeliveryMode dm, Destination dst, u32 wait = 0xffffffff, u32 vector = 0, u32 ID = 0,
 		int destMode = DSTMODE_PHYSICAL, int level = LVL_ASSERT, int triggerMode = TM_EDGE);

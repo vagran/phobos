@@ -19,6 +19,7 @@ public:
 	private:
 		u16 iobase;
 		u16 divisor;
+		SpinLock inLock, outLock;
 
 		void Initialize();
 		void SetSpeed(int speed);

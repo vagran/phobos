@@ -67,14 +67,4 @@ int sprintf(char *buf, const char *fmt,...) __format(printf, 2, 3);
 #define trace(fmt,...)
 #endif
 
-typedef enum {
-	KLOG_DEBUG,
-	KLOG_INFO,
-	KLOG_WARNING,
-	KLOG_ERROR,
-} KLogLevel;
-
-#define klog(level, fmt,...) _klog(__func__, __LINE__, level, fmt, ## __VA_ARGS__)
-void _klog(const char *funcName, int line, KLogLevel level, const char *fmt,...) __format(printf, 4, 5);
-
 #endif /* STDLIB_H_ */

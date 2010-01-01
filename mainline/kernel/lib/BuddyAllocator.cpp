@@ -396,7 +396,7 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 	if (location < base || location >= base + size) {
 		return -1;
 	}
-	range_t lookupLoc;
+	range_t lookupLoc = 0;
 	for (int order = minOrder; order <= maxOrder; order++) {
 		range_t newLookupLoc = rounddown2(location, 1 << order);
 		if (order != minOrder && newLookupLoc == lookupLoc) {

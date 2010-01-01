@@ -24,6 +24,24 @@ RunDebugger(const char *fmt,...)
 	sysDebugger->Break();
 }
 
+void
+_panic(const char *fileName, int line, const char *fmt,...)
+{
+	cli();
+	va_list va;
+	va_start(va, fmt);
+	printf("panic: %s@%d: ", fileName, line);
+	vprintf(fmt, va);
+	printf("\n");
+	if (Debugger::debugPanics) {
+		if (sysDebugger) {
+			sysDebugger->Break();
+		}
+	}
+	hlt();
+	while (1);
+}
+
 /*************************************************************/
 
 Debugger::CmdDesc Debugger::cmds[] = {
@@ -34,13 +52,19 @@ Debugger::CmdDesc Debugger::cmds[] = {
 	{"step",		&Debugger::cmd_step},
 };
 
+int Debugger::debugFaults = 1;
+int Debugger::debugPanics = 1;
+
 Debugger::Debugger(ConsoleDev *con)
 {
 	gdbMode = 0;
 	requestedBreak = 0;
+	curCpu = 0;
 	SetConsole(con);
 	idt->RegisterHandler(IDT::ST_BREAKPOINT, (IDT::TrapHandler)_BPHandler, this);
 	idt->RegisterHandler(IDT::ST_DEBUG, (IDT::TrapHandler)_DebugHandler, this);
+	/* we use NMI for inter-processor debugging requests */
+	idt->RegisterHandler(IDT::ST_NMI, (IDT::TrapHandler)_SMPDbgReqHandler, this);
 }
 
 int
@@ -91,8 +115,31 @@ Debugger::Trap(Frame *frame)
 }
 
 int
+Debugger::DebugRequest(Frame *frame)
+{
+
+	return 0;
+}
+
+int
+Debugger::_SMPDbgReqHandler(Frame *frame, Debugger *d)
+{
+	return d->DebugRequest(frame);
+}
+
+int
 Debugger::BPHandler(Frame *frame)
 {
+	/* only one CPU is allowed to enter debugger, others should wait here */
+	while (dbgLock.TryLock()) {
+		CPU *cpu = CPU::GetCurrent();
+		if (cpu && cpu == curCpu) {
+			debugPanics = 0;
+			panic("Double fault in debugger code");
+		}
+		pause();
+	}
+	curCpu = CPU::GetCurrent();
 	this->frame = frame;
 	PrintFrameInfo(frame);
 	/* esp is saved in frame only if PL was switched */
@@ -126,12 +173,18 @@ Debugger::BPHandler(Frame *frame)
 			break;
 		}
 	}
+	dbgLock.Unlock();
 	return 0;
 }
 
 int
 Debugger::PrintFrameInfo(Frame *frame)
 {
+	if (curCpu) {
+		con->Printf("[CPU %lu-ID%lx]", curCpu->GetUnit(), curCpu->GetID());
+	} else {
+		con->Printf("[Unknown CPU] ");
+	}
 	con->Printf("Stopped at 0x%08lx\n", frame->eip);
 	return 0;
 }

@@ -17,6 +17,10 @@ class CPU;
 
 class CPU : public Device {
 private:
+	enum {
+		INITIAL_STACK_SIZE = 128 * 1024,
+	};
+
 	static u32 numCpus;
 	static SpinLock startupLock;
 
@@ -34,6 +38,7 @@ private:
 	u16 privSegSel;
 	PrivSegment *privSegData;
 	vaddr_t smpGDT;
+	u8 *initialStack;
 
 	int GetInfo();
 	int StartAPs(u32 vector);
@@ -45,11 +50,13 @@ public:
 
 	static CPU *Startup(); /* must be called once by every initialized CPU */
 	static void Delay(u32 usec);
-	static CPU *GetCurrent();
+	static CPU *GetCurrent(); /* return 0 if not yet attached */
 	static int StartSMP();
+
+	u32 GetID();
 };
 
-extern "C" u8 APBootEntry, APBootEntryEnd;
+extern "C" u8 APBootEntry, APBootEntryEnd, APstack;
 extern "C" SDT::PseudoDescriptor APGDTdesc;
 extern "C" u16 APcodeSel, APdataSel;
 extern "C" u32 APPDPT, APentryAddr, APLock;

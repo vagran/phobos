@@ -11,9 +11,6 @@ phbSource("$Id$");
 
 #include <kdb/debugger.h>
 
-int debugFaults = 1;
-int debugPanics = 1;
-
 /* called before returning to ring 3 from interrupt/exception or system call */
 ASMCALL void
 OnUserRet(Frame *frame)
@@ -23,28 +20,10 @@ OnUserRet(Frame *frame)
 	}
 }
 
-void
-_panic(const char *fileName, int line, const char *fmt,...)
-{
-	cli();
-	va_list va;
-	va_start(va, fmt);
-	printf("panic: %s@%d: ", fileName, line);
-	vprintf(fmt, va);
-	printf("\n");
-	if (debugPanics) {
-		if (sysDebugger) {
-			sysDebugger->Break();
-		}
-	}
-	hlt();
-	while (1);
-}
-
 ASMCALL int
 OnTrap(Frame *frame)
 {
-	if (debugFaults && frame->vectorIdx != IDT::ST_DEBUG && frame->vectorIdx != IDT::ST_BREAKPOINT &&
+	if (Debugger::debugFaults && frame->vectorIdx != IDT::ST_DEBUG && frame->vectorIdx != IDT::ST_BREAKPOINT &&
 		(frame->vectorIdx < IM::HWIRQ_BASE || frame->vectorIdx >= IM::HWIRQ_BASE + IM::NUM_HWIRQ)) {
 		if (sysDebugger) {
 			sysDebugger->Trap(frame);

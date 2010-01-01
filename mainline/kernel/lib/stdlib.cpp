@@ -671,21 +671,6 @@ gethash64(u8 *data, u32 size)
 	return hash;
 }
 
-/* XXX should be moved */
-void _klog(const char *funcName, int line, KLogLevel level, const char *fmt,...)
-{
-	static KLogLevel curLevel = KLOG_DEBUG;
-	static const char *levelStr[] = {"DEBUG", "INFO", "WARNING", "ERROR"};
-
-	if (level >= curLevel) {
-		va_list va;
-		va_start(va, fmt);
-		printf("[%s] %s@%d: ", levelStr[level], funcName, line);
-		vprintf(fmt, va);
-		printf("\n");
-	}
-}
-
 ASMCALL int
 isalnum(int c)
 {

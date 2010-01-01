@@ -158,6 +158,7 @@ Main(paddr_t firstAddr)
 	/* create default system console */
 	sysCons = (SysConsole *)devMan.CreateDevice("syscons");
 	printf(copyright);
+	log = NEWSINGLE(Log);
 	InitTables();
 	sysDebugger = NEWSINGLE(Debugger, sysCons);
 	ParseArguments();

@@ -82,6 +82,7 @@ GDT::GDT()
 		"0: mov	%2, %%ss\n"
 		"mov	%2, %%ds\n"
 		"mov	%2, %%es\n"
+		"xorl	%2, %2\n"
 		"mov	%2, %%fs\n"
 		"mov	%2, %%gs\n"
 		"lldt	%3\n"
@@ -173,10 +174,6 @@ IDT::IDT()
 int
 IDT::HandleTrap(Frame *frame)
 {
-	/*printf("ebx=0x%08lx, idx=%lu, code=0x%08lx, eip=0x%08lx\n", frame->ebx, frame->vectorIdx, frame->code, frame->eip);//temp
-	for (u32 i = 0; i < sizeof(Frame) / 4; i++) {
-		printf("%lu: 0x%08lx\n", i * 4, ((u32 *)frame)[i]);
-	}*/
 	assert(frame->vectorIdx < NUM_VECTORS);
 	TableEntry *p = &handlers[frame->vectorIdx];
 	if (!p->handler) {
