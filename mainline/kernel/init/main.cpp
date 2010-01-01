@@ -183,6 +183,7 @@ Main(paddr_t firstAddr)
 	if (!CPU::Startup()) {
 		panic("Unable to create device object for bootstrap CPU");
 	}
+	CPU::StartSMP(); /* XXX should be called when processes are initialized */
 	while (1) hlt();//temp
 
 	panic("Main exited");

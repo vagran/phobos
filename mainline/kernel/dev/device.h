@@ -126,6 +126,7 @@ private:
 	void Initialize();
 	u32 AllocateUnit(DevClass *p);
 	DevInst *FindDevice(DevClass *p, u32 unit);
+	inline DevClass *FindClass(u32 id);
 	int ReleaseUnit(DevClass *p, u32 unit);
 	Device *CreateDevice(DevClass *p, u32 unit = DEF_UNIT);
 	void ScanAvailUnits(DevClass *p);
@@ -138,6 +139,8 @@ public:
 	Device *CreateDevice(const char *devClass, u32 unit = DEF_UNIT);
 	Device *CreateDevice(u32 devClassID, u32 unit = DEF_UNIT);
 	int DestroyDevice(Device *dev);
+	Device *GetDevice(const char *devClass, u32 unit);
+	Device *GetDevice(u32 devClassID, u32 unit);
 
 	u32 RegisterClass(const char *devClass, Device::Type type, const char *desc,
 		DeviceFactory factory, void *factoryArg = 0);

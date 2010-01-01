@@ -147,14 +147,23 @@ public:
 		PAF_NOWAIT =		0x1,
 	};
 
+	enum PageZones {
+		ZONE_1MB,
+		ZONE_16MB,
+		ZONE_4GB,
+		ZONE_REST,
+		NUM_ZONES,
+	};
+
 	class Page {
 	public:
 		enum Flags {
-			F_FREE =		0x1,
-			F_ACTIVE =		0x2,
-			F_INACTIVE =	0x4,
-			F_CACHE =		0x8,
-			F_NOTAVAIL =	0x10,
+			F_ZONEMASK =	0x000f,
+			F_FREE =		0x0010,
+			F_ACTIVE =		0x0020,
+			F_INACTIVE =	0x0040,
+			F_CACHE =		0x0080,
+			F_NOTAVAIL =	0x0100,
 		};
 
 		paddr_t		pa;
@@ -166,12 +175,13 @@ public:
 		Tree<vaddr_t>::TreeEntry	objEntry;
 
 		Page(paddr_t pa, u16 flags);
+		inline PageZones GetZone();
 		int Unqueue(); /* must be called with pages queues locked */
 		int Activate();
 		int Wire();
 	};
 
-	ListHead pagesFree, pagesCache, pagesActive, pagesInactive;
+	ListHead pagesFree[NUM_ZONES], pagesCache[NUM_ZONES], pagesActive, pagesInactive;
 	u32	numPgFree, numPgCache, numPgActive, numPgInactive, numPgWired;
 	SpinLock pgqLock;
 
@@ -213,6 +223,7 @@ public:
 			MemAllocator *CreateAllocator();
 			int MapPage(vaddr_t va, Page *pg = 0);
 			int MapPA(vaddr_t va, paddr_t pa);
+			int Unmap(vaddr_t va);
 		};
 
 		int AddEntry(Entry *e);
@@ -371,6 +382,8 @@ private:
 	void InitMM();
 	const char *StrMemType(SMMemType type);
 	int CreatePageDescs();
+	Page *GetFreePage(int zone = ZONE_REST); /* pages queues must be locked */
+	Page *GetCachedPage(PageZones zone = ZONE_REST); /* pages queues must be locked */
 public:
 	static void PreInitialize(vaddr_t addr);
 	static paddr_t VtoP(vaddr_t va); /* in current AS */
@@ -388,13 +401,15 @@ public:
 	static void ZeroPage(paddr_t pa);
 
 	MM();
-	Page *AllocatePage(int flags = 0);
+	Page *AllocatePage(int flags = 0, PageZones zone = ZONE_REST);
 	Page *GetPage(paddr_t pa);
 	paddr_t Kextract(vaddr_t va); /* in kernel AS */
-	vaddr_t MapPhys(paddr_t pa, psize_t size); /* map in devices memory region, can be unmapped by mfree() */
+	vaddr_t MapDevPhys(paddr_t pa, psize_t size); /* map in devices memory region, can be unmapped by mfree() */
 	int PrintMemInfo(ConsoleDev *dev);
 	paddr_t AllocDevPhys(psize_t size); /* allocate physical memory in devices region */
 	int FreeDevPhys(paddr_t addr);
+	int MapPhys(vaddr_t va, paddr_t pa);
+	int UnmapPhys(vaddr_t va);
 };
 
 extern MM *mm;

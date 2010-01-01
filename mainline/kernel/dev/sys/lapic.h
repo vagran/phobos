@@ -12,6 +12,37 @@
 phbSource("$Id$");
 
 class LAPIC : public Device {
+public:
+	typedef enum {
+		DM_FIXED =		0x0,
+		DM_LOWPRI =		0x1,
+		DM_SMI =		0x2,
+		DM_NMI =		0x4,
+		DM_INIT =		0x5,
+		DM_STARTUP =	0x6,
+	} DeliveryMode;
+
+	typedef enum {
+		DST_SPECIFIC =	0x0,
+		DST_SELF =		0x1,
+		DST_ALL =		0x2,
+		DST_OTHERS =	0x3,
+	} Destination;
+
+	typedef enum {
+		DSTMODE_PHYSICAL =	0x0,
+		DSTMODE_LOGICAL =	0x1,
+	} DestMode;
+
+	typedef enum {
+		LVL_DEASSERT =		0x0,
+		LVL_ASSERT =		0x1,
+	} Level;
+
+	typedef enum {
+		TM_EDGE =			0x0,
+		TM_LEVEL =			0x1,
+	} TriggerMode;
 private:
 	enum {
 		MEM_SIZE =		4096,
@@ -37,7 +68,25 @@ private:
 		REG_IRR =		0x210, /* Interrupt Request Register */
 		REG_ESR =		0x280, /* Error Status Register */
 		REG_LVTCMCI =	0x2f0, /* LVT CMCI Registers */
+
 		REG_ICR =		0x300, /* Interrupt Command Register */
+		REG_ICR_DM_MASK =		0x00000700, /* Delivery Mode */
+		REG_ICR_DM_FIXED =		0x00000000,
+		REG_ICR_DM_LOWPRI =		0x00000100,
+		REG_ICR_DM_SMI =		0x00000200,
+		REG_ICR_DM_NMI =		0x00000400,
+		REG_ICR_DM_INIT =		0x00000500,
+		REG_ICR_DM_STARTUP =	0x00000600,
+		REG_ICR_DESTMODE =		0x00000800, /* Destination Mode (0 - Physical, 1 - Logical) */
+		REG_ICR_DS =			0x00001000, /* Delivery Status (0 - Idle, 1 - Send pending) */
+		REG_ICR_LEVEL =			0x00004000, /* Level (0 - De-assert, 1 - Assert) */
+		REG_ICR_TM =			0x00008000, /* Trigger Mode (0 - Edge, 1 - Level) */
+		REG_ICR_DSH_MASK =		0x000c0000, /* Destination Shorthand */
+		REG_ICR_DSH_SPEC =		0x00000000,
+		REG_ICR_DSH_SELF =		0x00040000,
+		REG_ICR_DSH_ALL =		0x00080000,
+		REG_ICR_DSH_OTHERS =	0x000c0000,
+
 		REG_LVTTMR =	0x320, /* LVT Timer Register */
 		REG_LVTTSR =	0x330, /* LVT Thermal Sensor Register */
 		REG_LVTPMC =	0x340, /* LVT Performance Monitoring Counters Register */
@@ -70,6 +119,7 @@ private:
 	paddr_t memPhys;
 	u8 *memMap;
 	CPU *cpu;
+	u32 ID;
 
 	inline void WriteReg(u32 idx, u32 value);
 	inline u32 ReadReg(u32 idx);
@@ -78,6 +128,9 @@ public:
 	LAPIC(Type type, u32 unit, u32 classID);
 
 	int SetCpu(CPU *cpu);
+	int SendIPI(DeliveryMode dm, Destination dst, u32 wait = 0xffffffff, u32 vector = 0, u32 ID = 0,
+		int destMode = DSTMODE_PHYSICAL, int level = LVL_ASSERT, int triggerMode = TM_EDGE);
+	int WaitIPI(u32 delay = 0xffffffff); /* ret zero if IPI completed */
 };
 
 #endif /* LAPIC_H_ */

@@ -59,7 +59,7 @@ VgaTerminal::Initialize()
 {
 	u32 x = Lock();
 
-	fb = (u16 *)mm->MapPhys(MEM_LOCATION, MEM_SIZE);
+	fb = (u16 *)mm->MapDevPhys(MEM_LOCATION, MEM_SIZE);
 	if (!fb) {
 		klog(KLOG_ERROR, "VGA frame buffer memory mapping failed");
 		return -1;

@@ -21,7 +21,7 @@ LAPIC::LAPIC(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 		klog(KLOG_ERROR, "No physical memory space for LAPIC device available");
 		return;
 	}
-	memMap = (u8 *)mm->MapPhys(memPhys, MEM_SIZE);
+	memMap = (u8 *)mm->MapDevPhys(memPhys, MEM_SIZE);
 	if (!memMap) {
 		mm->FreeDevPhys(memPhys);
 		memPhys = 0;
@@ -41,7 +41,7 @@ LAPIC::LAPIC(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	WriteReg(REG_LINT0, LVTEB_TM | LVTEB_DM_EXTINT); /* accept interrupts from PIC */
 	WriteReg(REG_LINT1, LVTEB_DM_NMI); /* accept NMI from external sources */
 
-
+	ID = ReadReg(REG_ID) >> 24;
 	devState = S_UP;
 }
 
@@ -63,4 +63,38 @@ LAPIC::SetCpu(CPU *cpu)
 	this->cpu = cpu;
 	assert(devUnit == cpu->GetUnit());
 	return 0;
+}
+
+int
+LAPIC::SendIPI(DeliveryMode dm, Destination dst, u32 wait, u32 vector, u32 ID,
+	int destMode, int level, int triggerMode)
+{
+	if (dst == DST_SPECIFIC) {
+		WriteReg(REG_ICR + 0x10, ID << 24);
+	}
+	WriteReg(REG_ICR, (vector & 0xff) |
+		((dm & 0x7) << 8) |
+		((dst & 0x3) << 18) |
+		((destMode & 0x1) << 11) |
+		((level & 0x1) << 14) |
+		((triggerMode & 0x1) << 15));
+	return wait ? WaitIPI(wait) : 0;
+}
+
+int
+LAPIC::WaitIPI(u32 delay)
+{
+	while (1) {
+		if (!(ReadReg(REG_ICR) & REG_ICR_DS)) {
+			return 0;
+		}
+		if (!delay) {
+			break;
+		}
+		if (delay != 0xffffffff) {
+			delay--;
+		}
+		pause();
+	}
+	return -1;
 }

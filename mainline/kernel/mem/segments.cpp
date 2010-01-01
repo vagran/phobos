@@ -117,7 +117,7 @@ GDT::ReleaseSegment(SDT::Descriptor *d)
 u32
 GDT::GetIndex(SDT::Descriptor *d)
 {
-	u32 idx = (d - &table->null) / sizeof(SDT::Descriptor);
+	u32 idx = ((u32)d - (u32)&table->null) / sizeof(SDT::Descriptor);
 	if (idx >= GDT_SIZE) {
 		return 0;
 	}

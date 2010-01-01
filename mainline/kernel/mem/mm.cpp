@@ -55,8 +55,10 @@ MM::MM()
 	LIST_INIT(objects);
 	LIST_INIT(topObjects);
 	numObjects = 0;
-	LIST_INIT(pagesFree);
-	LIST_INIT(pagesCache);
+	for (int i = 0; i < NUM_ZONES; i++) {
+		LIST_INIT(pagesFree[i]);
+		LIST_INIT(pagesCache[i]);
+	}
 	LIST_INIT(pagesActive);
 	LIST_INIT(pagesInactive);
 	numPgFree = 0;
@@ -305,7 +307,7 @@ MM::Kextract(vaddr_t va)
 }
 
 vaddr_t
-MM::MapPhys(paddr_t pa, psize_t size)
+MM::MapDevPhys(paddr_t pa, psize_t size)
 {
 	size = roundup2(size, PAGE_SIZE);
 	vaddr_t sva = (vaddr_t)devAlloc->malloc(size);
@@ -597,10 +599,13 @@ MM::CreatePageDescs()
 			flags = Page::F_NOTAVAIL;
 		} else {
 			flags = Page::F_FREE;
-			numPgFree++;
-			LIST_ADD(queue, &pages[i], pagesFree);
 		}
 		construct(&pages[i], Page, pa, flags);
+		if (flags & Page::F_FREE) {
+			PageZones zone = pages[i].GetZone();
+			numPgFree++;
+			LIST_ADD(queue, &pages[i], pagesFree[zone]);
+		}
 	}
 
 	return 0;
@@ -617,18 +622,63 @@ MM::GetPage(paddr_t pa)
 }
 
 MM::Page *
-MM::AllocatePage(int flags)
+MM::GetFreePage(int zone)
+{
+	if (zone >= NUM_ZONES) {
+		return 0;
+	}
+	Page *p = 0;
+	while (zone >= 0) {
+		if (LIST_ISEMPTY(pagesFree[zone])) {
+			zone--;
+			continue;
+		}
+		p = LIST_FIRST(Page, queue, pagesFree[zone]);
+		break;
+	}
+	return p;
+}
+
+MM::Page *
+MM::GetCachedPage(PageZones zone)
+{
+	Page *p = 0;
+	while (zone < NUM_ZONES) {
+		if (LIST_ISEMPTY(pagesCache[zone])) {
+			continue;
+		}
+		p = LIST_FIRST(Page, queue, pagesCache[zone]);
+		break;
+	}
+	return p;
+}
+
+MM::Page *
+MM::AllocatePage(int flags, PageZones zone)
 {
 	/* XXX need management implementation */
 	mm->pgqLock.Lock();
-	Page *p = LIST_FIRST(Page, queue, pagesFree);
+	Page *p = GetFreePage(zone);
 	if (!p) {
 		mm->pgqLock.Unlock();
 		return 0;
 	}
 	p->Unqueue();
 	mm->pgqLock.Unlock();
+	p->flags = (p->flags & ~Page::F_ZONEMASK) | zone;
 	return p;
+}
+
+int
+MM::MapPhys(vaddr_t va, paddr_t pa)
+{
+	return kmemEntry->MapPA(va, pa);
+}
+
+int
+MM::UnmapPhys(vaddr_t va)
+{
+	return kmemEntry->Unmap(va);
 }
 
 void *
@@ -688,17 +738,33 @@ MM::Page::Page(paddr_t pa, u16 flags)
 	wireCount = 0;
 }
 
+MM::PageZones
+MM::Page::GetZone()
+{
+	if (pa >= 0x100000000ull) {
+		return ZONE_REST;
+	}
+	if (pa >= 0x1000000ull) {
+		return ZONE_4GB;
+	}
+	if (pa>= 0x100000ull) {
+		return ZONE_16MB;
+	}
+	return ZONE_1MB;
+}
+
 int
 MM::Page::Unqueue()
 {
 	int rc = 0;
+	PageZones zone = GetZone();
 	if (flags & F_FREE) {
 		mm->numPgFree--;
-		LIST_DELETE(queue, this, mm->pagesFree);
+		LIST_DELETE(queue, this, mm->pagesFree[zone]);
 		flags &= ~F_FREE;
 	} else if (flags & F_CACHE) {
 		mm->numPgCache--;
-		LIST_DELETE(queue, this, mm->pagesCache);
+		LIST_DELETE(queue, this, mm->pagesCache[zone]);
 		flags &= ~F_CACHE;
 	} else if (flags & F_ACTIVE) {
 		mm->numPgActive--;
@@ -1219,6 +1285,21 @@ MM::Map::Entry::MapPA(vaddr_t va, paddr_t pa)
 	pte->raw = pa | PTE::F_P | PTE::F_S | PTE::F_W |
 		((flags & F_NOCACHE) ? PTE::F_WT | PTE::F_CD : 0);
 	invlpg(va);
+	map->tablesLock.Unlock();
+	return 0;
+}
+
+int
+MM::Map::Entry::Unmap(vaddr_t va)
+{
+	map->tablesLock.Lock();
+	PTE::PDEntry *pde = map->GetPDE(va);
+	if (!pde->fields.present) {
+		map->tablesLock.Unlock();
+		return -1;
+	}
+	PTE::PTEntry *pte = map->GetPTE(va);
+	pte->raw = 0;
 	map->tablesLock.Unlock();
 	return 0;
 }

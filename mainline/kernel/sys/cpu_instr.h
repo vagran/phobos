@@ -268,4 +268,10 @@ SetEflags(u32 value)
 	);
 }
 
+static __inline void
+pause()
+{
+	__asm__ __volatile__ ("pause");
+}
+
 #endif /* CPU_INSTR_H_ */

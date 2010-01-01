@@ -34,7 +34,7 @@ void
 SpinLock::Unlock()
 {
 	__asm__ __volatile__ (
-		"1: btcl	$0, %0"
+		"btcl	$0, %0"
 		:
 		: "m"(flag)
 		: "cc"

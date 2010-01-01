@@ -222,11 +222,39 @@ DeviceManager::CreateDevice(const char *devClass, u32 unit)
 }
 
 Device *
-DeviceManager::CreateDevice(u32 devClassID, u32 unit)
+DeviceManager::GetDevice(const char *devClass, u32 unit)
+{
+	u32 id = GetClassID(devClass);
+	return GetDevice(id, unit);
+}
+
+Device *
+DeviceManager::GetDevice(u32 devClassID, u32 unit)
+{
+	DevClass *p = FindClass(devClassID);
+	if (!p) {
+		return 0;
+	}
+	DevInst *dev = FindDevice(p, unit);
+	if (!dev) {
+		return 0;
+	}
+	return dev->device;
+}
+
+DeviceManager::DevClass *
+DeviceManager::FindClass(u32 id)
 {
 	u32 x = Lock();
-	DevClass *p = TREE_FIND(devClassID, DevClass, node, devTree);
+	DevClass *p = TREE_FIND(id, DevClass, node, devTree);
 	Unlock(x);
+	return p;
+}
+
+Device *
+DeviceManager::CreateDevice(u32 devClassID, u32 unit)
+{
+	DevClass *p = FindClass(devClassID);
 	if (!p) {
 		panic("Attempted to create device of non-existing class (0x%lx)", devClassID);
 	}

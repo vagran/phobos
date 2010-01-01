@@ -135,7 +135,7 @@ public:
 	u16 GetSelector(SDT::Descriptor *d, u16 rpl = 0);
 	SDT::Descriptor *AllocateSegment();
 	int ReleaseSegment(SDT::Descriptor *d);
-
+	SDT::PseudoDescriptor *GetPseudoDescriptor() { return &pd; }
 };
 
 extern GDT *gdt;
