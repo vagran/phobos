@@ -115,30 +115,61 @@ Debugger::Trap(Frame *frame)
 }
 
 int
-Debugger::DebugRequest(Frame *frame)
+Debugger::DRHandler(Frame *frame)
 {
-
+	CPU *cpu = CPU::GetCurrent();
+	u32 id = cpu ? cpu->GetID() : 0xffffffff;
+	printf("Debug request received on cpu 0x%lx\n", id);
+	while (1) hlt();
 	return 0;
+}
+
+int
+Debugger::SendDebugRequest(DebugRequest req, CPU *cpu)
+{
+	reqSendLock.Lock();
+	curReq = req;
+	int rc = -1;
+	while (1) {
+		CPU *curCpu = CPU::GetCurrent();
+		if (!curCpu) {
+			break;
+		}
+		LAPIC *l = curCpu->GetLapic();
+		if (!l) {
+			break;
+		}
+		l->SendIPI(LAPIC::DM_NMI,
+			cpu ? LAPIC::DST_SPECIFIC : LAPIC::DST_OTHERS,
+			-1, 0, cpu ? cpu->GetID() : 0);
+		l->WaitIPI();
+		rc = 0;
+		break;
+	}
+	reqSendLock.Unlock();
+	return rc;
 }
 
 int
 Debugger::_SMPDbgReqHandler(Frame *frame, Debugger *d)
 {
-	return d->DebugRequest(frame);
+	return d->DRHandler(frame);
 }
 
 int
 Debugger::BPHandler(Frame *frame)
 {
+	CPU *cpu = CPU::GetCurrent();
+	if (cpu && cpu == curCpu) {
+		debugPanics = 0;
+		panic("Double fault in debugger code");
+	}
 	/* only one CPU is allowed to enter debugger, others should wait here */
 	while (dbgLock.TryLock()) {
-		CPU *cpu = CPU::GetCurrent();
-		if (cpu && cpu == curCpu) {
-			debugPanics = 0;
-			panic("Double fault in debugger code");
-		}
 		pause();
 	}
+	SendDebugRequest(DRQ_STOP); /* stop other CPUs */
+	while (1) hlt();//temp
 	curCpu = CPU::GetCurrent();
 	this->frame = frame;
 	PrintFrameInfo(frame);
@@ -732,7 +763,11 @@ Debugger::ReadMemory()
 		GDBSend("E01");
 		return -1;
 	}
-	/* handle reading and writing to boot code to make GDB happy */
+	/*
+	 * Special handling for boot area, it is re-mapped to upper addresses.
+	 * This is required for proper working with GDB which attempts to
+	 * create breakpoint at entry point.
+	 */
 	if (addr >= LOAD_ADDRESS && addr < (u32)&_eboot) {
 		addr += KERNEL_ADDRESS - LOAD_ADDRESS;
 	}
@@ -773,6 +808,14 @@ Debugger::WriteMemory()
 		return -1;
 	}
 	eptr++;
+	/*
+	 * Special handling for boot area, it is re-mapped to upper addresses.
+	 * This is required for proper working with GDB which attempts to
+	 * create breakpoint at entry point.
+	 */
+	if (addr >= LOAD_ADDRESS && addr < (u32)&_eboot) {
+		addr += KERNEL_ADDRESS - LOAD_ADDRESS;
+	}
 	while (size) {
 		u32 toWrite = roundup2(addr + 1, PAGE_SIZE) - addr;
 		toWrite = min(toWrite, size);

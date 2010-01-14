@@ -23,12 +23,6 @@ OnUserRet(Frame *frame)
 ASMCALL int
 OnTrap(Frame *frame)
 {
-	if (Debugger::debugFaults && frame->vectorIdx != IDT::ST_DEBUG && frame->vectorIdx != IDT::ST_BREAKPOINT &&
-		(frame->vectorIdx < IM::HWIRQ_BASE || frame->vectorIdx >= IM::HWIRQ_BASE + IM::NUM_HWIRQ)) {
-		if (sysDebugger) {
-			sysDebugger->Trap(frame);
-		}
-	}
 	if (idt) {
 		return idt->HandleTrap(frame);
 	}
@@ -43,6 +37,9 @@ UnhandledTrap(Frame *frame, void *arg)
 		esp = frame->esp;
 	} else {
 		esp = (u32)&frame->esp;
+	}
+	if (Debugger::debugFaults && sysDebugger) {
+		sysDebugger->Trap(frame);
 	}
 	panic("Unhandled trap\nidx = %lx (%s), code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
 		"eax = 0x%08lx, ebx = 0x%08lx, ecx = 0x%08lx, edx = 0x%08lx\n"

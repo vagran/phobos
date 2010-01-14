@@ -41,7 +41,7 @@ private:
 	typedef enum {
 		DRQ_STOP,
 		DRQ_CONTINUE,
-	} DebugRequests;
+	} DebugRequest;
 
 	typedef enum {
 		HS_OK,
@@ -70,6 +70,8 @@ private:
 	int requestedBreak;
 	SpinLock dbgLock; /* only one CPU can enter debugger, others should wait */
 	CPU *curCpu;
+	SpinLock reqSendLock;
+	DebugRequest curReq;
 
 	static int _BPHandler(Frame *frame, Debugger *d);
 	static int _DebugHandler(Frame *frame, Debugger *d);
@@ -95,7 +97,8 @@ private:
 	int Continue();
 	int WriteRegisters();
 	int Step();
-	int DebugRequest(Frame *frame);
+	int DRHandler(Frame *frame);
+	int SendDebugRequest(DebugRequest req, CPU *cpu = 0); /* if cpu == 0, broadcast request to all others */
 
 	/* commands handlers */
 	HdlStatus cmd_continue(char **argv, u32 argc);

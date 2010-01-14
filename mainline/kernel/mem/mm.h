@@ -403,6 +403,7 @@ public:
 	MM();
 	Page *AllocatePage(int flags = 0, PageZones zone = ZONE_REST);
 	Page *GetPage(paddr_t pa);
+	int FreePage(Page *pg);
 	paddr_t Kextract(vaddr_t va); /* in kernel AS */
 	vaddr_t MapDevPhys(paddr_t pa, psize_t size); /* map in devices memory region, can be unmapped by mfree() */
 	int PrintMemInfo(ConsoleDev *dev);

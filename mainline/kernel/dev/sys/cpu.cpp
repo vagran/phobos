@@ -23,34 +23,18 @@ u32 CPU::numCpus = 0;
 
 SpinLock CPU::startupLock;
 
+ListHead CPU::allCpus;
+
 CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 {
 	smpGDT = 0;
 	initialStack = 0;
+	LIST_ADD(list, this, allCpus);
 
 	if (numCpus) { /* for APs */
 		lidt(idt->GetPseudoDescriptor());
 		lgdt(gdt->GetPseudoDescriptor());
 		lldt(gdt->GetSelector(GDT::SI_LDT));
-		/* create temporal stack */
-		initialStack = (u8 *)MM::malloc(INITIAL_STACK_SIZE);
-		vaddr_t oldStack = ((u32)&APstack - (u32)&APBootEntry) + APentryAddr;
-		/* shift frame base pointer, copy old stack content and switch stack pointer */
-		__asm__ __volatile__ (
-			"movl	%%edi, %%eax\n"
-			"subl	%%esi, %%eax\n"
-			"addl	%%eax, %%ebp\n"
-			"movl	%%esi, %%ecx\n"
-			"subl	%%esp, %%ecx\n"
-			"incl	%%ecx\n"
-			"std\n"
-			"rep movsb\n"
-			"movl	%%edi, %%esp\n"
-			"incl	%%esp\n"
-			:
-			: "S"(oldStack - 1), "D"(initialStack + INITIAL_STACK_SIZE - 1)
-			: "eax", "ecx", "cc"
-		);
 	}
 
 	if (unit != numCpus) {
@@ -75,19 +59,45 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 		panic("CPU private segment allocation failed");
 	}
 	privSegSel = gdt->GetSelector(privSeg);
-	privSegData = (PrivSegment *)MM::malloc(sizeof(PrivSegment));
-	if (!privSegData) {
-		panic("CPU private segment space allocation failed");
-	}
-	privSegData->cpu = this;
-	SDT::SetDescriptor(privSeg, (u32)privSegData, sizeof(PrivSegment) - 1, 0,
+	privSegData.cpu = this;
+	SDT::SetDescriptor(privSeg, (u32)&privSegData, sizeof(PrivSegment) - 1, 0,
 		0, SDT::DST_DATA | SDT::DST_D_WRITE, 0);
 	/* private segment is referenced by %fs register of each CPU */
 	__asm__ __volatile__ (
 		"movw	%0, %%fs"
 		:
-		: "m"(privSegSel));
+		: "r"(privSegSel));
 	devState = S_UP;
+}
+
+int
+CPU::CreateInitialStack(u32 size)
+{
+	/*
+	 * Create initial temporal stack. Calling function should not
+	 * return and access its arguments after the stack is switched.
+	 */
+	initialStack = (u8 *)MM::malloc(size);
+	assert(initialStack);
+	/* we count stack up to the frame base of the calling function */
+	u32 *oldStack = (u32 *)__builtin_frame_address(0);
+	u32 delta = (u32)initialStack + size - *oldStack;
+	/* Copy old stack content, shift frame base pointer and switch stack pointer. */
+	__asm__ __volatile__ (
+		"movl	%%esi, %%ecx\n"
+		"subl	%%esp, %%ecx\n"
+		"incl	%%ecx\n"
+		"std\n"
+		"rep movsb\n"
+		"addl	%2, %%ebp\n"
+		"addl	%2, (%%ebp)\n"
+		"addl	%2, %%esp\n"
+		:
+		: "S"(*oldStack - 1), "D"(initialStack + INITIAL_STACK_SIZE - 1),
+		  "r"(delta)
+		: "ecx", "cc"
+	);
+	return 0;
 }
 
 u32
@@ -97,6 +107,12 @@ CPU::GetID()
 		return 0;
 	}
 	return lapic->GetID();
+}
+
+LAPIC *
+CPU::GetLapic()
+{
+	return lapic;
 }
 
 CPU *
@@ -181,7 +197,6 @@ CPU::StartSMP()
 	CPU *cpu = GetCurrent();
 	vaddr_t tramp = cpu->InstallTrampoline();
 	cpu->StartAPs(tramp >> PAGE_SHIFT);
-
 	return 0;
 }
 
@@ -193,10 +208,10 @@ CPU::UninstallTrampoline(vaddr_t va)
 	vsize_t codeSize = (u32)&APBootEntryEnd - (u32)&APBootEntry;
 	u32 pgNum = (codeSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	for (u32 pgIdx = 0; pgIdx < pgNum; pgIdx++) {
-		//paddr_t pa = mm->Kextract(va);
+		paddr_t pa = mm->Kextract(va);
 		mm->UnmapPhys(va);
-		//MM::Page *pg = mm->GetPage(pa);
-		/* FreePage() */
+		MM::Page *pg = mm->GetPage(pa);
+		mm->FreePage(pg);
 		va += PAGE_SIZE;
 	}
 	if (initialStack) {
@@ -231,21 +246,22 @@ CPU::InstallTrampoline()
 	u32 pgNum = (codeSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	/*
 	 * Since pages are not continuously allocated paging must be
-	 * enabled in the first 4kb of code.
+	 * enabled in the first 4kb of code. Only the first page is allocated
+	 * in the first megabyte and is identity mapped.
 	 */
 	vaddr_t sva = 0;
 	for (u32 pgIdx = 0; pgIdx < pgNum; pgIdx++) {
-		pg = mm->AllocatePage(0, MM::ZONE_1MB);
+		pg = mm->AllocatePage(0, pgIdx ? MM::ZONE_REST : MM::ZONE_1MB);
 		if (!pg) {
 			panic("Failed to allocate page for SMP trampoline");
 		}
 		paddr_t pa = pg->pa;
-		assert(pa < 0x100000);
 		if (!pgIdx) {
+			assert(pa < 0x100000);
 			sva = (vaddr_t)pa;
 		}
 		vaddr_t va = sva + pgIdx * PAGE_SIZE;
-		mm->MapPhys(va, pa); /* only the first page is identity-mapped */
+		mm->MapPhys(va, pa);
 	}
 	APentryAddr = sva;
 	memcpy((void *)sva, &APBootEntry, codeSize);
@@ -256,8 +272,18 @@ CPU::InstallTrampoline()
 ASMCALL void
 APBootstrap(vaddr_t entryAddr)
 {
-	CPU::Startup();
-	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + entryAddr);
+	printf("CPU list offset = %d\n", OFFSETOF(CPU, list));//temp
+	CPU *cpu = CPU::Startup();
+	if (!cpu) {
+		panic("Failed to create CPU device object");
+	}
+	volatile vaddr_t _entryAddr = entryAddr;
+	cpu->CreateInitialStack();
+	/* After stack is switched we cannot return from this function and access arguments */
+	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + _entryAddr);
 	AtomicOp::And(lock, 0);
-	hlt();
+	if (CPU::GetCpuCount() == 4) {
+		RunDebugger("4 cpus started");//temp
+	}
+	while (1) hlt();
 }

@@ -99,13 +99,20 @@ SysConsole::SysSerial::Initialize()
 Device::IOStatus
 SysConsole::SysSerial::Getc(u8 *c)
 {
-	inLock.Lock();
+	u32 x = 0;
+	if (im) {
+		x = im->DisableIntr();
+	}
+	lock.Lock();
 	if (inb(iobase + UART_LSR) & UART_DATA_READY) {
 	    *c = inb(iobase + UART_RX);
-	    inLock.Unlock();
+	    lock.Unlock();
 	    return IOS_OK;
 	}
-	inLock.Unlock();
+	lock.Unlock();
+	if (im) {
+		im->RestoreIntr(x);
+	}
 	return IOS_NODATA;
 }
 
@@ -120,16 +127,26 @@ SysConsole::SysSerial::Putc(u8 c)
 	}
 	u32 timeout = 100000;
 	/* Wait until the transmitter holding register is empty */
-	outLock.Lock();
+	u32 x = 0;
+	if (im) {
+		x = im->DisableIntr();
+	}
+	lock.Lock();
 	while (!inb(iobase + UART_LSR) & UART_EMPTY_TRANSMITTER) {
 		if (!--timeout) {
 			/* There is something wrong. But what can I do? */
-			outLock.Unlock();
+			lock.Unlock();
+			if (im) {
+				im->RestoreIntr(x);
+			}
 			return IOS_ERROR;
 		}
 	}
 	outb(iobase + UART_TX, c);
-	outLock.Unlock();
+	lock.Unlock();
+	if (im) {
+		im->RestoreIntr(x);
+	}
 	return IOS_OK;
 }
 

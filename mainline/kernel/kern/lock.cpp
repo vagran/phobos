@@ -34,7 +34,7 @@ void
 SpinLock::Unlock()
 {
 	__asm__ __volatile__ (
-		"btcl	$0, %0"
+		"lock btcl	$0, %0"
 		:
 		: "m"(flag)
 		: "cc"
@@ -46,7 +46,7 @@ SpinLock::TryLock()
 {
 	register int rc;
 	__asm__ __volatile__ (
-		"xor	%%eax, %%eax\n"
+		"xorl	%%eax, %%eax\n"
 		"lock btsl	$0, %1\n"
 		"jnc	1f\n"
 		"movl	$-1, %%eax\n"

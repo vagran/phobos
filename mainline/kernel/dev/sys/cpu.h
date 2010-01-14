@@ -16,6 +16,9 @@ class CPU;
 #include <dev/sys/lapic.h>
 
 class CPU : public Device {
+public:
+	ListEntry list;
+	static ListHead allCpus;
 private:
 	enum {
 		INITIAL_STACK_SIZE = 128 * 1024,
@@ -36,7 +39,7 @@ private:
 
 	SDT::Descriptor *privSeg;
 	u16 privSegSel;
-	PrivSegment *privSegData;
+	PrivSegment privSegData;
 	vaddr_t smpGDT;
 	u8 *initialStack;
 
@@ -52,8 +55,11 @@ public:
 	static void Delay(u32 usec);
 	static CPU *GetCurrent(); /* return 0 if not yet attached */
 	static int StartSMP();
+	static inline u32 GetCpuCount() { return numCpus; }
 
 	u32 GetID();
+	LAPIC *GetLapic();
+	int CreateInitialStack(u32 size = INITIAL_STACK_SIZE);
 };
 
 extern "C" u8 APBootEntry, APBootEntryEnd, APstack;

@@ -15,7 +15,10 @@ phbSource("$Id$");
 #define CR0_PG		0x80000000
 #define CR4_PAE		0x00000020
 
-#define AP_STACK_SIZE	1024
+/* real mode stack */
+#define AP_RM_STACK_SIZE	128
+/* bootstrap shared stack */
+#define AP_STACK_SIZE		32768
 
 /* This code is copied from here to the memory accessible from real mode */
 .data
@@ -56,7 +59,7 @@ APBootEntry:
 	 * only code segment selector. So we can use offsets from APBootEntry as
 	 * logical addresses.
 	 */
-	movl	$(APstack - APBootEntry), %esp
+	movl	$(RMstack - APBootEntry), %esp
 	lgdt	APGDTdesc - APBootEntry
 	movl	APPDPT - APBootEntry, %eax
 	movl	%eax, %cr3 /* Utilize kernel address space */
@@ -77,7 +80,6 @@ code32:
 	xorl	%edx, %edx
 	movw	%dx, %fs
 	movw	%dx, %gs
-	addl	%ebx, %esp
 
 	/* enable paging */
 	movl	%cr4, %eax
@@ -87,15 +89,15 @@ code32:
 	orl		$CR0_PG, %eax
 	movl	%eax, %cr0
 
+	/* switch to shared bootstrap stack */
+	movl	%ebx, %esp
+	addl	$(APstack - APBootEntry), %esp
+
 	/* and jump to C */
 	pushl	%ebx /* entry linear address */
 	movl	$APBootstrap, %eax
 	call	*%eax
 
-	.space AP_STACK_SIZE
-.globl APstack
-APstack: /* temporal stack */
-	.long 0, 0, 0, 0
 .globl APLock
 APLock: /* APs lock, required since they share the stack during initialization */
 	.long 0
@@ -116,6 +118,13 @@ APdataSel: /* kernel data segment selector */
 .globl APPDPT
 APPDPT: /* kernel address space selector (CR3) */
 	.long 0
+
+	.space AP_RM_STACK_SIZE
+RMstack: /* real mode stack, must be in the first page of trampoline */
+	.space AP_STACK_SIZE
+.globl APstack
+APstack: /* temporal stack */
+	.long 0, 0, 0, 0
 
 .globl APBootEntryEnd
 APBootEntryEnd:

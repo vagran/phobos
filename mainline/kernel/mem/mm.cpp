@@ -670,6 +670,13 @@ MM::AllocatePage(int flags, PageZones zone)
 }
 
 int
+MM::FreePage(Page *pg)
+{
+	/* notimpl */
+	return 0;
+}
+
+int
 MM::MapPhys(vaddr_t va, paddr_t pa)
 {
 	return kmemEntry->MapPA(va, pa);
