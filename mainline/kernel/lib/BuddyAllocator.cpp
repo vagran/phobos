@@ -85,7 +85,9 @@ BuddyAllocator<range_t>::KeepBlocks()
 			}
 			LIST_ADD(busyChain.list, b, blocksPool);
 			numPool++;
-			numReqPool--;
+			if (numReqPool > 0) {
+				numReqPool--;
+			}
 		} else {
 			BlockDesc *b = LIST_FIRST(BlockDesc, busyChain.list, blocksPool);
 			LIST_DELETE(busyChain.list, b, blocksPool);
@@ -357,9 +359,12 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 			assert(b);
 		}
 	}
+	range_t cl_loc = head->node.key;
+	range_t cl_size = head->busyHead.blockSize;
+	void *cl_arg = head->busyHead.allocArg;
 	client->Unlock();
 	if (!reserve) {
-		client->Allocate(head->node.key, head->busyHead.blockSize, head->busyHead.allocArg);
+		client->Allocate(cl_loc, cl_size, cl_arg);
 	}
 	return 0;
 }
@@ -396,6 +401,7 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 	if (location < base || location >= base + size) {
 		return -1;
 	}
+	client->Lock();
 	range_t lookupLoc = 0;
 	for (int order = minOrder; order <= maxOrder; order++) {
 		range_t newLookupLoc = rounddown2(location, 1 << order);
@@ -407,6 +413,7 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 			assert(b->order >= order);
 			if (b->flags & BF_FREE) {
 				if (!(flags & LUF_FREE)) {
+					client->Unlock();
 					return -1;
 				}
 				if (pFlags) {
@@ -417,6 +424,7 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 				}
 			} else if (b->flags & (BF_BUSY | BF_BUSYCHAIN)) {
 				if (!(flags & LUF_ALLOCATED)) {
+					client->Unlock();
 					return -1;
 				}
 				if (b->flags & BF_BUSYCHAIN) {
@@ -435,6 +443,7 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 				}
 			} else if (b->flags & (BF_RESERVED | BF_RESCHAIN)) {
 				if (!(flags & LUF_RESERVED)) {
+					client->Unlock();
 					return -1;
 				}
 				if (b->flags & BF_RESCHAIN) {
@@ -455,10 +464,12 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 			if (pBase) {
 				*pBase = b->node.key;
 			}
+			client->Unlock();
 			return 0;
 		}
 		lookupLoc = newLookupLoc;
 	}
+	client->Unlock();
 	return -1;
 }
 
