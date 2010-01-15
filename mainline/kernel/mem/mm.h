@@ -267,6 +267,8 @@ public:
 		};
 
 		int Initialize();
+		Entry *IntInsertObject(VMObject *obj, vaddr_t base = 0, int fixed = 0,
+			vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
 	public:
 		Map(Map *copyFrom = 0);
 		Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree);
@@ -278,8 +280,9 @@ public:
 		Entry *ReserveSpace(vaddr_t base, vsize_t size);
 		Entry *Lookup(vaddr_t base);
 		int Free(vaddr_t base);
-		Entry *InsertObject(VMObject *obj);
-		Entry *InsertObject(VMObject *obj, vaddr_t base);
+		Entry *InsertObject(VMObject *obj, vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
+		Entry *InsertObjectAt(VMObject *obj, vaddr_t base,
+			vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
 		PTE::PDEntry *GetPDE(vaddr_t va);
 		PTE::PTEntry *GetPTE(vaddr_t va);
 		paddr_t Extract(vaddr_t va);

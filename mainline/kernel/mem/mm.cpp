@@ -227,11 +227,11 @@ MM::InitMM()
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
 	kmemObj->SetSize(KERN_DYN_MEM_END - firstAddr);
 
-	kmemEntry = kmemMap->InsertObject(kmemObj, firstAddr);
+	kmemEntry = kmemMap->InsertObjectAt(kmemObj, firstAddr);
 	if (!kmemEntry) {
 		panic("Kernel dynamic memory object insertion failed");
 	}
-	devEntry = kmemMap->InsertObject(devObj, DEV_MEM_ADDRESS);
+	devEntry = kmemMap->InsertObjectAt(devObj, DEV_MEM_ADDRESS);
 	if (!devEntry) {
 		panic("Kernel devices memory object insertion failed");
 	}
@@ -1054,30 +1054,45 @@ MM::Map::Lookup(vaddr_t base)
 }
 
 MM::Map::Entry *
-MM::Map::InsertObject(VMObject *obj)
+MM::Map::IntInsertObject(VMObject *obj, vaddr_t base, int fixed,
+			vaddr_t offset, vsize_t size)
 {
-	vaddr_t base;
-	Entry *e = Allocate(obj->size, &base);
+	if (offset & (PAGE_SIZE - 1)) {
+		return 0;
+	}
+	if (size != VSIZE_MAX && (size & (PAGE_SIZE - 1))) {
+		return 0;
+	}
+	if (offset >= obj->size || !size) {
+		return 0;
+	}
+	if (size != VSIZE_MAX) {
+		if (offset + size > obj->size) {
+			return 0;
+		}
+	} else {
+		size = obj->size - offset;
+	}
+	Entry *e = Allocate(size, &base, fixed);
 	if (!e) {
 		return 0;
 	}
 	obj->AddRef();
 	e->object = obj;
-	e->offset = 0;
+	e->offset = offset;
 	return e;
 }
 
 MM::Map::Entry *
-MM::Map::InsertObject(VMObject *obj, vaddr_t base)
+MM::Map::InsertObject(VMObject *obj, vaddr_t offset, vsize_t size)
 {
-	Entry *e = Allocate(obj->size, &base, 1);
-	if (!e) {
-		return 0;
-	}
-	obj->AddRef();
-	e->object = obj;
-	e->offset = 0;
-	return e;
+	return IntInsertObject(obj, 0, 0, offset, size);
+}
+
+MM::Map::Entry *
+MM::Map::InsertObjectAt(VMObject *obj, vaddr_t base, vaddr_t offset, vsize_t size)
+{
+	return IntInsertObject(obj, base, 1, offset, size);
 }
 
 int
@@ -1095,7 +1110,7 @@ MM::Map::IsCurrent()
 int
 MM::Map::IsAlt()
 {
-	/* compare this map PTD addresses with currently mapped in alternative AS*/
+	/* compare this map PTD addresses with currently mapped in alternative AS */
 	for (int i = 0; i < PD_PAGES; i++) {
 		if ((ptd[PTDPTDI + i].raw ^ altPTDpde[i].raw) & PG_FRAME) {
 			return 0;

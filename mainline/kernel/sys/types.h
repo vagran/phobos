@@ -34,6 +34,8 @@ typedef u32		vsize_t;
 typedef u64		paddr_t;
 typedef u64		psize_t;
 
+#define VSIZE_MAX	((vsize_t)~0)
+
 typedef __SIZE_TYPE__ size_t;
 
 typedef void *HANDLE;
