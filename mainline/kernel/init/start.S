@@ -13,7 +13,10 @@
 start:
 _start:
 	cli
-	jmp		boot_entry
+	movl	$boot_stack, %esp
+	pushl	%ebx 		/* boot info */
+	pushl	%eax		/* boot loader signature */
+	call	Bootstrap
 
 /* Multiboot header */
 .align	4
@@ -24,14 +27,6 @@ _start:
 .long   MBH_FLAGS
 /* checksum */
 .long   -(MULTIBOOT_HEADER_MAGIC + MBH_FLAGS)
-
-boot_entry:
-	movl	$boot_stack, %esp
-	pushl	%ebx 		/* boot info */
-	pushl	%eax		/* boot loader signature */
-	call	Bootstrap
-	addl	$8, %esp
-	ret
 
 	.align 4
 	.space	BOOT_STACK_SIZE

@@ -104,8 +104,8 @@ public:
 	int ReleaseIrq(HANDLE h);
 	inline u32 GetIndex(HANDLE h) { assert(h); return ((IrqClient *)h)->idx; }
 	static inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }
-	u32 DisableIntr(); /* return value used for RestoreIntr() */
-	u32 RestoreIntr(u32 saved);
+	static u32 DisableIntr(); /* return value used for RestoreIntr() */
+	static u32 RestoreIntr(u32 saved);
 	int Hwirq(u32 idx);
 	int Swirq(u32 idx);
 	int HwEnable(u32 idx, int f = 1);

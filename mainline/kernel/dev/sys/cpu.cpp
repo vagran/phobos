@@ -171,7 +171,7 @@ int
 CPU::StartAPs(u32 vector)
 {
 	assert(!(vector & ~0xff));
-	u32 x = im->DisableIntr();
+	u32 x = IM::DisableIntr();
 	if (!lapic) {
 		return -1;
 	}
@@ -187,7 +187,7 @@ CPU::StartAPs(u32 vector)
 	/*lapic->SendIPI(LAPIC::DM_STARTUP, LAPIC::DST_OTHERS, 0, vector);
 	Delay(200);
 	lapic->WaitIPI();*/
-	im->RestoreIntr(x);
+	IM::RestoreIntr(x);
 	return 0;
 }
 
@@ -272,7 +272,6 @@ CPU::InstallTrampoline()
 ASMCALL void
 APBootstrap(vaddr_t entryAddr)
 {
-	printf("CPU list offset = %d\n", OFFSETOF(CPU, list));//temp
 	CPU *cpu = CPU::Startup();
 	if (!cpu) {
 		panic("Failed to create CPU device object");

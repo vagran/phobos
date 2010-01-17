@@ -332,7 +332,7 @@ u32
 DeviceManager::Lock()
 {
 	if (im) {
-		u32 x = im->DisableIntr();
+		u32 x = IM::DisableIntr();
 		lock.Lock();
 		return x;
 	}
@@ -344,7 +344,7 @@ DeviceManager::Unlock(u32 x)
 {
 	if (im) {
 		lock.Unlock();
-		im->RestoreIntr(x);
+		IM::RestoreIntr(x);
 	}
 }
 

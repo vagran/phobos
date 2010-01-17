@@ -50,6 +50,8 @@ Debugger::CmdDesc Debugger::cmds[] = {
 	{"registers",	&Debugger::cmd_registers},
 	{"gdb",			&Debugger::cmd_gdb},
 	{"step",		&Debugger::cmd_step},
+	{"listthreads",	&Debugger::cmd_listthreads},
+	{"thread",		&Debugger::cmd_thread},
 };
 
 int Debugger::debugFaults = 1;
@@ -60,6 +62,11 @@ Debugger::Debugger(ConsoleDev *con)
 	gdbMode = 0;
 	requestedBreak = 0;
 	curCpu = 0;
+	curThread = 0;
+	reqRef = 0;
+	reqValid = 0;
+	numThreads = 0;
+	LIST_INIT(threads);
 	SetConsole(con);
 	idt->RegisterHandler(IDT::ST_BREAKPOINT, (IDT::TrapHandler)_BPHandler, this);
 	idt->RegisterHandler(IDT::ST_DEBUG, (IDT::TrapHandler)_DebugHandler, this);
@@ -114,34 +121,149 @@ Debugger::Trap(Frame *frame)
 	return BPHandler(frame);
 }
 
+Debugger::Thread *
+Debugger::GetThread()
+{
+	threadLock.Lock();
+	CPU *cpu = CPU::GetCurrent();
+	if (!cpu) {
+		threadLock.Unlock();
+		return 0;
+	}
+	Thread *t;
+	LIST_FOREACH(Thread, list, t, threads) {
+		if (t->cpu == cpu) {
+			threadLock.Unlock();
+			return t;
+		}
+	}
+	t = (Thread *)MM::malloc(sizeof(Thread));
+	assert(t);
+	memset(t, 0, sizeof(Thread));
+	t->state = Thread::S_NONE;
+	t->cpu = cpu;
+	t->frame = 0;
+	t->id = numThreads;
+
+	LIST_ADD(list, t, threads);
+	numThreads++;
+	threadLock.Unlock();
+	return t;
+}
+
+Debugger::Thread *
+Debugger::FindThread(u32 id)
+{
+	threadLock.Lock();
+	Thread *t;
+	LIST_FOREACH(Thread, list, t, threads) {
+		if (t->id == id) {
+			threadLock.Unlock();
+			return t;
+		}
+	}
+	threadLock.Unlock();
+	return 0;
+}
+
+Debugger::Thread::State
+Debugger::SetThreadState(Thread *thread, Thread::State state, Frame *frame)
+{
+	threadLock.Lock();
+	Thread::State prevState = thread->state;
+	thread->state = state;
+	thread->frame = frame;
+	threadLock.Unlock();
+	return prevState;
+}
+
 int
 Debugger::DRHandler(Frame *frame)
 {
-	CPU *cpu = CPU::GetCurrent();
-	u32 id = cpu ? cpu->GetID() : 0xffffffff;
-	printf("Debug request received on cpu 0x%lx\n", id);
-	while (1) hlt();
+	u32 intr = IM::DisableIntr();
+	while (reqLock.TryLock()) {
+		if (!reqValid) {
+			/* it's too late... */
+			return 0;
+		}
+		pause();
+	}
+	AtomicOp::Inc(&reqRef);
+	reqLock.Unlock();
+
+	Thread *thread = GetThread();
+	if (!thread) {
+		panic("Debug request received without thread info");
+	}
+	switch (curReq) {
+	case DRQ_STOP:
+		AtomicOp::Dec(&reqRef);
+		if (thread->state == Thread::S_STOPPED) {
+			break;
+		}
+		SetThreadState(thread, Thread::S_STOPPED, frame);
+		StopLoop();
+		break;
+	case DRQ_CONTINUE:
+		AtomicOp::Dec(&reqRef);
+		SetThreadState(thread, Thread::S_RUNNING, frame);
+		break;
+	default:
+		AtomicOp::Dec(&reqRef);
+	}
+	IM::RestoreIntr(intr);
 	return 0;
+}
+
+Debugger::HdlStatus
+Debugger::StopLoop()
+{
+	Thread *thread = GetThread();
+	while (1) {
+		if (thread == curThread) {
+			/* the thread is activated */
+			if (thread->inRunLoop) {
+				PrintFrameInfo(thread->frame);
+				break;
+			}
+			RunLoop(thread->frame);
+			break;
+		}
+		if (thread->state != Thread::S_STOPPED) {
+			return HS_EXIT;
+		}
+		pause();
+	}
+	return HS_OK;
 }
 
 int
 Debugger::SendDebugRequest(DebugRequest req, CPU *cpu)
 {
 	reqSendLock.Lock();
+	reqLock.Lock();
+	reqValid = 0;
+	while (reqRef) {
+		pause();
+	}
 	curReq = req;
 	int rc = -1;
 	while (1) {
 		CPU *curCpu = CPU::GetCurrent();
 		if (!curCpu) {
+			reqLock.Unlock();
 			break;
 		}
 		LAPIC *l = curCpu->GetLapic();
 		if (!l) {
+			reqLock.Unlock();
 			break;
 		}
+		reqValid = 1;
 		l->SendIPI(LAPIC::DM_NMI,
 			cpu ? LAPIC::DST_SPECIFIC : LAPIC::DST_OTHERS,
 			-1, 0, cpu ? cpu->GetID() : 0);
+		reqLock.Unlock();
 		l->WaitIPI();
 		rc = 0;
 		break;
@@ -159,27 +281,11 @@ Debugger::_SMPDbgReqHandler(Frame *frame, Debugger *d)
 int
 Debugger::BPHandler(Frame *frame)
 {
+	u32 intr = IM::DisableIntr();
 	CPU *cpu = CPU::GetCurrent();
-	if (cpu && cpu == curCpu) {
+	if (cpu && curCpu && cpu == curCpu) {
 		debugPanics = 0;
 		panic("Double fault in debugger code");
-	}
-	/* only one CPU is allowed to enter debugger, others should wait here */
-	while (dbgLock.TryLock()) {
-		pause();
-	}
-	SendDebugRequest(DRQ_STOP); /* stop other CPUs */
-	while (1) hlt();//temp
-	curCpu = CPU::GetCurrent();
-	this->frame = frame;
-	PrintFrameInfo(frame);
-	/* esp is saved in frame only if PL was switched */
-	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
-		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
-		esp = (u32)&frame->esp;
-	} else {
-		esp = frame->esp;
-		ss = frame->ss;
 	}
 	/*
 	 * if break was initiated by dynamic breakpoint, eip
@@ -191,6 +297,46 @@ Debugger::BPHandler(Frame *frame)
 		requestedBreak = 0;
 	}
 	frame->eflags &= ~EFLAGS_TF;
+
+	SendDebugRequest(DRQ_STOP); /* stop other CPUs */
+
+	Thread *thread = GetThread();
+	if (thread) {
+		SetThreadState(thread, Thread::S_STOPPED, frame);
+		if (curThread != thread) {
+			SwitchThread(thread->id);
+			IM::RestoreIntr(intr);
+			return 0;
+		}
+	} else {
+		if (curThread) {
+			panic("Entered debugger in SMP mode without thread found");
+		}
+	}
+
+	/* No SMP yet */
+	RunLoop(frame);
+	IM::RestoreIntr(intr);
+	return 0;
+}
+
+int
+Debugger::RunLoop(Frame *frame)
+{
+	Thread *thread = GetThread();
+	if (thread) {
+		thread->inRunLoop++;
+	}
+	this->frame = frame;
+	PrintFrameInfo(frame);
+	/* esp is saved in frame only if PL was switched */
+	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
+		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
+		esp = (u32)&frame->esp;
+	} else {
+		esp = frame->esp;
+		ss = frame->ss;
+	}
 	while (1) {
 		if (!gdbMode) {
 			Shell();
@@ -204,19 +350,25 @@ Debugger::BPHandler(Frame *frame)
 			break;
 		}
 	}
-	dbgLock.Unlock();
+	if (thread) {
+		thread->inRunLoop--;
+	}
 	return 0;
 }
 
 int
 Debugger::PrintFrameInfo(Frame *frame)
 {
-	if (curCpu) {
-		con->Printf("[CPU %lu-ID%lx]", curCpu->GetUnit(), curCpu->GetID());
+	if (gdbMode) {
+		SendStatus();
 	} else {
-		con->Printf("[Unknown CPU] ");
+		if (curCpu) {
+			con->Printf("[CPU %lu-ID%lx] ", curCpu->GetUnit(), curCpu->GetID());
+		} else {
+			con->Printf("[Unknown CPU] ");
+		}
+		con->Printf("Stopped at 0x%08lx\n", frame->eip);
 	}
-	con->Printf("Stopped at 0x%08lx\n", frame->eip);
 	return 0;
 }
 
@@ -433,7 +585,60 @@ Debugger::cmd_gdb(char **argv, u32 argc)
 	return HS_EXIT;
 }
 
-int Debugger::SetGDBMode(int f)
+Debugger::HdlStatus
+Debugger::cmd_listthreads(char **argv, u32 argc)
+{
+	threadLock.Lock();
+	Thread *t;
+	LIST_FOREACH(Thread, list, t, threads) {
+		con->Printf("%c%lu. cpu %lu-ID%lu @ 0x%08lx\n",
+			t->cpu == curCpu ? '>' : ' ',
+			t->id,
+			t->cpu->GetUnit(), t->cpu->GetID(),
+			t->frame->eip);
+	}
+	threadLock.Unlock();
+	return HS_OK;
+}
+
+Debugger::HdlStatus
+Debugger::cmd_thread(char **argv, u32 argc)
+{
+	if (argc != 2) {
+		con->Printf("Usage: thread <tread_id>\n");
+		return HS_ERROR;
+	}
+	char *eptr;
+	u32 id = strtoul(argv[1], &eptr, 10);
+	if (*eptr) {
+		con->Printf("Thread ID should be decimal integer ('%s' is invalid)\n", argv[1]);
+		return HS_ERROR;
+	}
+	HdlStatus rc = SwitchThread(id);
+	if (rc == HS_ERROR) {
+		con->Printf("Failed to switch to thread %lu\n", id);
+		return HS_ERROR;
+	}
+	return rc;
+}
+
+Debugger::HdlStatus
+Debugger::SwitchThread(u32 id)
+{
+	Thread *t = FindThread(id);
+	if (!t) {
+		return HS_ERROR;
+	}
+	if (curThread == t) {
+		return HS_OK;
+	}
+	curCpu = t->cpu;
+	curThread = t;
+	return StopLoop();
+}
+
+int
+Debugger::SetGDBMode(int f)
 {
 	int ret = gdbMode;
 	gdbMode = f;
@@ -502,7 +707,7 @@ Debugger::ParseLine()
 			break;
 		}
 		*next = 0;
-		s = next;
+		s = next + 1;
 	}
 }
 

@@ -1204,10 +1204,16 @@ MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 		return 0;
 	}
 
-	vaddr_t sva = rounddown2(base, PAGE_SIZE);
-	vaddr_t eva = roundup2(base + size, PAGE_SIZE);
-	while (sva < eva) {
-		Page *pg = obj->LookupPage(sva);
+	for (vaddr_t sva = rounddown2(base, PAGE_SIZE),
+		eva = roundup2(base + size, PAGE_SIZE);
+		sva < eva;
+		sva += PAGE_SIZE) {
+
+		vaddr_t offs;
+		if (e->GetOffset(sva, &offs)) {
+			panic("Failed to get offset");
+		}
+		Page *pg = obj->LookupPage(offs);
 		if (pg) {
 			continue;
 		}
@@ -1216,9 +1222,8 @@ MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 			/* XXX should free all pages allocated so far */
 			return -1;
 		}
-		obj->InsertPage(pg, sva - e->base);
+		obj->InsertPage(pg, offs);
 		e->MapPage(sva, pg);
-		sva += PAGE_SIZE;
 	}
 	return 0;
 }
@@ -1327,14 +1332,27 @@ MM::Map::Entry::Unmap(vaddr_t va)
 }
 
 int
-MM::Map::Entry::MapPage(vaddr_t va, Page *pg)
+MM::Map::Entry::GetOffset(vaddr_t va, vaddr_t *offs)
 {
-	assert(!(va & ~PG_FRAME));
 	if (va < base || va >= base + size) {
 		return -1;
 	}
+	if (offs) {
+		*offs = offset + va - base;
+	}
+	return 0;
+}
+
+int
+MM::Map::Entry::MapPage(vaddr_t va, Page *pg)
+{
+	assert(!(va & ~PG_FRAME));
+	vaddr_t offs;
+	if (GetOffset(va, &offs)) {
+		return -1;
+	}
 	if (!pg) {
-		pg = object->LookupPage(va);
+		pg = object->LookupPage(offs);
 		if (!pg) {
 			return -1;
 		}

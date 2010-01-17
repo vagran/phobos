@@ -151,7 +151,7 @@ IM::Irq(IrqType type, u32 idx)
 	}
 	/* try to handle */
 	if (!*masked) {
-		ProcessInterrupt(type, idx);
+		ProcessInterrupt(type, idx); /* XXX should use Poll() and some round robin balancing */
 	}
 	return 0;
 }

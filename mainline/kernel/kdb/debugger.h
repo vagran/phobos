@@ -55,6 +55,21 @@ private:
 		CmdHandler hdl;
 	} CmdDesc;
 
+	typedef struct {
+		enum State {
+			S_NONE,
+			S_RUNNING,
+			S_STOPPED,
+		};
+
+		ListEntry list;
+		u32 id;
+		CPU *cpu;
+		State state;
+		Frame *frame;
+		int inRunLoop;
+	} Thread;
+
 	static CmdDesc cmds[];
 
 	ConsoleDev *con;
@@ -68,10 +83,15 @@ private:
 	int gdbMode;
 	int gdbSkipCont;
 	int requestedBreak;
-	SpinLock dbgLock; /* only one CPU can enter debugger, others should wait */
 	CPU *curCpu;
 	SpinLock reqSendLock;
 	DebugRequest curReq;
+	u32 reqRef, reqValid;
+	SpinLock reqLock;
+	ListHead threads;
+	u32 numThreads;
+	SpinLock threadLock;
+	Thread *curThread;
 
 	static int _BPHandler(Frame *frame, Debugger *d);
 	static int _DebugHandler(Frame *frame, Debugger *d);
@@ -99,12 +119,20 @@ private:
 	int Step();
 	int DRHandler(Frame *frame);
 	int SendDebugRequest(DebugRequest req, CPU *cpu = 0); /* if cpu == 0, broadcast request to all others */
+	Thread *GetThread();
+	Thread::State SetThreadState(Thread *thread, Thread::State state, Frame *frame = 0);
+	HdlStatus StopLoop();
+	int RunLoop(Frame *frame);
+	Thread *FindThread(u32 id);
+	HdlStatus SwitchThread(u32 id);
 
 	/* commands handlers */
 	HdlStatus cmd_continue(char **argv, u32 argc);
 	HdlStatus cmd_step(char **argv, u32 argc);
 	HdlStatus cmd_registers(char **argv, u32 argc);
 	HdlStatus cmd_gdb(char **argv, u32 argc);
+	HdlStatus cmd_listthreads(char **argv, u32 argc);
+	HdlStatus cmd_thread(char **argv, u32 argc);
 public:
 	static int debugFaults;
 	static int debugPanics;

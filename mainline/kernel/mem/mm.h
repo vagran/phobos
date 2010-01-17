@@ -224,6 +224,7 @@ public:
 			int MapPage(vaddr_t va, Page *pg = 0);
 			int MapPA(vaddr_t va, paddr_t pa);
 			int Unmap(vaddr_t va);
+			int GetOffset(vaddr_t va, vaddr_t *offs);
 		};
 
 		int AddEntry(Entry *e);

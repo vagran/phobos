@@ -22,8 +22,10 @@ SpinLock::Lock()
 {
 	__asm__ __volatile__ (
 		"1: lock btsl	$0, %0\n"
+		"jnc	2f\n"
 		"pause\n"
-		"jc	1b\n"
+		"jmp	1b\n"
+		"2:\n"
 		:
 		: "m"(flag)
 		: "cc"
