@@ -737,6 +737,21 @@ Debugger::Shell()
 }
 
 int
+Debugger::Query()
+{
+	char buf[128];
+
+	if (!strcmp(lineBuf, "qC")) {
+		/* query current thread ID */
+		Thread *t = GetThread();
+		sprintf(buf, "QC%lX", t ? t->id : 0);
+	} else {
+		return -1;
+	}
+	return 0;
+}
+
+int
 Debugger::ProcessPacket()
 {
 	switch (lineBuf[0]) {
@@ -764,6 +779,8 @@ Debugger::ProcessPacket()
 		return Continue();
 	case 's':
 		return Step();
+	case 'q':
+		return Query();
 	}
 	return -1;
 }

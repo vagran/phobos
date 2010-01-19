@@ -117,6 +117,7 @@ private:
 	int Continue();
 	int WriteRegisters();
 	int Step();
+	int Query();
 	int DRHandler(Frame *frame);
 	int SendDebugRequest(DebugRequest req, CPU *cpu = 0); /* if cpu == 0, broadcast request to all others */
 	Thread *GetThread();
