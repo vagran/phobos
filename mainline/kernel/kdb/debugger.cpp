@@ -143,7 +143,7 @@ Debugger::GetThread()
 	t->state = Thread::S_NONE;
 	t->cpu = cpu;
 	t->frame = 0;
-	t->id = numThreads;
+	t->id = numThreads + 1;
 
 	LIST_ADD(list, t, threads);
 	numThreads++;
@@ -202,7 +202,7 @@ Debugger::DRHandler(Frame *frame)
 			break;
 		}
 		SetThreadState(thread, Thread::S_STOPPED, frame);
-		StopLoop();
+		StopLoop(0);
 		break;
 	case DRQ_CONTINUE:
 		AtomicOp::Dec(&reqRef);
@@ -216,17 +216,13 @@ Debugger::DRHandler(Frame *frame)
 }
 
 Debugger::HdlStatus
-Debugger::StopLoop()
+Debugger::StopLoop(int printStatus)
 {
 	Thread *thread = GetThread();
 	while (1) {
 		if (thread == curThread) {
 			/* the thread is activated */
-			if (thread->inRunLoop) {
-				PrintFrameInfo(thread->frame);
-				break;
-			}
-			RunLoop(thread->frame);
+			RunLoop(thread->frame, printStatus);
 			break;
 		}
 		if (thread->state != Thread::S_STOPPED) {
@@ -304,7 +300,7 @@ Debugger::BPHandler(Frame *frame)
 	if (thread) {
 		SetThreadState(thread, Thread::S_STOPPED, frame);
 		if (curThread != thread) {
-			SwitchThread(thread->id);
+			SwitchThread(thread->id, 1);
 			IM::RestoreIntr(intr);
 			return 0;
 		}
@@ -314,21 +310,22 @@ Debugger::BPHandler(Frame *frame)
 		}
 	}
 
-	/* No SMP yet */
 	RunLoop(frame);
 	IM::RestoreIntr(intr);
 	return 0;
 }
 
 int
-Debugger::RunLoop(Frame *frame)
+Debugger::RunLoop(Frame *frame, int printStatus)
 {
 	Thread *thread = GetThread();
 	if (thread) {
 		thread->inRunLoop++;
 	}
 	this->frame = frame;
-	PrintFrameInfo(frame);
+	if (printStatus) {
+		PrintFrameInfo(frame);
+	}
 	/* esp is saved in frame only if PL was switched */
 	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
 		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
@@ -614,7 +611,7 @@ Debugger::cmd_thread(char **argv, u32 argc)
 		con->Printf("Thread ID should be decimal integer ('%s' is invalid)\n", argv[1]);
 		return HS_ERROR;
 	}
-	HdlStatus rc = SwitchThread(id);
+	HdlStatus rc = SwitchThread(id, 1);
 	if (rc == HS_ERROR) {
 		con->Printf("Failed to switch to thread %lu\n", id);
 		return HS_ERROR;
@@ -623,18 +620,21 @@ Debugger::cmd_thread(char **argv, u32 argc)
 }
 
 Debugger::HdlStatus
-Debugger::SwitchThread(u32 id)
+Debugger::SwitchThread(u32 id, int printStatus)
 {
 	Thread *t = FindThread(id);
 	if (!t) {
 		return HS_ERROR;
+	}
+	if (gdbMode) {
+		GDBSend("OK");
 	}
 	if (curThread == t) {
 		return HS_OK;
 	}
 	curCpu = t->cpu;
 	curThread = t;
-	return StopLoop();
+	return StopLoop(printStatus);
 }
 
 int
@@ -737,14 +737,102 @@ Debugger::Shell()
 }
 
 int
+Debugger::GDBThreadState()
+{
+	char *eptr;
+	u32 id = strtoul(&lineBuf[1], &eptr, 10);
+	if (*eptr) {
+		GDBSend("E01");
+		return 0;
+	}
+	if (FindThread(id)) {
+		GDBSend("OK");
+	} else {
+		GDBSend("E00");
+	}
+	return 0;
+}
+
+int
+Debugger::GDBSetThread()
+{
+	if (lineBuf[1] != 'c' && lineBuf[1] != 'g') {
+		GDBSend("E00");
+		return 0;
+	}
+	char *eptr;
+	if (lineBuf[2] == '-' && lineBuf[3] == '1') {
+		GDBSend("OK");
+		return 0;
+	}
+	u32 id = strtoul(&lineBuf[2], &eptr, 10);
+	if (*eptr) {
+		GDBSend("E01");
+		return 0;
+	}
+	if (!id) {
+		GDBSend("OK");
+		return 0;
+	}
+	HdlStatus hs = SwitchThread(id);
+	if (hs == HS_ERROR) {
+		GDBSend("E02");
+		return 0;
+	}
+	return hs == HS_EXIT ? 1 : 0;
+}
+
+int
 Debugger::Query()
 {
-	char buf[128];
+	char buf[256];
 
 	if (!strcmp(lineBuf, "qC")) {
 		/* query current thread ID */
 		Thread *t = GetThread();
-		sprintf(buf, "QC%lX", t ? t->id : 0);
+		sprintf(buf, "QC%lX", t ? t->id : 1);
+		GDBSend(buf);
+	} else if (!strcmp(lineBuf, "qfThreadInfo")) {
+		/* return all threads in the first query */
+		buf[0] = 'm';
+		int pos = 1;
+		threadLock.Lock();
+		Thread *t;
+		LIST_FOREACH(Thread, list, t, threads) {
+			pos += sprintf(&buf[pos], "%lX", t->id);
+			if (!LIST_ISLAST(list, t, threads)) {
+				buf[pos++] = ',';
+			}
+		}
+		buf[pos] = 0;
+		threadLock.Unlock();
+		GDBSend(buf);
+	} else if (!strcmp(lineBuf, "qsThreadInfo")) {
+		GDBSend("l");
+	} else if (!strncmp(lineBuf, "qThreadExtraInfo", sizeof("qThreadExtraInfo") - 1)) {
+		int pos = sizeof("qThreadExtraInfo") - 1;
+		if (lineBuf[pos++] != ',') {
+			GDBSend("E00");
+			return 0;
+		}
+		char *eptr;
+		u32 id = strtoul(&lineBuf[pos], &eptr, 16);
+		if (*eptr) {
+			GDBSend("E01");
+			return 0;
+		}
+		Thread *t = FindThread(id);
+		if (!t) {
+			GDBSend("E02");
+			return 0;
+		}
+		sprintf(buf, "CPU %lu (ID %lu)", t->cpu->GetUnit(), t->cpu->GetID());
+		char _buf[256];
+		char *pbuf = _buf;
+		DumpData(&pbuf, buf, strlen(buf));
+		*pbuf = 0;
+		GDBSend(_buf);
+		return 0;
 	} else {
 		return -1;
 	}
@@ -781,6 +869,10 @@ Debugger::ProcessPacket()
 		return Step();
 	case 'q':
 		return Query();
+	case 'H':
+		return GDBSetThread();
+	case 'T':
+		return GDBThreadState();
 	}
 	return -1;
 }
@@ -788,20 +880,19 @@ Debugger::ProcessPacket()
 int
 Debugger::GDB()
 {
-	SendStatus();
 	while (1) {
 		GetPacket();
-		if (lineBuf[0] == 'D') {
+		if (lineBuf[0] == 'D' || lineBuf[0] == 'k') {
 			/* detach */
 			gdbMode = 0;
-			return 0;
+			break;
 		}
 		int rc = ProcessPacket();
 		if (rc < 0) {
 			GDBSend("");
 		} else if (rc) {
 			/* continue */
-			return 0;
+			break;
 		}
 	}
 	return 0;
@@ -983,7 +1074,7 @@ Debugger::ReadMemory()
 	addr = strtoul(&lineBuf[1], &eptr, 16);
 	if (*eptr != ',') {
 		GDBSend("E01");
-		return -1;
+		return 0;
 	}
 	/*
 	 * Special handling for boot area, it is re-mapped to upper addresses.

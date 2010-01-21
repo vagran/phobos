@@ -118,14 +118,16 @@ private:
 	int WriteRegisters();
 	int Step();
 	int Query();
+	int GDBThreadState();
+	int GDBSetThread();
 	int DRHandler(Frame *frame);
 	int SendDebugRequest(DebugRequest req, CPU *cpu = 0); /* if cpu == 0, broadcast request to all others */
 	Thread *GetThread();
 	Thread::State SetThreadState(Thread *thread, Thread::State state, Frame *frame = 0);
-	HdlStatus StopLoop();
-	int RunLoop(Frame *frame);
+	HdlStatus StopLoop(int printStatus = 1);
+	int RunLoop(Frame *frame, int printStatus = 1);
 	Thread *FindThread(u32 id);
-	HdlStatus SwitchThread(u32 id);
+	HdlStatus SwitchThread(u32 id, int printStatus = 0);
 
 	/* commands handlers */
 	HdlStatus cmd_continue(char **argv, u32 argc);
