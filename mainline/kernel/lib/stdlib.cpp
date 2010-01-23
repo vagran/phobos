@@ -187,6 +187,36 @@ sprintf(char *buf, const char *fmt,...)
 	return len;
 }
 
+int
+snprintf(char *buf, int bufSize, const char *fmt,...)
+{
+	va_list va;
+	va_start(va, fmt);
+	int len = kvprintf(fmt, 0, buf, 10, va, bufSize);
+	if (bufSize) {
+		buf[len] = 0;
+	}
+	return len;
+}
+
+int
+vsprintf(char *buf, const char *fmt, va_list arg)
+{
+	int len = kvprintf(fmt, 0, buf, 10, arg);
+	buf[len] = 0;
+	return len;
+}
+
+int
+vsnprintf(char *buf, int bufSize, const char *fmt, va_list arg)
+{
+	int len = kvprintf(fmt, 0, buf, 10, arg, bufSize);
+	if (bufSize) {
+		buf[len] = 0;
+	}
+	return len;
+}
+
 /* This is actually used with radix [2..36] */
 char const hex2ascii_data[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
@@ -215,11 +245,20 @@ ksprintn(char *nbuf, u64 num, int base, int *lenp, int upper)
 	return p;
 }
 
-/* ported from FreeBSD */
 int
-kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap)
+kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap, int maxOut)
 {
-#define PCHAR(c) {int cc=(c); if (func) (*func)(cc, arg); else *d++ = cc; retval++;}
+
+#define PCHAR(c) { \
+	if (maxOut) { \
+		int cc=(c); \
+		if (func) (*func)(cc, arg); \
+		else *d++ = cc; \
+		retval++; \
+		if (maxOut != -1) maxOut--; \
+	} else stop = 1; \
+}
+
 /* Max number conversion buffer length: a u_quad_t in base 2, plus NUL byte. */
 #define MAXNBUF	(sizeof(i64) * NBBY + 1)
 	char nbuf[MAXNBUF];

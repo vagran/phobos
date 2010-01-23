@@ -105,11 +105,11 @@ private:
 	void ParseLine();
 	CmdDesc *FindCommand(char *s);
 	int GDB();
-	void GDBSend(const char *data);
+	void GDBSend(const char *data, int reqAck = 1);
 	int GetHex(u8 d);
 	int ProcessPacket();
 	int ReadRegisters();
-	int DumpData(char **buf, void *data, u32 size);
+	int DumpData(char **buf, u32 bufSize, const void *data, u32 size); /* returns number of bytes read from data */
 	u32 FetchData(char **buf, void *data, u32 size);
 	int ReadMemory();
 	int WriteMemory();
@@ -128,6 +128,7 @@ private:
 	int RunLoop(Frame *frame, int printStatus = 1);
 	Thread *FindThread(u32 id);
 	HdlStatus SwitchThread(u32 id, int printStatus = 0);
+	void GDBTrace(char *buf);
 
 	/* commands handlers */
 	HdlStatus cmd_continue(char **argv, u32 argc);
@@ -146,6 +147,8 @@ public:
 	int Break();
 	int SetGDBMode(int f);
 	int Trap(Frame *frame);
+	int Trace(const char *fmt,...) __format(printf, 2, 3);
+	int VTrace(const char *fmt, va_list va) __format(printf, 2, 0);
 };
 
 extern Debugger *sysDebugger;

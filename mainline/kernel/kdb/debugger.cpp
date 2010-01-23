@@ -530,11 +530,11 @@ Debugger::GetPacket()
 }
 
 void
-Debugger::GDBSend(const char *data)
+Debugger::GDBSend(const char *data, int reqAck)
 {
 	u8 cs;
 	const char *s;
-	static const char *hex = "0123456789ABCDEF";
+	static const char *hex = "0123456789abcdef";
 
 	while (1) {
 		con->Putc('$');
@@ -546,16 +546,20 @@ Debugger::GDBSend(const char *data)
 		con->Putc('#');
 		con->Putc(hex[cs >> 4]);
 		con->Putc(hex[cs & 0xf]);
-		u8 c;
-		while (1) {
-			while (con->Getc(&c) != Device::IOS_OK);
-			if (c == '+') {
-				return;
+		if (reqAck) {
+			u8 c;
+			while (1) {
+				while (con->Getc(&c) != Device::IOS_OK);
+				if (c == '+') {
+					return;
+				}
+				if (c == '-') {
+					/* retransmit */
+					break;
+				}
 			}
-			if (c == '-') {
-				/* retransmit */
-				break;
-			}
+		} else {
+			return;
 		}
 	}
 }
@@ -745,10 +749,19 @@ Debugger::GDBThreadState()
 		GDBSend("E01");
 		return 0;
 	}
-	if (FindThread(id)) {
-		GDBSend("OK");
+	if (numThreads) {
+		if (FindThread(id)) {
+			GDBSend("OK");
+		} else {
+			GDBSend("E00");
+		}
 	} else {
-		GDBSend("E00");
+		/* no SMP yet, accept default thread only */
+		if (id == 1) {
+			GDBSend("OK");
+		} else {
+			GDBSend("E00");
+		}
 	}
 	return 0;
 }
@@ -804,6 +817,10 @@ Debugger::Query()
 				buf[pos++] = ',';
 			}
 		}
+		if (pos == 1) {
+			/* no SMP yet, return default thread */
+			buf[pos++] = '1';
+		}
 		buf[pos] = 0;
 		threadLock.Unlock();
 		GDBSend(buf);
@@ -821,15 +838,20 @@ Debugger::Query()
 			GDBSend("E01");
 			return 0;
 		}
-		Thread *t = FindThread(id);
-		if (!t) {
-			GDBSend("E02");
-			return 0;
+		if (numThreads) {
+			Thread *t = FindThread(id);
+			if (!t) {
+				GDBSend("E02");
+				return 0;
+			}
+			sprintf(buf, "CPU %lu (ID %lu)", t->cpu->GetUnit(), t->cpu->GetID());
+		} else {
+			/* no SMP yet */
+			strcpy(buf, "Bootstrap processor");
 		}
-		sprintf(buf, "CPU %lu (ID %lu)", t->cpu->GetUnit(), t->cpu->GetID());
 		char _buf[256];
 		char *pbuf = _buf;
-		DumpData(&pbuf, buf, strlen(buf));
+		DumpData(&pbuf, sizeof(_buf), buf, strlen(buf));
 		*pbuf = 0;
 		GDBSend(_buf);
 		return 0;
@@ -898,20 +920,58 @@ Debugger::GDB()
 	return 0;
 }
 
-int
-Debugger::DumpData(char **buf, void *data, u32 size)
+void
+Debugger::GDBTrace(char *buf)
 {
-	const char *hex = "0123456789ABCDEF";
-	while (size) {
+	while (*buf) {
+		char outBuf[4096], *pbuf = outBuf;
+		*(pbuf++) = 'O';
+		buf += DumpData(&pbuf, sizeof(outBuf) - (pbuf - outBuf) - 1, buf, strlen(buf));
+		*pbuf = 0;
+		GDBSend(outBuf, 0);
+	}
+}
+
+int
+Debugger::Trace(const char *fmt,...)
+{
+	if (!gdbMode) {
+		return -1;
+	}
+	va_list va;
+	va_start(va, fmt);
+	return VTrace(fmt, va);
+}
+
+int
+Debugger::VTrace(const char *fmt, va_list va)
+{
+	if (!gdbMode) {
+		return -1;
+	}
+	char buf[4096];
+	vsnprintf(buf, sizeof(buf), fmt, va);
+	GDBTrace(buf);
+	return 0;
+}
+
+int
+Debugger::DumpData(char **buf, u32 bufSize, const void *data, u32 size)
+{
+	const char *hex = "0123456789abcdef";
+	int read = 0;
+	while (size && bufSize >= 2) {
 		u8 b = *(u8 *)data;
+		read++;
 		**buf = hex[b >> 4];
 		(*buf)++;
 		**buf = hex[b & 0xf];
 		(*buf)++;
 		data = ((u8 *)data) + 1;
 		size--;
+		bufSize -= 2;
 	}
-	return 0;
+	return read;
 }
 
 u32
@@ -946,53 +1006,53 @@ Debugger::ReadRegisters()
 	for (int r = 0; r < GR_MAX; r++) {
 		switch (r) {
 		case GR_EAX:
-			DumpData(&pbuf, &frame->eax, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->eax, 4);
 			break;
 		case GR_EBX:
-			DumpData(&pbuf, &frame->ebx, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->ebx, 4);
 			break;
 		case GR_ECX:
-			DumpData(&pbuf, &frame->ecx, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->ecx, 4);
 			break;
 		case GR_EDX:
-			DumpData(&pbuf, &frame->edx, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->edx, 4);
 			break;
 		case GR_ESI:
-			DumpData(&pbuf, &frame->esi, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->esi, 4);
 			break;
 		case GR_EDI:
-			DumpData(&pbuf, &frame->edi, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->edi, 4);
 			break;
 		case GR_EBP:
-			DumpData(&pbuf, &frame->ebp, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->ebp, 4);
 			break;
 		case GR_ESP:
-			DumpData(&pbuf, &esp, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &esp, 4);
 			break;
 		case GR_EIP:
-			DumpData(&pbuf, &frame->eip, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->eip, 4);
 			break;
 		case GR_EFLAGS:
-			DumpData(&pbuf, &frame->eflags, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->eflags, 4);
 			break;
 		case GR_CS:
-			DumpData(&pbuf, &frame->cs, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->cs, 4);
 			break;
 		case GR_SS:
-			DumpData(&pbuf, &ss, 2);
-			DumpData(&pbuf, null, 2);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &ss, 2);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), null, 2);
 			break;
 		case GR_DS:
-			DumpData(&pbuf, &frame->ds, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->ds, 4);
 			break;
 		case GR_ES:
-			DumpData(&pbuf, &frame->es, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->es, 4);
 			break;
 		case GR_FS:
-			DumpData(&pbuf, &frame->fs, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->fs, 4);
 			break;
 		case GR_GS:
-			DumpData(&pbuf, &frame->gs, 4);
+			DumpData(&pbuf, sizeof(buf) - (pbuf - buf), &frame->gs, 4);
 			break;
 		}
 	}
@@ -1096,7 +1156,7 @@ Debugger::ReadMemory()
 		if (!pte->fields.present) {
 			break;
 		}
-		DumpData(&pbuf, (void *)addr, toRead);
+		DumpData(&pbuf, sizeof(buf) - (pbuf - buf), (void *)addr, toRead);
 		size -= toRead;
 		addr += toRead;
 	}

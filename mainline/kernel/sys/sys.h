@@ -55,6 +55,7 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #include <kern/im.h>
 #include <dev/sys/cpu.h>
 #include <log.h>
+#include <kdb/debugger.h>
 
 #ifdef KERNEL
 
@@ -63,6 +64,29 @@ extern void RunDebugger(const char *fmt,...) __format(printf, 1, 2);
 
 extern void _panic(const char *fileName, int line, const char *fmt,...) __format(printf, 3, 4) __noreturn;
 #define panic(msg,...)	_panic(__FILE__, __LINE__, msg, ## __VA_ARGS__)
+
+/* System default output functions */
+
+void inline vprintf(const char *fmt, va_list va) __format(printf, 1, 0);
+void inline vprintf(const char *fmt, va_list va)
+{
+	if (sysCons) {
+		sysCons->VPrintf(fmt, va);
+	}
+#ifdef DEBUG
+	if (sysDebugger) {
+		sysDebugger->VTrace(fmt, va);
+	}
+#endif /* DEBUG */
+}
+
+void inline printf(const char *fmt,...)	__format(printf, 1, 2);
+void inline printf(const char *fmt,...)
+{
+	va_list va;
+	va_start(va, fmt);
+	vprintf(fmt, va);
+}
 
 #endif /* KERNEL */
 
