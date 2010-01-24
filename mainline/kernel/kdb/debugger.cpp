@@ -783,7 +783,7 @@ Debugger::GDBSetThread()
 		GDBSend("E01");
 		return 0;
 	}
-	if (!id) {
+	if (!id || (!numThreads && id == 1)) {
 		GDBSend("OK");
 		return 0;
 	}
@@ -803,7 +803,7 @@ Debugger::Query()
 	if (!strcmp(lineBuf, "qC")) {
 		/* query current thread ID */
 		Thread *t = GetThread();
-		sprintf(buf, "QC%lX", t ? t->id : 1);
+		sprintf(buf, "QC%lx", t ? t->id : 1);
 		GDBSend(buf);
 	} else if (!strcmp(lineBuf, "qfThreadInfo")) {
 		/* return all threads in the first query */
@@ -812,7 +812,7 @@ Debugger::Query()
 		threadLock.Lock();
 		Thread *t;
 		LIST_FOREACH(Thread, list, t, threads) {
-			pos += sprintf(&buf[pos], "%lX", t->id);
+			pos += sprintf(&buf[pos], "%lx", t->id);
 			if (!LIST_ISLAST(list, t, threads)) {
 				buf[pos++] = ',';
 			}
@@ -1150,11 +1150,15 @@ Debugger::ReadMemory()
 		toRead = min(toRead, size);
 		PTE::PDEntry *pde = MM::VtoPDE(addr);
 		if (!pde->fields.present) {
-			break;
+			//Trace("Error: address not available (PDE): 0x%08lx\n", addr);
+			GDBSend("E02");
+			return 0;
 		}
 		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
-			break;
+			//Trace("Error: address not available (PTE): 0x%08lx\n", addr);
+			GDBSend("E03");
+			return 0;
 		}
 		DumpData(&pbuf, sizeof(buf) - (pbuf - buf), (void *)addr, toRead);
 		size -= toRead;
@@ -1214,7 +1218,7 @@ Debugger::SendStatus()
 {
 	char buf[128];
 
-	sprintf(buf, "T05%X:%02X%02X%02X%02X;%X:%02X%02X%02X%02X;%X:%02X%02X%02X%02X;",
+	sprintf(buf, "T05%x:%02x%02x%02x%02x;%x:%02x%02x%02x%02x;%x:%02x%02x%02x%02x;",
 		GR_ESP, ((u8 *)&esp)[0], ((u8 *)&esp)[1], ((u8 *)&esp)[2], ((u8 *)&esp)[3],
 		GR_EBP, ((u8 *)&frame->ebp)[0], ((u8 *)&frame->ebp)[1],
 		((u8 *)&frame->ebp)[2], ((u8 *)&frame->ebp)[3],
