@@ -113,7 +113,7 @@ private:
 	u32 FetchData(char **buf, void *data, u32 size);
 	int ReadMemory();
 	int WriteMemory();
-	int SendStatus();
+	int SendStatus(Frame *frame);
 	int Continue();
 	int WriteRegisters();
 	int Step();
@@ -128,6 +128,7 @@ private:
 	int RunLoop(Frame *frame, int printStatus = 1);
 	Thread *FindThread(u32 id);
 	HdlStatus SwitchThread(u32 id, int printStatus = 0);
+	int SetFrame(Frame *frame);
 	void GDBTrace(char *buf);
 
 	/* commands handlers */

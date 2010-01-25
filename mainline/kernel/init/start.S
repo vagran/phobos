@@ -16,7 +16,10 @@ _start:
 	movl	$boot_stack, %esp
 	pushl	%ebx 		/* boot info */
 	pushl	%eax		/* boot loader signature */
-	call	Bootstrap
+	pushl	$start_ret	/* return address to properly align arguments */
+	pushl	$Bootstrap
+	ret
+start_ret:
 
 /* Multiboot header */
 .align	4
@@ -27,6 +30,8 @@ _start:
 .long   MBH_FLAGS
 /* checksum */
 .long   -(MULTIBOOT_HEADER_MAGIC + MBH_FLAGS)
+
+	.data
 
 	.align 4
 	.space	BOOT_STACK_SIZE

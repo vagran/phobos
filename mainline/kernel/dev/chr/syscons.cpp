@@ -107,6 +107,9 @@ SysConsole::SysSerial::Getc(u8 *c)
 	if (inb(iobase + UART_LSR) & UART_DATA_READY) {
 	    *c = inb(iobase + UART_RX);
 	    lock.Unlock();
+	    if (im) {
+			im->RestoreIntr(x);
+		}
 	    return IOS_OK;
 	}
 	lock.Unlock();

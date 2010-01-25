@@ -211,6 +211,10 @@ Debugger::DRHandler(Frame *frame)
 	default:
 		AtomicOp::Dec(&reqRef);
 	}
+	if (thread == curThread) {
+		curThread = 0;
+		curCpu = 0;
+	}
 	IM::RestoreIntr(intr);
 	return 0;
 }
@@ -226,11 +230,11 @@ Debugger::StopLoop(int printStatus)
 			break;
 		}
 		if (thread->state != Thread::S_STOPPED) {
-			return HS_EXIT;
+			break;
 		}
 		pause();
 	}
-	return HS_OK;
+	return HS_EXIT;
 }
 
 int
@@ -301,6 +305,8 @@ Debugger::BPHandler(Frame *frame)
 		SetThreadState(thread, Thread::S_STOPPED, frame);
 		if (curThread != thread) {
 			SwitchThread(thread->id, 1);
+			curCpu = 0;
+			curThread = 0;
 			IM::RestoreIntr(intr);
 			return 0;
 		}
@@ -311,7 +317,24 @@ Debugger::BPHandler(Frame *frame)
 	}
 
 	RunLoop(frame);
+	curThread = 0;
+	curCpu = 0;
 	IM::RestoreIntr(intr);
+	return 0;
+}
+
+int
+Debugger::SetFrame(Frame *frame)
+{
+	this->frame = frame;
+	/* esp is saved in frame only if PL was switched */
+	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
+		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
+		esp = (u32)&frame->esp;
+	} else {
+		esp = frame->esp;
+		ss = frame->ss;
+	}
 	return 0;
 }
 
@@ -322,18 +345,13 @@ Debugger::RunLoop(Frame *frame, int printStatus)
 	if (thread) {
 		thread->inRunLoop++;
 	}
-	this->frame = frame;
+
+	SetFrame(frame);
+
 	if (printStatus) {
 		PrintFrameInfo(frame);
 	}
-	/* esp is saved in frame only if PL was switched */
-	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
-		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
-		esp = (u32)&frame->esp;
-	} else {
-		esp = frame->esp;
-		ss = frame->ss;
-	}
+
 	while (1) {
 		if (!gdbMode) {
 			Shell();
@@ -357,7 +375,7 @@ int
 Debugger::PrintFrameInfo(Frame *frame)
 {
 	if (gdbMode) {
-		SendStatus();
+		SendStatus(frame);
 	} else {
 		if (curCpu) {
 			con->Printf("[CPU %lu-ID%lx] ", curCpu->GetUnit(), curCpu->GetID());
@@ -438,7 +456,9 @@ Debugger::GetPacket()
 	lbSize = 0;
 	while (1) {
 		u8 c;
-		while (con->Getc(&c) != Device::IOS_OK);
+		while (con->Getc(&c) != Device::IOS_OK) {
+			pause();
+		}
 		switch (state) {
 		case 0:
 			/* wait packet start ($) */
@@ -549,7 +569,9 @@ Debugger::GDBSend(const char *data, int reqAck)
 		if (reqAck) {
 			u8 c;
 			while (1) {
-				while (con->Getc(&c) != Device::IOS_OK);
+				while (con->Getc(&c) != Device::IOS_OK) {
+					pause();
+				}
 				if (c == '+') {
 					return;
 				}
@@ -884,7 +906,7 @@ Debugger::ProcessPacket()
 		}
 		return 0;
 	case '?':
-		return SendStatus();
+		return SendStatus(frame);
 	case 'c':
 		return Continue();
 	case 's':
@@ -1136,14 +1158,7 @@ Debugger::ReadMemory()
 		GDBSend("E01");
 		return 0;
 	}
-	/*
-	 * Special handling for boot area, it is re-mapped to upper addresses.
-	 * This is required for proper working with GDB which attempts to
-	 * create breakpoint at entry point.
-	 */
-	if (addr >= LOAD_ADDRESS && addr < (u32)&_eboot) {
-		addr += KERNEL_ADDRESS - LOAD_ADDRESS;
-	}
+
 	size = strtoul(eptr + 1, &eptr, 16);
 	while (size) {
 		u32 toRead = roundup2(addr + 1, PAGE_SIZE) - addr;
@@ -1185,14 +1200,7 @@ Debugger::WriteMemory()
 		return -1;
 	}
 	eptr++;
-	/*
-	 * Special handling for boot area, it is re-mapped to upper addresses.
-	 * This is required for proper working with GDB which attempts to
-	 * create breakpoint at entry point.
-	 */
-	if (addr >= LOAD_ADDRESS && addr < (u32)&_eboot) {
-		addr += KERNEL_ADDRESS - LOAD_ADDRESS;
-	}
+
 	while (size) {
 		u32 toWrite = roundup2(addr + 1, PAGE_SIZE) - addr;
 		toWrite = min(toWrite, size);
@@ -1214,10 +1222,20 @@ Debugger::WriteMemory()
 }
 
 int
-Debugger::SendStatus()
+Debugger::SendStatus(Frame *frame)
 {
 	char buf[128];
+	u32 esp;
+	u16 ss;
 
+	/* esp is saved in frame only if PL was switched */
+	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
+		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
+		esp = (u32)&frame->esp;
+	} else {
+		esp = frame->esp;
+		ss = frame->ss;
+	}
 	sprintf(buf, "T05%x:%02x%02x%02x%02x;%x:%02x%02x%02x%02x;%x:%02x%02x%02x%02x;",
 		GR_ESP, ((u8 *)&esp)[0], ((u8 *)&esp)[1], ((u8 *)&esp)[2], ((u8 *)&esp)[3],
 		GR_EBP, ((u8 *)&frame->ebp)[0], ((u8 *)&frame->ebp)[1],
@@ -1250,7 +1268,7 @@ Debugger::Continue()
 	}
 
 	if (gdbSkipCont) {
-		SendStatus();
+		SendStatus(frame);
 		gdbSkipCont--;
 		return 0;
 	}

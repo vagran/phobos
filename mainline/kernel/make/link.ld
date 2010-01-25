@@ -9,9 +9,15 @@
 ENTRY(start)
 
 SECTIONS {
-	. = LOAD_ADDRESS;
-	.boot : {
-		*/start.o(.text .data .rodata*)
+	. = KERNEL_ADDRESS;
+	.boot_trampoline : AT(LOAD_ADDRESS) {
+		*/start.o(.text)
+	}
+	_eboot_tramp = ALIGN(0x1000);
+	
+	. = LOAD_ADDRESS + _eboot_tramp - KERNEL_ADDRESS;
+	.boot : AT (LOAD_ADDRESS + _eboot_tramp - KERNEL_ADDRESS) {
+		*/start.o(.data .rodata*)
 		*/init.o(.text .data .rodata*)
 		_bootbss = ABSOLUTE(.);
 		*/start.o(.bss)
