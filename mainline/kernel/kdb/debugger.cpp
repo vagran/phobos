@@ -1166,14 +1166,14 @@ Debugger::ReadMemory()
 		toRead = min(toRead, size);
 		PTE::PDEntry *pde = MM::VtoPDE(addr);
 		if (!pde->fields.present) {
-			//Trace("Error: address not available (PDE): 0x%08lx\n", addr);
 			GDBSend("E02");
+			Trace("Error: address not available (PDE): 0x%08lx\n", addr);
 			return 0;
 		}
 		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
-			//Trace("Error: address not available (PTE): 0x%08lx\n", addr);
 			GDBSend("E03");
+			Trace("Error: address not available (PTE): 0x%08lx\n", addr);
 			return 0;
 		}
 		DumpData(&pbuf, sizeof(buf) - (pbuf - buf), (void *)addr, toRead);
@@ -1197,7 +1197,7 @@ Debugger::WriteMemory()
 	}
 	size = strtoul(eptr + 1, &eptr, 16);
 	if (*eptr != ':') {
-		GDBSend("E01");
+		GDBSend("E02");
 		return -1;
 	}
 	eptr++;
@@ -1262,7 +1262,7 @@ Debugger::Continue()
 		}
 		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
-			GDBSend("E00");
+			GDBSend("E01");
 			return 0;
 		}
 		frame->eip = addr;
@@ -1291,7 +1291,7 @@ Debugger::Step()
 		}
 		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
-			GDBSend("E00");
+			GDBSend("E01");
 			return 0;
 		}
 		frame->eip = addr;

@@ -14,5 +14,5 @@ TM *tm;
 TM::TM()
 {
 	pit = (PIT *)devMan.CreateDevice("pit", 0);
-	assert(pit);
+	ensure(pit);
 }

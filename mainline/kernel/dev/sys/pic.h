@@ -14,6 +14,16 @@ phbSource("$Id$");
 #include <dev/sys/IntController.h>
 
 class PIC : public IntController {
+public:
+	enum Lines {
+		IRQ_PIT =		0x0, /* Programmable Interval Timer */
+		IRQ_KBD =		0x1, /* Keyboard */
+		IRQ_SLAVEPIC =	0x2, /* Slave PIC */
+		IRQ_SERIALA =	0x3, /* Serial Port A */
+		IRQ_SERIALB =	0x4, /* Serial Port B */
+		IRQ_RTC =		0x8, /* Real Time Clock */
+	};
+
 private:
 	enum Ports {
 		PORT_M_ICW =	0x20,

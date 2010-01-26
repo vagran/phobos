@@ -21,7 +21,7 @@ private:
 		PORT_CNT0 =		IO_BASE + 0,
 		PORT_CNT1 =		IO_BASE + 1,
 		PORT_CNT2 =		IO_BASE + 2,
-		PORT_MODE =		IO_BASE + 3,
+		PORT_CTRL =		IO_BASE + 3,
 
 		SEL_TMR0 =		0x00,
 		SEL_TMR1 =		0x40,
@@ -34,16 +34,28 @@ private:
 		MODE_SWSTROBE =	0x08, /* mode 4, software triggered strobe */
 		MODE_HWSTROBE =	0xa0, /* mode 5, h/w triggered strobe */
 
-		MODE_LSB =		0x10,
-		MODE_MSB =		0x20,
-		MODE_16BIT =	0x30,
+		CTRL_LATCH =	0x00,
+		CTRL_LSB =		0x10,
+		CTRL_MSB =		0x20,
+		CTRL_16BIT =	0x30,
 
-		MODE_BCD =		0x01,
+		CTRL_BCD =		0x01,
+
+		BASE_FREQ =		1193182,
+		DEF_TICK_FREQ =	100,
 	};
 
+	u32 tickFreq, realTickFreq;
+	u32 divisor;
+	SpinLock accLock;
+	HANDLE irq;
+
+	static IM::IsrStatus IntrHandler(HANDLE h, void *arg);
 public:
 	PIT(Type type, u32 unit, u32 classID);
 	DeclareDevFactory();
+
+	int SetTickFreq(u32 freq);
 };
 
 #endif /* PIT_H_ */

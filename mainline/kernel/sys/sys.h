@@ -42,11 +42,13 @@ phbSource("$Id$");
 #include <stdlib.h>
 #include <cpu_instr.h>
 
+#define ASSERT(x)	{if (!(x)) __assert(__FILE__, __LINE__, __STR(x));}
 #ifdef DEBUG
-#define assert(x) {if (!(x)) __assert(__FILE__, __LINE__, __STR(x));}
+#define assert(x)	ASSERT(x)
 #else /* DEBUG */
 #define assert(x)
 #endif /* DEBUG */
+#define ensure(x)	ASSERT(x)
 extern void __assert(const char *file, u32 line, const char *cond);
 
 #include <lock.h>
