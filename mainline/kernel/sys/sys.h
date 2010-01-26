@@ -53,6 +53,7 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #include <dev/chr/syscons.h>
 #include <mem.h>
 #include <kern/im.h>
+#include <kern/tm.h>
 #include <dev/sys/cpu.h>
 #include <log.h>
 #include <kdb/debugger.h>

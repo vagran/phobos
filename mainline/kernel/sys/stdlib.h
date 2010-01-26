@@ -28,8 +28,9 @@ ASMCALL int tolower(int c);
 
 ASMCALL u32 strlen(const char *str);
 ASMCALL char *strcpy(char *dst, const char *src);
+ASMCALL char *strncpy(char *dst, const char *src, u32 len);
 ASMCALL int strcmp(const char *s1, const char *s2);
-ASMCALL int strncmp(const char *s1, const char *s2, u32 num);
+ASMCALL int strncmp(const char *s1, const char *s2, u32 len);
 ASMCALL char *strdup(const char *str);
 ASMCALL char *strchr(const char *str, int c);
 

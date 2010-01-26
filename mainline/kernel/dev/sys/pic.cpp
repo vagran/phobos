@@ -11,6 +11,10 @@ phbSource("$Id$");
 
 #include <dev/sys/pic.h>
 
+DefineDevFactory(PIC);
+
+RegDevClass(PIC, "pic", Device::T_SPECIAL, "Programmable Interrupts Controller (8259)");
+
 PIC::PIC(Type type, u32 unit, u32 classID) : IntController(type, unit, classID)
 {
 	switch (unit) {
@@ -30,10 +34,6 @@ PIC::PIC(Type type, u32 unit, u32 classID) : IntController(type, unit, classID)
 	isInitialized = 0;
 	devState = S_UP;
 }
-
-DefineDevFactory(PIC);
-
-RegDevClass(PIC, "pic", Device::T_SPECIAL, "Programmable Interrupts Controller (8259)");
 
 u32
 PIC::GetLinesCount()

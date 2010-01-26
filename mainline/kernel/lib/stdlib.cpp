@@ -117,6 +117,26 @@ strcpy(char *dst, const char *src)
 		dst++;
 		src++;
 	}
+	*dst = 0;
+	return ret;
+}
+
+ASMCALL char *
+strncpy(char *dst, const char *src, u32 len)
+{
+	char *ret = dst;
+	u32 numLeft = len;
+	while (*src && numLeft) {
+		*dst = *src;
+		dst++;
+		src++;
+		numLeft--;
+	}
+	if (numLeft) {
+		*dst = 0;
+	} else if (len) {
+		*(dst - 1) = 0;
+	}
 	return ret;
 }
 
@@ -134,17 +154,17 @@ strcmp(const char *s1, const char *s2)
 }
 
 ASMCALL int
-strncmp(const char *s1, const char *s2, u32 num)
+strncmp(const char *s1, const char *s2, u32 len)
 {
-	while (num && *s1 == *s2) {
+	while (len && *s1 == *s2) {
 		if (!*s1) {
 			return 0;
 		}
 		s1++;
 		s2++;
-		num--;
+		len--;
 	}
-	if (!num) {
+	if (!len) {
 		return 0;
 	}
 	return *s2 - *s1;

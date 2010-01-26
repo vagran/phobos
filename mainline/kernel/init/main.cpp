@@ -180,6 +180,9 @@ Main(paddr_t firstAddr)
 		klog(KLOG_INFO, "Video terminal could not be created");
 	}
 
+	/* system time, timers, deferred calls and so on */
+	tm = NEWSINGLE(TM);
+
 	/* Attach bootstrap processor and try to involve others */
 	if (!CPU::Startup()) {
 		panic("Unable to create device object for bootstrap CPU");
