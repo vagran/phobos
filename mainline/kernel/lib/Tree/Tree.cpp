@@ -141,7 +141,6 @@ Tree<key_t>::GetNextNode(TreeRoot &root, TreeEntry *node)
 			return node->right;
 		}
 	}
-	return 0;//make compiler happy
 }
 
 template <typename key_t>

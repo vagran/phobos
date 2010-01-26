@@ -832,14 +832,15 @@ Debugger::Query()
 		buf[0] = 'm';
 		int pos = 1;
 		threadLock.Lock();
-		Thread *t;
-		LIST_FOREACH(Thread, list, t, threads) {
-			pos += sprintf(&buf[pos], "%lx", t->id);
-			if (!LIST_ISLAST(list, t, threads)) {
-				buf[pos++] = ',';
+		if (numThreads) {
+			Thread *t;
+			LIST_FOREACH(Thread, list, t, threads) {
+				pos += sprintf(&buf[pos], "%lx", t->id);
+				if (!LIST_ISLAST(list, t, threads)) {
+					buf[pos++] = ',';
+				}
 			}
-		}
-		if (pos == 1) {
+		} else {
 			/* no SMP yet, return default thread */
 			buf[pos++] = '1';
 		}

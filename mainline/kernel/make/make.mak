@@ -10,6 +10,7 @@ TOOLS_PREFIX= i786-phobos-elf-
 export CC= $(TOOLS_BIN)$(TOOLS_PREFIX)gcc
 export LD= $(TOOLS_BIN)$(TOOLS_PREFIX)ld
 export STRIP= $(TOOLS_BIN)$(TOOLS_PREFIX)strip
+export AR= $(TOOLS_BIN)$(TOOLS_PREFIX)ar
 
 COMPILE_FLAGS= -pipe -Werror -Wall -pipe -DKERNEL -fno-stack-protector -fno-default-inline \
 				-DLOAD_ADDRESS=$(LOAD_ADDRESS) \
@@ -19,6 +20,7 @@ COMPILE_FLAGS_C=
 COMPILE_FLAGS_ASM= -DASSEMBLER
 LINK_FLAGS= -static -nodefaultlibs -nostartfiles -nostdinc -nostdinc++
 LINK_SCRIPT= $(KERNROOT)/make/link.ld
+AR_FLAGS= rcs
 
 INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
 INCLUDE_FLAGS= $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
@@ -41,6 +43,10 @@ COMPILE_DIR= $(KERNROOT)/build
 OBJ_DIR= $(COMPILE_DIR)/$(TARGET)
 
 SUBDIRS_TARGET= $(foreach item,$(SUBDIRS),$(item).dir)
+
+ifdef MAKELIB
+LIB_FILE= $(OBJ_DIR)/lib$(MAKELIB).a
+endif
 
 ifeq ($(MAKEIMAGE),1)
 IMAGE= $(OBJ_DIR)/kernel
@@ -76,8 +82,12 @@ $(OBJ_DIR)/%.o: %.cpp
 $(OBJ_DIR)/%.o: %.S
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -o $@ $<
 
+ifdef MAKELIB
+$(LIB_FILE): $(OBJS)
+	$(AR) $(AR_FLAGS) $@ $< 
+endif
 
-all: $(OBJ_DIR) $(OBJS) $(IMAGE) $(SUBDIRS_TARGET)
+all: $(OBJ_DIR) $(OBJS) $(IMAGE) $(SUBDIRS_TARGET) $(LIB_FILE)
 
 clean: $(SUBDIRS_TARGET)
 	$(RMBUILD)
