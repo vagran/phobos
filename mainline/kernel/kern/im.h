@@ -24,10 +24,10 @@ public:
 	};
 
 	enum IsrStatus {
-		IS_PROCESSED,
-		IS_NOINTR, /* for shared lines, ISR must return this code if no interrupts pending */
-		IS_ERROR,
-		IS_PENDING,
+		IS_PROCESSED, /* All the work was done */
+		IS_NOINTR, /* For shared lines, ISR should return this code if it able to detect that no interrupts pending */
+		IS_ERROR, /* Processing error */
+		IS_PENDING, /* Still have some work to do */
 	};
 
 	enum IrqAllocFlags {
@@ -35,14 +35,18 @@ public:
 		AF_SPEC =			0x2, /* allocate at specified index */
 	};
 
+	enum IrqType {
+		IT_HW,
+		IT_SW,
+	};
+
 	typedef u32 irqmask_t;
 
 	typedef IsrStatus (*ISR)(HANDLE h, void *arg);
 
 private:
-	enum IrqType {
-		IT_HW,
-		IT_SW,
+	enum {
+		MAX_POLL_NESTING =		16,
 	};
 
 	enum IrqSlotFlags {
@@ -53,15 +57,19 @@ private:
 		ListHead clients;
 		u32 numClients;
 		u32 flags;
+		u32 lastRound; /* last round when it was serviced */
+		int touched;
 	} IrqSlot;
 
 	typedef struct {
 		ListEntry list;
 		IrqType type;
-		int idx;
+		u32 idx;
 		ISR isr;
 		void *arg;
 		irqmask_t hwMask, swMask; /* interrupts to be disabled while calling this client */
+		u32 lastRound; /* last round when it was serviced */
+		int serviceComplete;
 	} IrqClient;
 
 	IrqSlot hwIrq[NUM_HWIRQ];
@@ -82,18 +90,22 @@ private:
 	 */
 	u8 hwMasked[NUM_HWIRQ], swMasked[NUM_SWIRQ];
 	irqmask_t hwActive, swActive;
-	SpinLock maskLock;
+	SpinLock activeLock, maskLock;
+	u32 pollNesting; /* not true nesting since it accounts all processors */
+	u32 roundIdx; /* incremented at each round */
+	SpinLock selectLock, pollLock;
+	u32 selectIdx;
 
 	PIC *pic0, *pic1;
 
 	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags,
 		irqmask_t hwMask, irqmask_t swMask);
 	int Irq(IrqType type, u32 idx);
-	IsrStatus ProcessInterrupt(IrqType type, u32 idx);
-	int MaskIrq(IrqType type, u32 idx);
-	int UnMaskIrq(IrqType type, u32 idx);
 	static int HWIRQHandler(Frame *frame, void *arg);
 	int GetPIC(u32 idx, PIC **ppic, u32 *pidx);
+	IrqClient *SelectClient(IrqType type);
+	IrqClient *SelectClient();
+	IsrStatus CallClient(IrqClient *ic);
 public:
 	IM();
 
@@ -105,11 +117,14 @@ public:
 	inline u32 GetIndex(HANDLE h) { assert(h); return ((IrqClient *)h)->idx; }
 	static inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }
 	static u32 DisableIntr(); /* return value used for RestoreIntr() */
+	static u32 EnableIntr(); /* return value used for RestoreIntr() */
 	static u32 RestoreIntr(u32 saved);
 	int Hwirq(u32 idx);
 	int Swirq(u32 idx);
 	int HwEnable(u32 idx, int f = 1);
 	int Poll();
+	int MaskIrq(IrqType type, u32 idx);
+	int UnMaskIrq(IrqType type, u32 idx);
 };
 
 extern IM *im;

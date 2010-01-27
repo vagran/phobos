@@ -29,6 +29,8 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 {
 	smpGDT = 0;
 	initialStack = 0;
+	intrNesting = 0;
+	intrServiced = 0;
 	LIST_ADD(list, this, allCpus);
 
 	if (numCpus) { /* for APs */
@@ -68,6 +70,18 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 		:
 		: "r"(privSegSel));
 	devState = S_UP;
+}
+
+void
+CPU::NestInterrupt(int nestIn)
+{
+	if (nestIn) {
+		intrNesting++;
+		intrServiced++;
+	} else {
+		assert(intrNesting);
+		intrNesting--;
+	}
 }
 
 int

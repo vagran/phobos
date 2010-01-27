@@ -27,6 +27,10 @@ IM::IM()
 	swPending = 0;
 	hwActive = 0;
 	swActive = 0;
+	hwDisabled = ~0;
+	pollNesting = 0;
+	roundIdx = 0;
+	selectIdx = 0;
 	memset(hwMasked, 0, sizeof(hwMasked));
 	memset(swMasked, 0, sizeof(swMasked));
 	pic0 = (PIC *)devMan.CreateDevice("pic", 0);
@@ -92,9 +96,11 @@ IM::HwEnable(u32 idx, int f)
 	u32 picIdx;
 	GetPIC(idx, &pic, &picIdx);
 	if (f) {
+		hwDisabled &= ~mask;
 		pic->EnableInterrupt(picIdx);
 	} else {
 		pic->DisableInterrupt(picIdx);
+		hwDisabled |= mask;
 	}
 	return 0;
 }
@@ -150,39 +156,275 @@ IM::Irq(IrqType type, u32 idx)
 		AtomicOp::Or(&hwPending, mask);
 	}
 	/* try to handle */
-	if (!*masked) {
-		ProcessInterrupt(type, idx); /* XXX should use Poll() and some round robin balancing */
+	if (!*masked && pollNesting < MAX_POLL_NESTING) {
+		Poll();
 	}
 	return 0;
 }
 
+IM::IrqClient *
+IM::SelectClient(IrqType type)
+{
+	u32 numLines;
+	irqmask_t *validMask, *activeMask, *pendingMask;
+	u8 *masked;
+	IrqSlot *slots;
+
+	if (type == IT_HW) {
+		validMask = &hwValid;
+		masked = hwMasked;
+		activeMask = &hwActive;
+		pendingMask = &hwPending;
+		numLines = NUM_HWIRQ;
+		slots = hwIrq;
+	} else if (type == IT_SW) {
+		validMask = &swValid;
+		masked = swMasked;
+		activeMask = &swActive;
+		pendingMask = &swPending;
+		numLines = NUM_SWIRQ;
+		slots = swIrq;
+	} else {
+		panic("Invalid interrupt type (%d)", type);
+	}
+
+	if (!(*pendingMask && (~*activeMask) && *validMask)) {
+		return 0;
+	}
+
+	int derefered = 0;
+	while (1) {
+		for (u32 idx = 0; idx < numLines; idx++) {
+			irqmask_t mask = GetMask(idx);
+			if (!(mask & *validMask)) {
+				continue;
+			}
+			if (!(mask & *pendingMask)) {
+				continue;
+			}
+			if (mask & *activeMask) {
+				continue;
+			}
+			if (*masked) {
+				continue;
+			}
+			IrqSlot *is = &slots[idx];
+			if (is->lastRound != roundIdx) {
+				is->lastRound = roundIdx;
+				is->touched = 0;
+			} else {
+				if (is->touched) {
+					derefered = 1;
+					continue;
+				}
+			}
+			slotLock.Lock();
+			while (1) {
+				IrqClient *ic;
+				LIST_FOREACH(IrqClient, list, ic, is->clients) {
+					if (ic->lastRound != roundIdx) {
+						ic->serviceComplete = 0;
+						ic->lastRound = roundIdx;
+					} else {
+						if (ic->serviceComplete) {
+							continue;
+						}
+					}
+					LIST_ROTATE(list, LIST_NEXT(IrqClient, list, ic), is->clients);
+					is->touched = 1;
+					slotLock.Unlock();
+					return ic;
+				}
+				/*
+				 * We have pending interrupt on this line while all clients have processed it.
+				 * Probably new interrupt occurred and we should restart servicing cycle for this slot.
+				 */
+				LIST_FOREACH(IrqClient, list, ic, is->clients) {
+					ic->serviceComplete = 0;
+				}
+			}
+			/* NOT REACHED */
+		}
+		if (!derefered) {
+			break;
+		}
+		/*
+		 * We have completed one iteration and have lines which still require servicing.
+		 * Reset 'touched' status and proceed to the next iteration.
+		 */
+		for (u32 idx = 0; idx < numLines; idx++) {
+			IrqSlot *is = &slots[idx];
+			is->touched = 0;
+		}
+	}
+
+	return 0;
+}
+
+IM::IrqClient *
+IM::SelectClient()
+{
+	/* This method must be atomic */
+	selectLock.Lock();
+	selectIdx++; /* for round robin between hardware and software queues */
+	IrqClient *ic;
+	if (selectIdx & 1) {
+		ic = IM::SelectClient(IT_HW);
+	} else {
+		ic = IM::SelectClient(IT_SW);
+	}
+	if (!ic) {
+		if (selectIdx & 1) {
+			ic = IM::SelectClient(IT_SW);
+		} else {
+			ic = IM::SelectClient(IT_HW);
+		}
+	}
+	selectLock.Unlock();
+	return ic;
+}
+
+/* must be called with interrupts disabled */
+IM::IsrStatus
+IM::CallClient(IrqClient *ic)
+{
+	irqmask_t *pendingMask, *activeMask;
+	u8 *masked;
+	IrqType type = ic->type;
+	u32 idx = ic->idx;
+
+	assert(!(GetEflags() & EFLAGS_IF));
+	irqmask_t mask = GetMask(idx);
+	if (type == IT_HW) {
+		assert(idx <= NUM_HWIRQ);
+		assert(mask & hwValid);
+		pendingMask = &hwPending;
+		masked = &hwMasked[idx];
+		activeMask = &hwActive;
+	} else if (type == IT_SW) {
+		assert(idx <= NUM_SWIRQ);
+		assert(mask & swValid);
+		pendingMask = &swPending;
+		masked = &swMasked[idx];
+		activeMask = &swActive;
+	} else {
+		panic("Invalid IRQ type %d", type);
+	}
+	IsrStatus status = IS_ERROR;
+
+	activeLock.Lock();
+	if (*activeMask & mask) {
+		/* already handled by another processor */
+		activeLock.Unlock();
+		return IS_NOINTR;
+	}
+	AtomicOp::Or(activeMask, mask);
+	activeLock.Unlock();
+
+	maskLock.Lock();
+	irqmask_t isMasked = *masked;
+	maskLock.Unlock();
+	if (isMasked) {
+		AtomicOp::And(activeMask, ~mask);
+		return IS_PENDING;
+	}
+
+	pendingLock.Lock();
+	if (!(*pendingMask & mask)) {
+		pendingLock.Unlock();
+		AtomicOp::And(activeMask, ~mask);
+		return IS_NOINTR;
+	}
+	pendingLock.Unlock();
+
+	CPU *cpu = CPU::GetCurrent();
+	if (cpu) {
+		cpu->NestInterrupt();
+	}
+
+	/* disable requested interrupts */
+	if (ic->hwMask) {
+		for (u32 i = 0; i < NUM_HWIRQ; i++) {
+			if (type == IT_HW && i == idx) {
+				continue;
+			}
+			irqmask_t curMask = GetMask(i);
+			if (ic->hwMask & curMask) {
+				MaskIrq(IT_HW, i);
+			}
+		}
+	}
+	if (ic->swMask) {
+		for (u32 i = 0; i < NUM_SWIRQ; i++) {
+			if (type == IT_SW && i == idx) {
+				continue;
+			}
+			irqmask_t curMask = GetMask(i);
+			if (ic->swMask & curMask) {
+				MaskIrq(IT_SW, i);
+			}
+		}
+	}
+
+	sti();
+	status = ic->isr((HANDLE)ic, ic->arg);
+	cli();
+	if (status != IS_PENDING) {
+		if (status != IS_NOINTR) {
+			AtomicOp::And(pendingMask, ~mask);
+		}
+		slotLock.Lock();
+		ic->serviceComplete = 1;
+		slotLock.Unlock();
+	}
+
+	/* unmask masked interrupts */
+	if (ic->swMask) {
+		for (u32 i = 0; i < NUM_SWIRQ; i++) {
+			if (type == IT_SW && i == idx) {
+				continue;
+			}
+			irqmask_t curMask = GetMask(i);
+			if (ic->swMask & curMask) {
+				UnMaskIrq(IT_SW, i);
+			}
+		}
+	}
+	if (ic->hwMask) {
+		for (u32 i = 0; i < NUM_HWIRQ; i++) {
+			if (type == IT_HW && i == idx) {
+				continue;
+			}
+			irqmask_t curMask = GetMask(i);
+			if (ic->hwMask & curMask) {
+				UnMaskIrq(IT_HW, i);
+			}
+		}
+	}
+	if (cpu) {
+		cpu->NestInterrupt(0);
+	}
+	AtomicOp::And(activeMask, ~mask);
+	return status;
+}
+
+/* safe to be called recursively */
 int
 IM::Poll()
 {
-	for (u32 idx = 0; idx < NUM_HWIRQ; idx++) {
-		irqmask_t mask = GetMask(idx);
-		if (!(mask & hwValid)) {
-			continue;
-		}
-		if (!(mask & hwPending)) {
-			continue;
-		}
-		if (!hwMasked[idx]) {
-			ProcessInterrupt(IT_HW, idx);
-		}
+	IrqClient *ic;
+
+	u32 x = DisableIntr();
+	pollLock.Lock();
+	if (!AtomicOp::Add(&pollNesting, 1)) {
+		roundIdx++;
 	}
-	for (u32 idx = 0; idx < NUM_SWIRQ; idx++) {
-		irqmask_t mask = GetMask(idx);
-		if (!(mask & swValid)) {
-			continue;
-		}
-		if (!(mask & swPending)) {
-			continue;
-		}
-		if (!swMasked[idx]) {
-			ProcessInterrupt(IT_SW, idx);
-		}
+	pollLock.Unlock();
+	while ((ic = SelectClient())) {
+		CallClient(ic);
 	}
+	AtomicOp::Dec(&pollNesting);
+	RestoreIntr(x);
 	return 0;
 }
 
@@ -207,19 +449,22 @@ IM::MaskIrq(IrqType type, u32 idx)
 		panic("Invalid IRQ type %d", type);
 	}
 	while (1) {
+		activeLock.Lock();
 		if (mask & *activeMask) {
 			/* some other CPU is processing interrupt, wait for completion */
-			/* May be we should switch context here? */
+			activeLock.Unlock();
 			continue;
 		}
 		maskLock.Lock();
 		if (mask & *activeMask) {
 			maskLock.Unlock();
+			activeLock.Unlock();
 			continue;
 		}
 		/* locked by maskLock so doesn't need to be atomic */
 		*masked++;
 		maskLock.Unlock();
+		activeLock.Unlock();
 		break;
 	}
 	return 0;
@@ -251,126 +496,10 @@ IM::UnMaskIrq(IrqType type, u32 idx)
 	assert(*masked);
 	u8 isMasked = --(*masked);
 	maskLock.Unlock();
-	if (!isMasked && (mask & *pendingMask)) {
-		ProcessInterrupt(type, idx);
+	if (!isMasked && (mask & *pendingMask) && pollNesting < MAX_POLL_NESTING) {
+		Poll();
 	}
 	return 0;
-}
-
-IM::IsrStatus
-IM::ProcessInterrupt(IrqType type, u32 idx)
-{
-	IrqSlot *is;
-	irqmask_t *pendingMask, *activeMask;
-	u8 *masked;
-
-	irqmask_t mask = GetMask(idx);
-	if (type == IT_HW) {
-		assert(idx <= NUM_HWIRQ);
-		assert(mask & hwValid);
-		is = &hwIrq[idx];
-		pendingMask = &hwPending;
-		masked = &hwMasked[idx];
-		activeMask = &hwActive;
-	} else if (type == IT_SW) {
-		assert(idx <= NUM_SWIRQ);
-		assert(mask & swValid);
-		is = &swIrq[idx];
-		pendingMask = &swPending;
-		masked = &swMasked[idx];
-		activeMask = &swActive;
-	} else {
-		panic("Invalid IRQ type %d", type);
-	}
-	IrqClient *ic;
-	IsrStatus status = IS_ERROR;
-
-	AtomicOp::Or(activeMask, mask);
-	maskLock.Lock();
-	irqmask_t isMasked = *masked;
-	maskLock.Unlock();
-	if (isMasked) {
-		return IS_PENDING;
-	}
-
-	pendingLock.Lock();
-	if (!(*pendingMask & mask)) {
-		pendingLock.Unlock();
-		AtomicOp::And(activeMask, ~mask);
-		return IS_NOINTR;
-	}
-	/* should still be atomic since bit setting is not protected by lock */
-	AtomicOp::And(pendingMask, ~mask);
-	pendingLock.Unlock();
-	slotLock.Lock(); /* nobody should modify the list while we are processing it */
-	if (!is->numClients) {
-		panic("IRQ processing on empty slot (type %d, line %lu)", type, idx);
-	}
-	assert(!LIST_ISEMPTY(is->clients));
-	irqmask_t hwMask = 0, swMask = 0;
-	LIST_FOREACH(IrqClient, list, ic, is->clients) {
-		/* disable requested interrupts */
-		for (u32 i = 0; i < NUM_HWIRQ; i++) {
-			if (type == IT_HW && i == idx) {
-				continue;
-			}
-			irqmask_t curMask = GetMask(i);
-			if (ic->hwMask & curMask) {
-				if (!(hwMask & curMask)) {
-					hwMask |= curMask;
-					MaskIrq(IT_HW, i);
-				}
-			} else {
-				if (hwMask & curMask) {
-					hwMask &= ~curMask;
-					UnMaskIrq(IT_HW, i);
-				}
-			}
-		}
-		for (u32 i = 0; i < NUM_SWIRQ; i++) {
-			if (type == IT_SW && i == idx) {
-				continue;
-			}
-			irqmask_t curMask = GetMask(i);
-			if (ic->swMask & curMask) {
-				if (!(swMask & curMask)) {
-					swMask |= curMask;
-					MaskIrq(IT_SW, i);
-				}
-			} else {
-				if (swMask & curMask) {
-					swMask &= ~curMask;
-					UnMaskIrq(IT_SW, i);
-				}
-			}
-		}
-		status = ic->isr((HANDLE)ic, ic->arg);
-		if (status != IS_NOINTR) {
-			break;
-		}
-	}
-	/* unmask masked interrupts */
-	for (u32 i = 0; i < NUM_HWIRQ; i++) {
-		if (type == IT_HW && i == idx) {
-			continue;
-		}
-		irqmask_t curMask = GetMask(i);
-		if (hwMask & curMask) {
-			UnMaskIrq(IT_HW, i);
-		}
-	}
-	for (u32 i = 0; i < NUM_SWIRQ; i++) {
-		if (type == IT_SW && i == idx) {
-			continue;
-		}
-		irqmask_t curMask = GetMask(i);
-		if (swMask & curMask) {
-			UnMaskIrq(IT_SW, i);
-		}
-	}
-	slotLock.Unlock();
-	AtomicOp::And(activeMask, ~mask);
-	return status;
 }
 
 HANDLE
@@ -522,6 +651,14 @@ IM::DisableIntr()
 {
 	u32 rc = GetEflags();
 	cli();
+	return rc;
+}
+
+u32
+IM::EnableIntr()
+{
+	u32 rc = GetEflags();
+	sti();
 	return rc;
 }
 

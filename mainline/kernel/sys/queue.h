@@ -43,21 +43,21 @@ typedef struct {
 
 #define LIST_LAST(type, entry, head) (LIST_ISEMPTY(head) ? 0 : LIST_DATA(type, entry, (head).first->prev))
 
-#define LIST_NEXT(type, entry, value, head) (LIST_DATA(type, entry, (value)->entry.next))
+#define LIST_NEXT(type, entry, value) (LIST_DATA(type, entry, (value)->entry.next))
 
-#define LIST_PREV(type, entry, value, head) (LIST_DATA(type, entry, (value)->entry.prev))
+#define LIST_PREV(type, entry, value) (LIST_DATA(type, entry, (value)->entry.prev))
 
 #define LIST_DATA(type, entry, value) ((value) ? ((type *)(((u8 *)(value)) - OFFSETOF(type, entry))) : 0)
 
 #define LIST_FOREACH(type, entry, var, head) for ( \
 	(var) = LIST_FIRST(type, entry, head); \
 	(var); \
-	(var) = LIST_ISLAST(entry, var, head) ? 0 : LIST_NEXT(type, entry, var, head))
+	(var) = LIST_ISLAST(entry, var, head) ? 0 : LIST_NEXT(type, entry, var))
 
-#define LIST_FOREACH_REVERSE(type, entry, var, head) for ( \
+#define LIST_FOREACH_REVERSE(type, entry, var) for ( \
 	(var) = LIST_LAST(type, entry, head); \
 	(var); \
-	(var) = LIST_ISFIRST(entry, var, head) ? 0 : LIST_PREV(type, entry, var, head))
+	(var) = LIST_ISFIRST(entry, var, head) ? 0 : LIST_PREV(type, entry, var))
 
 #define LIST_ADD(entry, var, head) { \
 	if ((head).first) { \
@@ -110,6 +110,7 @@ typedef struct {
 	} \
 }
 
+#define LIST_ROTATE(entry, var, head) {(head).first = &(var)->entry;}
 
 /*
  * Binary trees

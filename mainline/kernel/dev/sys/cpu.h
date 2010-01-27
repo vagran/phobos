@@ -32,6 +32,8 @@ private:
 	u32 maxCpuid;
 	u32 version, ebx1;
 	u32 feat1, feat2;
+	u32 intrNesting;
+	u32 intrServiced;
 
 	typedef struct {
 		CPU *cpu;
@@ -60,6 +62,7 @@ public:
 	u32 GetID();
 	LAPIC *GetLapic();
 	int CreateInitialStack(u32 size = INITIAL_STACK_SIZE);
+	void NestInterrupt(int nestIn = 1); /* nestIn zero for nest out */
 };
 
 extern "C" u8 APBootEntry, APBootEntryEnd, APstack;

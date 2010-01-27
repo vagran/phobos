@@ -211,7 +211,7 @@ SlabAllocator::Free(void *p, u32 size)
 				Slab *s, *next = LIST_FIRST(Slab, list, g->emptySlabs);
 				for (u32 i = 0; i < EMPTY_SLABS_HYST && next; i++) {
 					s = next;
-					next = LIST_NEXT(Slab, list, s, g->emptySlabs);
+					next = LIST_NEXT(Slab, list, s);
 					if (!(s->flags & F_INITIALPOOL)) {
 						FreeSlab(s);
 					}

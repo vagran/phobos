@@ -368,7 +368,7 @@ DeviceManager::ScanAvailUnits(DevClass *p)
 			p->numAvailUnits = -p->firstAvailUnit;
 			break;
 		}
-		d = LIST_NEXT(DevInst, list, d, p->devList);
+		d = LIST_NEXT(DevInst, list, d);
 	}
 	Unlock(x);
 }
