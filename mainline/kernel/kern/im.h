@@ -23,6 +23,10 @@ public:
 		HWIRQ_BASE =	0x20, /* IVT base for hardware interrupts */
 	};
 
+	enum Priority {
+		IP_DEFAULT =	-1,
+	};
+
 	enum IsrStatus {
 		IS_PROCESSED, /* All the work was done */
 		IS_NOINTR, /* For shared lines, ISR should return this code if it able to detect that no interrupts pending */
@@ -53,27 +57,41 @@ private:
 		SF_EXCLUSIVE =	0x1,
 	};
 
+	struct _IrqClient;
+	typedef struct _IrqClient IrqClient;
+
 	typedef struct {
+		ListEntry list; /* list sorted by line maximal priority values */
 		ListHead clients;
+		IrqClient *first; /* original first entry for restoring after rotation */
+		u32 idx;
 		u32 numClients;
 		u32 flags;
 		u32 lastRound; /* last round when it was serviced */
 		int touched;
+		/* The lowest and the highest priority of clients on this line */
+		int minPri, maxPri;
 	} IrqSlot;
 
-	typedef struct {
-		ListEntry list;
+	struct _IrqClient {
+		ListEntry list; /* list sorted by client priority values */
 		IrqType type;
 		u32 idx;
 		ISR isr;
 		void *arg;
-		irqmask_t hwMask, swMask; /* interrupts to be disabled while calling this client */
 		u32 lastRound; /* last round when it was serviced */
 		int serviceComplete;
-	} IrqClient;
+		int priority;
+		/*
+		 * Interrupts to be disabled while calling this client,
+		 * calculated dynamically according to the priority values.
+		 */
+		irqmask_t hwMask, swMask;
+	};
 
 	IrqSlot hwIrq[NUM_HWIRQ];
 	IrqSlot swIrq[NUM_SWIRQ];
+	ListHead hwSlots, swSlots;
 	SpinLock slotLock;
 	irqmask_t hwValid, swValid; /* locked by slotLock */
 	irqmask_t hwDisabled;
@@ -98,21 +116,23 @@ private:
 
 	PIC *pic0, *pic1;
 
-	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags,
-		irqmask_t hwMask, irqmask_t swMask);
+	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags, int priority);
 	int Irq(IrqType type, u32 idx);
 	static int HWIRQHandler(Frame *frame, void *arg);
 	int GetPIC(u32 idx, PIC **ppic, u32 *pidx);
 	IrqClient *SelectClient(IrqType type);
 	IrqClient *SelectClient();
 	IsrStatus CallClient(IrqClient *ic);
+	int RecalculatePriorities(IrqType type);
+	int RecalculatePriorities();
+	irqmask_t RPGetMask(int priority, IrqSlot *slots, u32 numSlots);
 public:
 	IM();
 
-	HANDLE AllocateHwirq(ISR isr, void *arg = 0, u32 idx = 0, u32 flags = AF_EXCLUSIVE,
-		irqmask_t hwMask = 0, irqmask_t swMask = 0);
-	HANDLE AllocateSwirq(ISR isr, void *arg = 0, u32 idx = 0, u32 flags = AF_EXCLUSIVE,
-		irqmask_t hwMask = 0, irqmask_t swMask = 0);
+	HANDLE AllocateHwirq(ISR isr, void *arg = 0, u32 idx = 0,
+		u32 flags = AF_EXCLUSIVE, int priority = IP_DEFAULT);
+	HANDLE AllocateSwirq(ISR isr, void *arg = 0, u32 idx = 0,
+		u32 flags = AF_EXCLUSIVE, int priority = IP_DEFAULT);
 	int ReleaseIrq(HANDLE h);
 	inline u32 GetIndex(HANDLE h) { assert(h); return ((IrqClient *)h)->idx; }
 	static inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }
@@ -122,9 +142,12 @@ public:
 	int Hwirq(u32 idx);
 	int Swirq(u32 idx);
 	int HwEnable(u32 idx, int f = 1);
+	int HwAcknowledge(u32 idx);
 	int Poll();
 	int MaskIrq(IrqType type, u32 idx);
 	int UnMaskIrq(IrqType type, u32 idx);
+	u64 SetPL(int priority); /* set priority level, all interrupts with lower priority are masked */
+	int RestorePL(u64 saved); /* argument is a value returned by SetPL() */
 };
 
 extern IM *im;

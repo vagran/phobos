@@ -14,13 +14,21 @@ IM *im;
 IM::IM()
 {
 	memset(hwIrq, 0, sizeof(hwIrq));
+	LIST_INIT(hwSlots);
 	for (int i = 0; i < NUM_HWIRQ; i++) {
 		LIST_INIT(hwIrq[i].clients);
+		LIST_ADD(list, &hwIrq[i], hwSlots);
+		hwIrq[i].idx = i;
 	}
+
 	memset(swIrq, 0, sizeof(swIrq));
+	LIST_INIT(swSlots);
 	for (int i = 0; i < NUM_SWIRQ; i++) {
 		LIST_INIT(swIrq[i].clients);
+		LIST_ADD(list, &swIrq[i], swSlots);
+		swIrq[i].idx = i;
 	}
+
 	hwValid = 0;
 	swValid = 0;
 	hwPending = 0;
@@ -57,11 +65,6 @@ int
 IM::HWIRQHandler(Frame *frame, void *arg)
 {
 	((IM *)arg)->Hwirq(frame->vectorIdx - HWIRQ_BASE);
-	PIC *pic;
-	u32 picIdx;
-	if (!((IM *)arg)->GetPIC(frame->vectorIdx - HWIRQ_BASE, &pic, &picIdx)) {
-		pic->EOI(picIdx);
-	}
 	return 0;
 }
 
@@ -155,11 +158,28 @@ IM::Irq(IrqType type, u32 idx)
 		}
 		AtomicOp::Or(&hwPending, mask);
 	}
+
+	/* acknowledge hardware interrupt reception */
+	if (type == IT_HW) {
+		HwAcknowledge(idx);
+	}
+
 	/* try to handle */
 	if (!*masked && pollNesting < MAX_POLL_NESTING) {
 		Poll();
 	}
 	return 0;
+}
+
+int
+IM::HwAcknowledge(u32 idx)
+{
+	PIC *pic;
+	u32 picIdx;
+	if (!GetPIC(idx, &pic, &picIdx)) {
+		return pic->EOI(picIdx);
+	}
+	return -1;
 }
 
 IM::IrqClient *
@@ -169,6 +189,7 @@ IM::SelectClient(IrqType type)
 	irqmask_t *validMask, *activeMask, *pendingMask;
 	u8 *masked;
 	IrqSlot *slots;
+	ListHead *slotsHead;
 
 	if (type == IT_HW) {
 		validMask = &hwValid;
@@ -177,6 +198,7 @@ IM::SelectClient(IrqType type)
 		pendingMask = &hwPending;
 		numLines = NUM_HWIRQ;
 		slots = hwIrq;
+		slotsHead = &hwSlots;
 	} else if (type == IT_SW) {
 		validMask = &swValid;
 		masked = swMasked;
@@ -184,18 +206,21 @@ IM::SelectClient(IrqType type)
 		pendingMask = &swPending;
 		numLines = NUM_SWIRQ;
 		slots = swIrq;
+		slotsHead = &swSlots;
 	} else {
 		panic("Invalid interrupt type (%d)", type);
 	}
 
-	if (!(*pendingMask && (~*activeMask) && *validMask)) {
+	if (!(*pendingMask & (~*activeMask) & *validMask)) {
 		return 0;
 	}
 
 	int derefered = 0;
+	slotLock.Lock();
 	while (1) {
-		for (u32 idx = 0; idx < numLines; idx++) {
-			irqmask_t mask = GetMask(idx);
+		IrqSlot *is;
+		LIST_FOREACH(IrqSlot, list, is, *slotsHead) {
+			irqmask_t mask = GetMask(is->idx);
 			if (!(mask & *validMask)) {
 				continue;
 			}
@@ -208,17 +233,17 @@ IM::SelectClient(IrqType type)
 			if (*masked) {
 				continue;
 			}
-			IrqSlot *is = &slots[idx];
 			if (is->lastRound != roundIdx) {
 				is->lastRound = roundIdx;
 				is->touched = 0;
+				LIST_ROTATE(list, is->first, is->clients);
 			} else {
 				if (is->touched) {
 					derefered = 1;
 					continue;
 				}
 			}
-			slotLock.Lock();
+
 			while (1) {
 				IrqClient *ic;
 				LIST_FOREACH(IrqClient, list, ic, is->clients) {
@@ -257,7 +282,7 @@ IM::SelectClient(IrqType type)
 			is->touched = 0;
 		}
 	}
-
+	slotLock.Unlock();
 	return 0;
 }
 
@@ -503,22 +528,19 @@ IM::UnMaskIrq(IrqType type, u32 idx)
 }
 
 HANDLE
-IM::AllocateHwirq(ISR isr, void *arg, u32 idx, u32 flags,
-	irqmask_t hwMask, irqmask_t swMask)
+IM::AllocateHwirq(ISR isr, void *arg, u32 idx, u32 flags, int priority)
 {
-	return (HANDLE)Allocate(IT_HW, isr, arg, idx, flags, hwMask, swMask);
+	return (HANDLE)Allocate(IT_HW, isr, arg, idx, flags, priority);
 }
 
 HANDLE
-IM::AllocateSwirq(ISR isr, void *arg, u32 idx, u32 flags,
-	irqmask_t hwMask, irqmask_t swMask)
+IM::AllocateSwirq(ISR isr, void *arg, u32 idx, u32 flags, int priority)
 {
-	return (HANDLE)Allocate(IT_SW, isr, arg, idx, flags, hwMask, swMask);
+	return (HANDLE)Allocate(IT_SW, isr, arg, idx, flags, priority);
 }
 
 IM::IrqClient *
-IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags,
-	irqmask_t hwMask, irqmask_t swMask)
+IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags, int priority)
 {
 	IrqSlot *isa;
 	u32 numSlots;
@@ -599,8 +621,7 @@ IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags,
 	ic->type = type;
 	ic->isr = isr;
 	ic->arg = arg;
-	ic->hwMask = hwMask;
-	ic->swMask = swMask;
+	ic->priority = priority;
 	LIST_ADD(list, ic, is->clients);
 	is->numClients++;
 	if (flags & AF_EXCLUSIVE) {
@@ -609,9 +630,147 @@ IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags,
 		is->flags &= ~SF_EXCLUSIVE;
 	}
 	*maskValid |= GetMask(idx);
+	RecalculatePriorities();
 	slotLock.Unlock();
 	RestoreIntr(x);
 	return ic;
+}
+
+u64
+IM::SetPL(int priority)
+{
+	slotLock.Lock();
+	irqmask_t hwMask = RPGetMask(priority, hwIrq, NUM_HWIRQ);
+	irqmask_t swMask = RPGetMask(priority, swIrq, NUM_SWIRQ);
+	slotLock.Unlock();
+	for (u32 idx = 0; idx < NUM_HWIRQ; idx++) {
+		irqmask_t mask = GetMask(idx);
+		if (hwMask & mask) {
+			MaskIrq(IT_HW, idx);
+		}
+	}
+	for (u32 idx = 0; idx < NUM_SWIRQ; idx++) {
+		irqmask_t mask = GetMask(idx);
+		if (swMask & mask) {
+			MaskIrq(IT_SW, idx);
+		}
+	}
+	return ((u64)swMask << 32) | hwMask;
+}
+
+int
+IM::RestorePL(u64 saved)
+{
+	irqmask_t hwMask = (irqmask_t)saved;
+	irqmask_t swMask = (irqmask_t)(saved >> 32);
+	for (u32 idx = 0; idx < NUM_SWIRQ; idx++) {
+		irqmask_t mask = GetMask(idx);
+		if (swMask & mask) {
+			UnMaskIrq(IT_SW, idx);
+		}
+	}
+	for (u32 idx = 0; idx < NUM_HWIRQ; idx++) {
+		irqmask_t mask = GetMask(idx);
+		if (hwMask & mask) {
+			UnMaskIrq(IT_HW, idx);
+		}
+	}
+	return 0;
+}
+
+/*
+ * Recalculates line priorities, masks, sort lists. Client priorities must
+ * be set before call. Must be called with slotLock locked.
+ */
+int
+IM::RecalculatePriorities(IrqType type)
+{
+	u32 numSlots;
+	IrqSlot *slots;
+	ListHead *slotsHead;
+
+	if (type == IT_HW) {
+		slots = hwIrq;
+		numSlots = NUM_HWIRQ;
+		slotsHead = &hwSlots;
+	} else if (type == IT_SW) {
+		slots = swIrq;
+		numSlots = NUM_SWIRQ;
+		slotsHead = &swSlots;
+	} else {
+		panic("Invalid IRQ type: %d", type);
+	}
+
+	/* calculate minimal and maximal priority for each line */
+	for (u32 idx = 0; idx < numSlots; idx++) {
+		IrqSlot *is = &slots[idx];
+		int minPri = IP_DEFAULT, maxPri = IP_DEFAULT;
+		IrqClient *ic;
+		LIST_FOREACH(IrqClient, list, ic, is->clients) {
+			if (minPri == IP_DEFAULT || (ic->priority != IP_DEFAULT && ic->priority < minPri)) {
+				minPri = ic->priority;
+			}
+			if (maxPri == IP_DEFAULT || (ic->priority != IP_DEFAULT && ic->priority > maxPri)) {
+				maxPri = ic->priority;
+			}
+		}
+		is->minPri = minPri;
+		is->maxPri = maxPri;
+	}
+
+	/* calculate mask for each client */
+	for (u32 idx = 0; idx < numSlots; idx++) {
+			IrqSlot *is = &slots[idx];
+			IrqClient *ic;
+			LIST_FOREACH(IrqClient, list, ic, is->clients) {
+				irqmask_t mask = RPGetMask(ic->priority, slots, numSlots);
+				if (type == IT_HW) {
+					ic->hwMask = mask;
+				} else {
+					ic->swMask = mask;
+				}
+			}
+	}
+
+	/* sort slots list */
+	LIST_SORT(IrqSlot, list, is1, is2, *slotsHead,
+		is2->maxPri != IP_DEFAULT && is2->maxPri > is1->maxPri);
+
+	/* sort clients in each slot */
+	for (u32 idx = 0; idx < numSlots; idx++) {
+		IrqSlot *is = &slots[idx];
+		LIST_SORT(IrqClient, list, ic1, ic2, is->clients,
+			ic2->priority != IP_DEFAULT && ic2->priority > ic1->priority);
+	}
+	return 0;
+}
+
+IM::irqmask_t
+IM::RPGetMask(int priority, IrqSlot *slots, u32 numSlots)
+{
+	irqmask_t mask = 0;
+
+	if (priority == IP_DEFAULT) {
+		return 0;
+	}
+	for (u32 idx = 0; idx < numSlots; idx++) {
+			IrqSlot *is = &slots[idx];
+			if (!is->numClients) {
+				continue;
+			}
+			if (is->minPri == IP_DEFAULT || is->minPri < priority) {
+				mask |= GetMask(idx);
+			}
+	}
+	return mask;
+}
+
+int
+IM::RecalculatePriorities()
+{
+	int rc = RecalculatePriorities(IT_HW);
+	rc |= RecalculatePriorities(IT_SW);
+	return rc;
 }
 
 int
@@ -640,6 +799,7 @@ IM::ReleaseIrq(HANDLE h)
 	if (!--is->numClients) {
 		*maskValid &= ~GetMask(ic->idx);
 	}
+	RecalculatePriorities();
 	slotLock.Unlock();
 	RestoreIntr(x);
 	DELETE(ic);

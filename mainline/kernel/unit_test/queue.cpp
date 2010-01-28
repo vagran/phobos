@@ -117,7 +117,7 @@ QueueTest::Run()
 
 	ut_printf("Reverse iteration...");
 	k = sizeof(pat4) / sizeof(pat4[0]) - 1;
-	LIST_FOREACH_REVERSE(Item, list, p, head) {
+	LIST_FOREACH_REVERSE(Item, list, p) {
 		if (k < 0) {
 			ut_printf("iteration underflow\n");
 			return -1;
