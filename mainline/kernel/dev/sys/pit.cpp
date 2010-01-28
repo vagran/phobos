@@ -17,7 +17,12 @@ RegDevClass(PIT, "pit", Device::T_SPECIAL, "Programmable Interval Timer (8253/82
 
 PIT::PIT(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 {
+	if (unit) {
+		klog(KLOG_ERROR, "Only unit 0 is supported fot PIT device, specified %lu", unit);
+		return;
+	}
 	tickFreq = 0;
+	ticks = 0;
 	SetTickFreq(DEF_TICK_FREQ);
 	irq = im->AllocateHwirq(IntrHandler, this, PIC::IRQ_PIT, IM::AF_SPEC | IM::AF_EXCLUSIVE);
 	ensure(irq);
@@ -55,6 +60,12 @@ PIT::SetTickFreq(u32 freq)
 IM::IsrStatus
 PIT::IntrHandler(HANDLE h, void *arg)
 {
+	return ((PIT *)arg)->OnIntr();
+}
 
+IM::IsrStatus
+PIT::OnIntr()
+{
+	ticks++;
 	return IM::IS_PROCESSED;
 }

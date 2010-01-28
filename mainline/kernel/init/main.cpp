@@ -190,7 +190,14 @@ Main(paddr_t firstAddr)
 	CPU::StartSMP(); /* XXX should be called when processes are initialized */
 
 	sti();//temp
-	while (1) hlt();//temp
+	PIT *pit = (PIT *)devMan.GetDevice("pit", 0);
+	while (1) {
+		hlt();//temp
+		u64 ticks = pit->GetTicks();
+		if (!(ticks % 100)) {
+			printf("ticks = %llu\n", ticks);
+		}
+	}
 
 	panic("Main exited");
 	/* NOTREACHED */

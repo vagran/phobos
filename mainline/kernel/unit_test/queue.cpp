@@ -27,6 +27,7 @@ QueueTest::Run()
 	int pat2[] = {0, 1, 2, 3, 8, 4, 5, 6, 7};
 	int pat3[] = {0, 1, 2, 9, 3, 8, 4, 5, 6, 7};
 	int pat4[] = {0, 1, 2, 9, 8, 4, 5, 6, 7};
+	int pat5[] = {4, 6, 2, 1, 5, 0, 7, 9, 3, 8};
 	int k;
 
 	typedef struct {
@@ -134,6 +135,24 @@ QueueTest::Run()
 	}
 	ut_printf("ok\n");
 
+	ut_printf("Sorting...");
+	LIST_INIT(head);
+	for (int i = 0; i < 10; i++) {
+		p = UTALLOC(Item, 1);
+		LIST_ADD(list, p, head);
+		p->idx = pat5[i];
+	}
+	LIST_SORT(Item, list, p1, p2, head, p2->idx < p1->idx);
+
+	k = 0;
+	LIST_FOREACH(Item, list, p, head) {
+		if (p->idx != k) {
+			ut_printf("%d. %d != %d\n", k, p->idx, k);
+			return -1;
+		}
+		k++;
+	}
+	ut_printf("ok\n");
 	return 0;
 }
 

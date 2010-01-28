@@ -49,13 +49,16 @@ private:
 	u32 divisor;
 	SpinLock accLock;
 	HANDLE irq;
+	u64 ticks;
 
 	static IM::IsrStatus IntrHandler(HANDLE h, void *arg);
+	IM::IsrStatus OnIntr();
 public:
 	PIT(Type type, u32 unit, u32 classID);
 	DeclareDevFactory();
 
 	int SetTickFreq(u32 freq);
+	u64 GetTicks() {return ticks;}
 };
 
 #endif /* PIT_H_ */

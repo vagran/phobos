@@ -243,6 +243,7 @@ IM::SelectClient(IrqType type)
 					continue;
 				}
 			}
+			assert(is->numClients && !LIST_ISEMPTY(is->clients));
 
 			while (1) {
 				IrqClient *ic;
@@ -391,13 +392,14 @@ IM::CallClient(IrqClient *ic)
 		}
 	}
 
+	AtomicOp::And(pendingMask, ~mask);
 	sti();
 	status = ic->isr((HANDLE)ic, ic->arg);
 	cli();
+	if (status == IS_PENDING || status == IS_NOINTR) {
+		AtomicOp::Or(pendingMask, mask);
+	}
 	if (status != IS_PENDING) {
-		if (status != IS_NOINTR) {
-			AtomicOp::And(pendingMask, ~mask);
-		}
 		slotLock.Lock();
 		ic->serviceComplete = 1;
 		slotLock.Unlock();
@@ -456,7 +458,6 @@ IM::Poll()
 int
 IM::MaskIrq(IrqType type, u32 idx)
 {
-	irqmask_t *activeMask;
 	u8 *masked;
 
 	irqmask_t mask = GetMask(idx);
@@ -464,34 +465,17 @@ IM::MaskIrq(IrqType type, u32 idx)
 		assert(mask & hwValid);
 		assert(idx <= NUM_HWIRQ);
 		masked = &hwMasked[idx];
-		activeMask = &hwActive;
 	} else if (type == IT_SW) {
 		assert(mask & swValid);
 		assert(idx <= NUM_SWIRQ);
 		masked = &swMasked[idx];
-		activeMask = &swActive;
 	} else {
 		panic("Invalid IRQ type %d", type);
 	}
-	while (1) {
-		activeLock.Lock();
-		if (mask & *activeMask) {
-			/* some other CPU is processing interrupt, wait for completion */
-			activeLock.Unlock();
-			continue;
-		}
-		maskLock.Lock();
-		if (mask & *activeMask) {
-			maskLock.Unlock();
-			activeLock.Unlock();
-			continue;
-		}
-		/* locked by maskLock so doesn't need to be atomic */
-		*masked++;
-		maskLock.Unlock();
-		activeLock.Unlock();
-		break;
-	}
+	maskLock.Lock();
+	/* locked by maskLock so doesn't need to be atomic */
+	*masked++;
+	maskLock.Unlock();
 	return 0;
 }
 
@@ -518,7 +502,7 @@ IM::UnMaskIrq(IrqType type, u32 idx)
 	}
 
 	maskLock.Lock();
-	assert(*masked);
+	ensure(*masked);
 	u8 isMasked = --(*masked);
 	maskLock.Unlock();
 	if (!isMasked && (mask & *pendingMask) && pollNesting < MAX_POLL_NESTING) {
@@ -741,6 +725,7 @@ IM::RecalculatePriorities(IrqType type)
 		IrqSlot *is = &slots[idx];
 		LIST_SORT(IrqClient, list, ic1, ic2, is->clients,
 			ic2->priority != IP_DEFAULT && ic2->priority > ic1->priority);
+		is->first = LIST_FIRST(IrqClient, list, is->clients);
 	}
 	return 0;
 }

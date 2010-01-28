@@ -114,26 +114,31 @@ typedef struct {
 
 /* condition should use var1 and var2, TRUE if var2 should precede var1 */
 #define LIST_SORT(type, entry, var1, var2, head, condition) { \
-	type *var1 = LIST_FIRST(type, entry, head); \
-	type *var2; \
-	while (1) { \
-		if (LIST_ISLAST(entry, var1, head)) { \
-			break; \
-		} \
-		var2 = LIST_NEXT(type, entry, var1); \
-		if (condition) {\
-			type *__Xls_var = var1; \
-			LIST_DELETE(entry, var2, head); \
-			while (1) { \
-				if (LIST_ISFIRST(entry, __Xls_var, head)) {\
-					LIST_ADDFIRST(entry, var2, head); \
-					break; \
+	if (!LIST_ISEMPTY(head)) { \
+		type *var1 = LIST_FIRST(type, entry, head); \
+		type *var2; \
+		while (1) { \
+			if (LIST_ISLAST(entry, var1, head)) { \
+				break; \
+			} \
+			var2 = LIST_NEXT(type, entry, var1); \
+			if (condition) {\
+				type *__Xls_var = var1; \
+				LIST_DELETE(entry, var2, head); \
+				while (1) { \
+					if (LIST_ISFIRST(entry, var1, head)) {\
+						LIST_ADDFIRST(entry, var2, head); \
+						break; \
+					} \
+					var1 = LIST_PREV(type, entry, var1); \
+					if (!(condition)) { \
+						LIST_INSERTAFTER(entry, var2, var1); \
+						break; \
+					} \
 				} \
-				__Xls_var = LIST_PREV(type, entry, __Xls_var); \
-				if (!(condition)) { \
-					LIST_INSERTAFTER(entry, var2, __Xls_var); \
-					break; \
-				} \
+				var1 = __Xls_var; \
+			} else { \
+				var1 = var2; \
 			} \
 		} \
 	} \
