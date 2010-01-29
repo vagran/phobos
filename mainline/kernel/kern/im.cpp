@@ -17,7 +17,6 @@ IM::IM()
 	LIST_INIT(hwSlots);
 	for (int i = 0; i < NUM_HWIRQ; i++) {
 		LIST_INIT(hwIrq[i].clients);
-		LIST_ADD(list, &hwIrq[i], hwSlots);
 		hwIrq[i].idx = i;
 	}
 
@@ -25,7 +24,6 @@ IM::IM()
 	LIST_INIT(swSlots);
 	for (int i = 0; i < NUM_SWIRQ; i++) {
 		LIST_INIT(swIrq[i].clients);
-		LIST_ADD(list, &swIrq[i], swSlots);
 		swIrq[i].idx = i;
 	}
 
@@ -165,7 +163,7 @@ IM::Irq(IrqType type, u32 idx)
 	}
 
 	/* try to handle */
-	if (!*masked && pollNesting < MAX_POLL_NESTING) {
+	if (!*masked && !(mask & *activeMask) && pollNesting < MAX_POLL_NESTING) {
 		Poll();
 	}
 	return 0;
@@ -482,7 +480,7 @@ IM::MaskIrq(IrqType type, u32 idx)
 int
 IM::UnMaskIrq(IrqType type, u32 idx)
 {
-	irqmask_t *pendingMask;
+	irqmask_t *pendingMask, *activeMask;
 	u8 *masked;
 
 	irqmask_t mask = GetMask(idx);
@@ -492,11 +490,13 @@ IM::UnMaskIrq(IrqType type, u32 idx)
 		assert(mask & hwValid);
 		masked = &hwMasked[idx];
 		pendingMask = &hwPending;
+		activeMask = &hwActive;
 	} else if (type == IT_SW) {
 		assert(idx <= NUM_SWIRQ);
 		assert(mask & swValid);
 		masked = &swMasked[idx];
 		pendingMask = &swPending;
+		activeMask = &swActive;
 	} else {
 		panic("Invalid IRQ type %d", type);
 	}
@@ -505,7 +505,8 @@ IM::UnMaskIrq(IrqType type, u32 idx)
 	ensure(*masked);
 	u8 isMasked = --(*masked);
 	maskLock.Unlock();
-	if (!isMasked && (mask & *pendingMask) && pollNesting < MAX_POLL_NESTING) {
+	if (!isMasked && (mask & *pendingMask) && !(mask & *activeMask)
+		&& pollNesting < MAX_POLL_NESTING) {
 		Poll();
 	}
 	return 0;
@@ -624,8 +625,8 @@ u64
 IM::SetPL(int priority)
 {
 	slotLock.Lock();
-	irqmask_t hwMask = RPGetMask(priority, hwIrq, NUM_HWIRQ);
-	irqmask_t swMask = RPGetMask(priority, swIrq, NUM_SWIRQ);
+	irqmask_t hwMask = RPGetMask(priority, &hwSlots);
+	irqmask_t swMask = RPGetMask(priority, &swSlots);
 	slotLock.Unlock();
 	for (u32 idx = 0; idx < NUM_HWIRQ; idx++) {
 		irqmask_t mask = GetMask(idx);
@@ -670,7 +671,7 @@ int
 IM::RecalculatePriorities(IrqType type)
 {
 	u32 numSlots;
-	IrqSlot *slots;
+	IrqSlot *slots, *is;
 	ListHead *slotsHead;
 
 	if (type == IT_HW) {
@@ -686,8 +687,13 @@ IM::RecalculatePriorities(IrqType type)
 	}
 
 	/* calculate minimal and maximal priority for each line */
+	LIST_INIT(*slotsHead);
 	for (u32 idx = 0; idx < numSlots; idx++) {
-		IrqSlot *is = &slots[idx];
+		is = &slots[idx];
+		if (!is->numClients) {
+			continue;
+		}
+		LIST_ADD(list, is, *slotsHead);
 		int minPri = IP_DEFAULT, maxPri = IP_DEFAULT;
 		IrqClient *ic;
 		LIST_FOREACH(IrqClient, list, ic, is->clients) {
@@ -703,11 +709,10 @@ IM::RecalculatePriorities(IrqType type)
 	}
 
 	/* calculate mask for each client */
-	for (u32 idx = 0; idx < numSlots; idx++) {
-			IrqSlot *is = &slots[idx];
+	LIST_FOREACH(IrqSlot, list, is, *slotsHead) {
 			IrqClient *ic;
 			LIST_FOREACH(IrqClient, list, ic, is->clients) {
-				irqmask_t mask = RPGetMask(ic->priority, slots, numSlots);
+				irqmask_t mask = RPGetMask(ic->priority, slotsHead);
 				if (type == IT_HW) {
 					ic->hwMask = mask;
 				} else {
@@ -721,8 +726,7 @@ IM::RecalculatePriorities(IrqType type)
 		is2->maxPri != IP_DEFAULT && is2->maxPri > is1->maxPri);
 
 	/* sort clients in each slot */
-	for (u32 idx = 0; idx < numSlots; idx++) {
-		IrqSlot *is = &slots[idx];
+	LIST_FOREACH(IrqSlot, list, is, *slotsHead) {
 		LIST_SORT(IrqClient, list, ic1, ic2, is->clients,
 			ic2->priority != IP_DEFAULT && ic2->priority > ic1->priority);
 		is->first = LIST_FIRST(IrqClient, list, is->clients);
@@ -731,20 +735,17 @@ IM::RecalculatePriorities(IrqType type)
 }
 
 IM::irqmask_t
-IM::RPGetMask(int priority, IrqSlot *slots, u32 numSlots)
+IM::RPGetMask(int priority, ListHead *slots)
 {
 	irqmask_t mask = 0;
 
 	if (priority == IP_DEFAULT) {
 		return 0;
 	}
-	for (u32 idx = 0; idx < numSlots; idx++) {
-			IrqSlot *is = &slots[idx];
-			if (!is->numClients) {
-				continue;
-			}
+	IrqSlot *is;
+	LIST_FOREACH(IrqSlot, list, is, *slots) {
 			if (is->minPri == IP_DEFAULT || is->minPri < priority) {
-				mask |= GetMask(idx);
+				mask |= GetMask(is->idx);
 			}
 	}
 	return mask;

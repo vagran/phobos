@@ -125,7 +125,7 @@ private:
 	IsrStatus CallClient(IrqClient *ic);
 	int RecalculatePriorities(IrqType type);
 	int RecalculatePriorities();
-	irqmask_t RPGetMask(int priority, IrqSlot *slots, u32 numSlots);
+	irqmask_t RPGetMask(int priority, ListHead *slots);
 public:
 	IM();
 
