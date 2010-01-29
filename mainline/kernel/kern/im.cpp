@@ -710,15 +710,15 @@ IM::RecalculatePriorities(IrqType type)
 
 	/* calculate mask for each client */
 	LIST_FOREACH(IrqSlot, list, is, *slotsHead) {
-			IrqClient *ic;
-			LIST_FOREACH(IrqClient, list, ic, is->clients) {
-				irqmask_t mask = RPGetMask(ic->priority, slotsHead);
-				if (type == IT_HW) {
-					ic->hwMask = mask;
-				} else {
-					ic->swMask = mask;
-				}
+		IrqClient *ic;
+		LIST_FOREACH(IrqClient, list, ic, is->clients) {
+			irqmask_t mask = RPGetMask(ic->priority, slotsHead);
+			if (type == IT_HW) {
+				ic->hwMask = mask;
+			} else {
+				ic->swMask = mask;
 			}
+		}
 	}
 
 	/* sort slots list */
