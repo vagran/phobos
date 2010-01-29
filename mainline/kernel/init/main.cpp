@@ -194,8 +194,15 @@ Main(paddr_t firstAddr)
 	while (1) {
 		hlt();//temp
 		u64 ticks = pit->GetTicks();
-		if (!(ticks % 100)) {
+		if (!(ticks % 10)) {
 			printf("ticks = %llu\n", ticks);
+			Time t;
+			tm->GetTime(&t);
+			printf("1. Time: %llu.%06lu sec\n", t.sec, t.usec);
+			tm->GetTime(&t);
+			printf("2. Time: %llu.%06lu sec\n", t.sec, t.usec);
+			tm->GetTime(&t);
+			printf("3. Time: %llu.%06lu sec\n", t.sec, t.usec);
 		}
 	}
 

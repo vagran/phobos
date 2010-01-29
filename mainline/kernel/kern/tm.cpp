@@ -20,6 +20,7 @@ TM::TM()
 	ensure(pit);
 	timerFreq = pit->GetBaseFreq();
 	tickDivisor = pit->GetDivisor();
+	ratio = (u32)(((1ull << RATIO_BITS) * 1000000ull + 500000ull) / timerFreq);
 	pit->SetTickCbk(TickHandler, this);
 	rtc = (RTC *)devMan.CreateDevice("rtc", 0);
 	if (rtc) {
@@ -28,6 +29,7 @@ TM::TM()
 	} else {
 		klog(KLOG_WARNING, "Cannot create RTC device, system time should be set manually");
 	}
+	GetTime(&bootTime);
 }
 
 int
@@ -58,7 +60,7 @@ int
 TM::SyncHandler(u64 time)
 {
 	this->time = time;
-	syncCounter = pit->GetCounter();
+	syncCounter = tickDivisor - pit->GetCounter();
 	syncTicks = pit->GetTicks();
 	syncIdx++;
 	timeValid = 1;
@@ -76,10 +78,31 @@ TM::TickHandler(u64 ticks)
 {
 	if (timeValid) {
 		syncCounter += (ticks - syncTicks) * tickDivisor;
-		while (syncCounter > timerFreq) {
+		syncTicks = ticks;
+		while (syncCounter >= timerFreq) {
 			time++;
 			syncCounter -= timerFreq;
 		}
 	}
+	return 0;
+}
+
+int
+TM::GetTime(Time *t)
+{
+	u64 ticks;
+	u32 cnt;
+	do {
+		ticks = syncTicks;
+		t->sec = time;
+		cnt = tickDivisor - pit->GetCounter();
+		cnt += syncCounter;
+		/* repeat if interrupt occurred */
+	} while (ticks != syncTicks);
+	while (cnt >= timerFreq) {
+		t->sec++;
+		cnt -= timerFreq;
+	}
+	t->usec = (cnt * ratio) >> RATIO_BITS;
 	return 0;
 }

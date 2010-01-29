@@ -472,7 +472,7 @@ IM::MaskIrq(IrqType type, u32 idx)
 	}
 	maskLock.Lock();
 	/* locked by maskLock so doesn't need to be atomic */
-	*masked++;
+	(*masked)++;
 	maskLock.Unlock();
 	return 0;
 }

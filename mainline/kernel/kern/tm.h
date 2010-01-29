@@ -25,6 +25,10 @@ class TM {
 public:
 
 private:
+	enum {
+		RATIO_BITS =	11,
+	};
+
 	PIT *pit;
 	RTC *rtc;
 
@@ -35,6 +39,8 @@ private:
 	u32 syncIdx;
 	u64 syncTicks;
 	u32 syncCounter;
+	u32 ratio;
+	Time bootTime;
 
 	static int TickHandler(u64 ticks, void *arg);
 	int TickHandler(u64 ticks);
@@ -44,7 +50,7 @@ private:
 public:
 	TM();
 
-
+	int GetTime(Time *t);
 };
 
 extern TM *tm;
