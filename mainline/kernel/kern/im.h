@@ -25,6 +25,9 @@ public:
 
 	enum Priority {
 		IP_DEFAULT =	-1,
+
+		IP_RTC,
+		IP_CLOCK,
 	};
 
 	enum IsrStatus {

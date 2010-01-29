@@ -12,13 +12,35 @@
 phbSource("$Id$");
 
 #include <dev/sys/pit.h>
+#include <dev/sys/rtc.h>
 
 /* Time Manager */
 
+typedef struct {
+	u64 sec;
+	u32 usec;
+} Time;
+
 class TM {
+public:
+
 private:
 	PIT *pit;
+	RTC *rtc;
 
+	u64 time; /* current system time */
+	int timeValid;
+	u32 tickDivisor;
+	u32 timerFreq;
+	u32 syncIdx;
+	u64 syncTicks;
+	u32 syncCounter;
+
+	static int TickHandler(u64 ticks, void *arg);
+	int TickHandler(u64 ticks);
+	static int SyncHandler(u64 time, void *arg);
+	int SyncHandler(u64 time);
+	int SyncTime(int wait = 0);
 public:
 	TM();
 

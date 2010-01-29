@@ -14,6 +14,8 @@ phbSource("$Id$");
 /* 8253/8254 Programmable Interval Timer support */
 
 class PIT : public Device {
+public:
+	typedef int (*TickCbk)(u64 ticks, void *arg);
 private:
 	enum {
 		IO_BASE =		0x40, /* Base address for I/O */
@@ -50,6 +52,8 @@ private:
 	SpinLock accLock;
 	HANDLE irq;
 	u64 ticks;
+	TickCbk tickCbk;
+	void *tickCbkArg;
 
 	static IM::IsrStatus IntrHandler(HANDLE h, void *arg);
 	IM::IsrStatus OnIntr();
@@ -57,8 +61,12 @@ public:
 	PIT(Type type, u32 unit, u32 classID);
 	DeclareDevFactory();
 
-	int SetTickFreq(u32 freq);
+	u32 SetTickFreq(u32 freq); /* return divisor */
 	u64 GetTicks() {return ticks;}
+	TickCbk SetTickCbk(TickCbk cbk, void *arg = 0, void **prevArg = 0);
+	u32 GetDivisor() {return divisor;}
+	u32 GetBaseFreq() {return BASE_FREQ;}
+	u32 GetCounter();
 };
 
 #endif /* PIT_H_ */

@@ -14,8 +14,10 @@ phbSource("$Id$");
 /* Real Time Clock */
 
 class RTC : public Device {
+public:
+	typedef int (*GetTimeCbk)(u64 time, void *arg);
 private:
-	enum {
+	enum Registers {
 		ADDR_PORT =		0x70,
 		DATA_PORT =		0x71,
 
@@ -57,9 +59,31 @@ private:
 
 		REG_CENTURY =	0x32, /* Century in BCD */
 	};
+
+	enum {
+		BASE_FREQ =		32768,
+	};
+
+	static const int daysInMonth[12];
+
+	HANDLE irq;
+	u64 curTime;
+	GetTimeCbk gtc;
+	void *gtcArg;
+
+	static IM::IsrStatus IntrHandler(HANDLE h, void *arg);
+	IM::IsrStatus OnIntr();
+	int GetRS(u32 freq);
+	int Initialize();
+	int UpdateTime();
+	inline u8 Read(u8 reg);
+	inline void Write(u8 reg, u8 value);
+	inline int BCD(u8 x);
 public:
 	RTC(Type type, u32 unit, u32 classID);
 	DeclareDevFactory();
+
+	u64 GetTime(GetTimeCbk cbk = 0, void *arg = 0);
 };
 
 #endif /* RTC_H_ */
