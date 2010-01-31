@@ -28,7 +28,7 @@ static paddr_t bsQuickMap;
 static PTE::PTEntry *bsQuickMapPTE;
 
 #ifdef SERIAL_DEBUG
-#include <dev/uart/uart.h>
+#include <dev/chr/ser.h>
 
 #define SERIAL_PORT		0x3f8
 
@@ -41,13 +41,13 @@ dbg_putc(u32 c)
 		dbg_putc('\r');
 	}
 	/* Wait until the transmitter holding register is empty.  */
-	while (!(inb(SERIAL_PORT + UART_LSR) & UART_EMPTY_TRANSMITTER)) {
+	while (!(inb(SERIAL_PORT + SerialPort::UART_LSR) & SerialPort::UART_EMPTY_TRANSMITTER)) {
 		if (!--timeout) {
 			__asm __volatile ("nop");
 			return;
 		}
 	}
-	outb(SERIAL_PORT + UART_TX, c);
+	outb(SERIAL_PORT + SerialPort::UART_TX, c);
 }
 
 static void

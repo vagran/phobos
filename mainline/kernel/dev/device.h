@@ -46,6 +46,7 @@ protected:
 	u32 devUnit;
 	u32 devClassID;
 	State devState;
+	u32 refCount;
 
 public:
 	Device(Type type, u32 unit, u32 classID);
@@ -55,6 +56,9 @@ public:
 	inline u32 GetClassID() {return devClassID;}
 	inline u32 GetUnit() {return devUnit;}
 	inline State GetState() {return devState;}
+
+	virtual int AddRef();
+	virtual int Release();
 };
 
 class ChrDevice : public Device {

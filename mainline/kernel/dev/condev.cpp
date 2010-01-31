@@ -15,7 +15,7 @@ ConsoleDev::ConsoleDev(Type type, u32 unit, u32 classID) :
 	ChrDevice(type, unit, classID)
 {
 	inDev = 0;
-	outDev = 0;
+	LIST_INIT(outClients);
 	fgCol = COL_WHITE | COL_BRIGHT;
 	bgCol = COL_BLACK;
 	tabSize = 8;
@@ -23,16 +23,36 @@ ConsoleDev::ConsoleDev(Type type, u32 unit, u32 classID) :
 
 ConsoleDev::~ConsoleDev()
 {
-
+	if (inDev) {
+		inDev->Release();
+	}
+	outClientsMtx.Lock();
+	OutputClient *oc;
+	LIST_FOREACH(OutputClient, list, oc, outClients) {
+		oc->dev->Release();
+	}
+	LIST_INIT(outClients);
+	outClientsMtx.Unlock();
 }
 
 Device::IOStatus
 ConsoleDev::Putc(u8 c)
 {
-	if (!outDev) {
+	Device::IOStatus rc = IOS_OK;
+	outClientsMtx.Lock();
+	if (LIST_ISEMPTY(outClients)) {
+		outClientsMtx.Unlock();
 		return IOS_NOTSPRT;
 	}
-	return outDev->Putc(c);
+	OutputClient *oc;
+	LIST_FOREACH(OutputClient, list, oc, outClients) {
+		Device::IOStatus rc1 = oc->dev->Putc(c);
+		if (rc1 != IOS_OK) {
+			rc = rc1;
+		}
+	}
+	outClientsMtx.Unlock();
+	return rc;
 }
 
 Device::IOStatus
@@ -98,13 +118,44 @@ ConsoleDev::_Putc(int c, ConsoleDev *p)
 int
 ConsoleDev::SetInputDevice(ChrDevice *dev)
 {
+	ChrDevice *oldDev = inDev;
+	dev->AddRef();
 	inDev = dev;
+	if (oldDev) {
+		oldDev->Release();
+	}
 	return 0;
 }
 
 int
-ConsoleDev::SetOutputDevice(ChrDevice *dev)
+ConsoleDev::AddOutputDevice(ChrDevice *dev)
 {
-	outDev = dev;
+	OutputClient *c = NEWSINGLE(OutputClient);
+	if (!c) {
+		return -1;
+	}
+	dev->AddRef();
+	c->dev = dev;
+	outClientsMtx.Lock();
+	LIST_ADD(list, c, outClients);
+	outClientsMtx.Unlock();
 	return 0;
+}
+
+int
+ConsoleDev::RemoveOutputDevice(ChrDevice *dev)
+{
+	outClientsMtx.Lock();
+	OutputClient *c;
+	LIST_FOREACH(OutputClient, list, c, outClients) {
+		if (c->dev == dev) {
+			LIST_DELETE(list, c, outClients);
+			dev->Release();
+			DELETE(c);
+			outClientsMtx.Unlock();
+			return 0;
+		}
+	}
+	outClientsMtx.Unlock();
+	return -1;
 }

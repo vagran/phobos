@@ -150,7 +150,26 @@ ParseArguments()
 
 int MyTimer(Handle h, u64 ticks, void *arg)
 {
-	printf("MyTimer: ticks = %llu, arg = %lx\n", ticks, (u32)arg);
+	Time time;
+	tm->GetTime(&time);
+	printf("MyTimer: ticks = %llu, name = %s, time = %llu.%06lu\n",
+		ticks, (char *)arg, time.sec, time.usec);
+	return 0;
+}
+
+static int
+InitConsoles()
+{
+	/* create default system console */
+	ChrDevice *serial = (ChrDevice *)devMan.CreateDevice("ser");
+	sysCons = (SysConsole *)devMan.CreateDevice("syscons", 0);
+	sysCons->AddOutputDevice(serial);
+	sysCons->SetInputDevice(serial);
+	printf(copyright);
+	/* Debugger console utilizes serial interface and should not use queuing */
+	SysConsole *dbgCons = (SysConsole *)devMan.CreateDevice("syscons", 1);
+	dbgCons->AddOutputDevice(serial);
+	dbgCons->SetInputDevice(serial);
 	return 0;
 }
 
@@ -161,12 +180,15 @@ Main(paddr_t firstAddr)
 	MM::PreInitialize((vaddr_t)(firstAddr - LOAD_ADDRESS + KERNEL_ADDRESS));
 	/* call constructors for all static objects */
 	CXA::ConstructStaticObjects();
-	/* create default system console */
-	sysCons = (SysConsole *)devMan.CreateDevice("syscons");
-	printf(copyright);
-	log = NEWSINGLE(Log);
+	/* become noisy */
+	InitConsoles();
+	/* setup GDT, LDT, IDT */
 	InitTables();
-	sysDebugger = NEWSINGLE(Debugger, sysCons);
+	/* create kernel built-in debugger */
+	sysDebugger = NEWSINGLE(Debugger, (ConsoleDev *)devMan.GetDevice("syscons", 1));
+	/* create system log */
+	log = NEWSINGLE(Log);
+	/* process command line parameters */
 	ParseArguments();
 	if (bootDebugger) {
 		RunDebugger("Boot options requested debugger");
@@ -196,22 +218,10 @@ Main(paddr_t firstAddr)
 	CPU::StartSMP(); /* XXX should be called when processes are initialized */
 
 	sti();//temp
-	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)237, TM::MS(2000));
-	PIT *pit = (PIT *)devMan.GetDevice("pit", 0);
-	while (1) {
-		hlt();//temp
-		u64 ticks = pit->GetTicks();
-		if (!(ticks % 1000)) {
-			printf("ticks = %llu\n", ticks);
-			Time t;
-			tm->GetTime(&t);
-			printf("1. Time: %llu.%06lu sec\n", t.sec, t.usec);
-			tm->GetTime(&t);
-			printf("2. Time: %llu.%06lu sec\n", t.sec, t.usec);
-			tm->GetTime(&t);
-			printf("3. Time: %llu.%06lu sec\n", t.sec, t.usec);
-		}
-	}
+	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));
+	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));
+	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(5000), (void *)"one-shot 5s");
+	while (1) hlt();
 
 	panic("Main exited");
 	/* NOTREACHED */

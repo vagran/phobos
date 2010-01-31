@@ -36,7 +36,14 @@ public:
 	} Colors;
 
 private:
-	ChrDevice *inDev, *outDev;
+	ChrDevice *inDev;
+	typedef struct {
+		ListEntry list;
+		ChrDevice *dev;
+	} OutputClient;
+
+	ListHead outClients;
+	Mutex outClientsMtx;
 
 	static void _Putc(int c, ConsoleDev *p);
 
@@ -44,8 +51,6 @@ protected:
 	int fgCol, bgCol;
 	int tabSize;
 
-	int SetInputDevice(ChrDevice *dev);
-	int SetOutputDevice(ChrDevice *dev);
 public:
 	ConsoleDev(Type type, u32 unit, u32 classID);
 	virtual ~ConsoleDev();
@@ -57,8 +62,12 @@ public:
 	virtual int Clear();
 	virtual int SetTabSize(int sz); /* return previous value */
 
-	int VPrintf(const char *fmt, va_list va) __format(printf, 2, 0);
-	int Printf(const char *fmt,...) __format(printf, 2, 3);
+	virtual int VPrintf(const char *fmt, va_list va) __format(printf, 2, 0);
+	virtual int Printf(const char *fmt,...) __format(printf, 2, 3);
+
+	virtual int SetInputDevice(ChrDevice *dev);
+	virtual int AddOutputDevice(ChrDevice *dev);
+	virtual int RemoveOutputDevice(ChrDevice *dev);
 };
 
 #endif /* CONDEV_H_ */

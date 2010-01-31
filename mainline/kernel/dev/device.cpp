@@ -12,6 +12,7 @@ phbSource("$Id$");
 
 Device::Device(Type type, u32 unit, u32 classID)
 {
+	refCount = 1;
 	devType = type;
 	devUnit = unit;
 	devClassID = classID;
@@ -21,6 +22,19 @@ Device::Device(Type type, u32 unit, u32 classID)
 Device::~Device()
 {
 
+}
+
+int
+Device::AddRef()
+{
+	return ++refCount;
+}
+
+int
+Device::Release()
+{
+	assert(refCount);
+	return --refCount;
 }
 
 /**************************************************************

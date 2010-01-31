@@ -90,7 +90,7 @@ public:
 
 	int GetTime(Time *t);
 	u64 GetTicks();
-	static inline u64 MS(u64 ms) {return ms * 1000 / TICKS_FREQ;}
+	inline u64 MS(u64 ms) {return ms * timerFreq / 1000 / tickDivisor;}
 	Handle SetTimer(TimerFunc func, u64 timeToRun, void *arg = 0, u64 period = 0);
 };
 
