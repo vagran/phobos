@@ -50,12 +50,12 @@ private:
 	u32 tickFreq, realTickFreq;
 	u32 divisor;
 	SpinLock accLock;
-	HANDLE irq;
+	Handle irq;
 	u64 ticks;
 	TickCbk tickCbk;
 	void *tickCbkArg;
 
-	static IM::IsrStatus IntrHandler(HANDLE h, void *arg);
+	static IM::IsrStatus IntrHandler(Handle h, void *arg);
 	IM::IsrStatus OnIntr();
 public:
 	PIT(Type type, u32 unit, u32 classID);
@@ -66,7 +66,7 @@ public:
 	TickCbk SetTickCbk(TickCbk cbk, void *arg = 0, void **prevArg = 0);
 	u32 GetDivisor() {return divisor;}
 	u32 GetBaseFreq() {return BASE_FREQ;}
-	u32 GetCounter();
+	u32 GetCounter(u64 *pTicks = 0);
 };
 
 #endif /* PIT_H_ */

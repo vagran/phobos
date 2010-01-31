@@ -298,5 +298,9 @@ APBootstrap(vaddr_t entryAddr)
 	if (CPU::GetCpuCount() == 4) {
 		//RunDebugger("4 cpus started");//temp
 	}
-	while (1) hlt();
+	sti();
+	while (1) {
+		hlt();
+		printf("CPU waken: %lu\n", cpu->GetUnit());
+	}
 }

@@ -148,6 +148,12 @@ ParseArguments()
 	return 0;
 }
 
+int MyTimer(Handle h, u64 ticks, void *arg)
+{
+	printf("MyTimer: ticks = %llu, arg = %lx\n", ticks, (u32)arg);
+	return 0;
+}
+
 void
 Main(paddr_t firstAddr)
 {
@@ -190,11 +196,12 @@ Main(paddr_t firstAddr)
 	CPU::StartSMP(); /* XXX should be called when processes are initialized */
 
 	sti();//temp
+	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)237, TM::MS(2000));
 	PIT *pit = (PIT *)devMan.GetDevice("pit", 0);
 	while (1) {
 		hlt();//temp
 		u64 ticks = pit->GetTicks();
-		if (!(ticks % 10)) {
+		if (!(ticks % 1000)) {
 			printf("ticks = %llu\n", ticks);
 			Time t;
 			tm->GetTime(&t);

@@ -11,6 +11,11 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#define Barrier() { \
+	__asm__ __volatile__ ("" ::: "memory"); \
+	mfence(); \
+}
+
 class SpinLock {
 private:
 	u32		flag;

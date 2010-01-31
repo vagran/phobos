@@ -66,12 +66,12 @@ private:
 
 	static const int daysInMonth[12];
 
-	HANDLE irq;
+	Handle irq;
 	u64 curTime;
 	GetTimeCbk gtc;
 	void *gtcArg;
 
-	static IM::IsrStatus IntrHandler(HANDLE h, void *arg);
+	static IM::IsrStatus IntrHandler(Handle h, void *arg);
 	IM::IsrStatus OnIntr();
 	int GetRS(u32 freq);
 	int Initialize();

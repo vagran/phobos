@@ -60,20 +60,23 @@ PIT::SetTickFreq(u32 freq)
 }
 
 u32
-PIT::GetCounter()
+PIT::GetCounter(u64 *pTicks)
 {
 	accLock.Lock();
 	u32 x = IM::DisableIntr();
 	outb(PORT_CTRL, SEL_TMR0);
 	u8 lo = inb(PORT_CNT0);
 	u8 hi = inb(PORT_CNT0);
+	if (pTicks) {
+		*pTicks = ticks;
+	}
 	IM::RestoreIntr(x);
 	accLock.Unlock();
 	return lo | (hi << 8);
 }
 
 IM::IsrStatus
-PIT::IntrHandler(HANDLE h, void *arg)
+PIT::IntrHandler(Handle h, void *arg)
 {
 	return ((PIT *)arg)->OnIntr();
 }

@@ -39,6 +39,8 @@ IM::IM()
 	selectIdx = 0;
 	memset(hwMasked, 0, sizeof(hwMasked));
 	memset(swMasked, 0, sizeof(swMasked));
+	memset(hwPLCache, 0, sizeof(hwPLCache));
+	memset(swPLCache, 0, sizeof(swPLCache));
 	pic0 = (PIC *)devMan.CreateDevice("pic", 0);
 	if (!pic0) {
 		panic("Failed to create Master PIC device");
@@ -116,6 +118,18 @@ int
 IM::Swirq(u32 idx)
 {
 	return Irq(IT_SW, idx);
+}
+
+int
+IM::Irq(Handle h)
+{
+	IrqClient *ic = (IrqClient *)h;
+	if (ic->type == IT_HW) {
+		return Hwirq(ic->idx);
+	} else if (ic->type == IT_SW) {
+		return Swirq(ic->idx);
+	}
+	panic("Invalid interrupt type (%d)", ic->type);
 }
 
 int
@@ -392,7 +406,7 @@ IM::CallClient(IrqClient *ic)
 
 	AtomicOp::And(pendingMask, ~mask);
 	sti();
-	status = ic->isr((HANDLE)ic, ic->arg);
+	status = ic->isr((Handle)ic, ic->arg);
 	cli();
 	if (status == IS_PENDING || status == IS_NOINTR) {
 		AtomicOp::Or(pendingMask, mask);
@@ -512,16 +526,16 @@ IM::UnMaskIrq(IrqType type, u32 idx)
 	return 0;
 }
 
-HANDLE
+Handle
 IM::AllocateHwirq(ISR isr, void *arg, u32 idx, u32 flags, int priority)
 {
-	return (HANDLE)Allocate(IT_HW, isr, arg, idx, flags, priority);
+	return (Handle)Allocate(IT_HW, isr, arg, idx, flags, priority);
 }
 
-HANDLE
+Handle
 IM::AllocateSwirq(ISR isr, void *arg, u32 idx, u32 flags, int priority)
 {
-	return (HANDLE)Allocate(IT_SW, isr, arg, idx, flags, priority);
+	return (Handle)Allocate(IT_SW, isr, arg, idx, flags, priority);
 }
 
 IM::IrqClient *
@@ -624,10 +638,8 @@ IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags, int priority)
 u64
 IM::SetPL(int priority)
 {
-	slotLock.Lock();
-	irqmask_t hwMask = RPGetMask(priority, &hwSlots);
-	irqmask_t swMask = RPGetMask(priority, &swSlots);
-	slotLock.Unlock();
+	irqmask_t hwMask = GetPLMask(priority, IT_HW);
+	irqmask_t swMask = GetPLMask(priority, IT_SW);
 	for (u32 idx = 0; idx < NUM_HWIRQ; idx++) {
 		irqmask_t mask = GetMask(idx);
 		if (hwMask & mask) {
@@ -673,15 +685,18 @@ IM::RecalculatePriorities(IrqType type)
 	u32 numSlots;
 	IrqSlot *slots, *is;
 	ListHead *slotsHead;
+	irqmask_t *plCache;
 
 	if (type == IT_HW) {
 		slots = hwIrq;
 		numSlots = NUM_HWIRQ;
 		slotsHead = &hwSlots;
+		plCache = hwPLCache;
 	} else if (type == IT_SW) {
 		slots = swIrq;
 		numSlots = NUM_SWIRQ;
 		slotsHead = &swSlots;
+		plCache = swPLCache;
 	} else {
 		panic("Invalid IRQ type: %d", type);
 	}
@@ -708,17 +723,9 @@ IM::RecalculatePriorities(IrqType type)
 		is->maxPri = maxPri;
 	}
 
-	/* calculate mask for each client */
-	LIST_FOREACH(IrqSlot, list, is, *slotsHead) {
-		IrqClient *ic;
-		LIST_FOREACH(IrqClient, list, ic, is->clients) {
-			irqmask_t mask = RPGetMask(ic->priority, slotsHead);
-			if (type == IT_HW) {
-				ic->hwMask = mask;
-			} else {
-				ic->swMask = mask;
-			}
-		}
+	/* calculate cached masks values for each priority */
+	for (int pl = 0; pl <= IP_MAX; pl++) {
+		plCache[pl] = RPGetMask(pl, slotsHead);
 	}
 
 	/* sort slots list */
@@ -744,11 +751,28 @@ IM::RPGetMask(int priority, ListHead *slots)
 	}
 	IrqSlot *is;
 	LIST_FOREACH(IrqSlot, list, is, *slots) {
-			if (is->minPri == IP_DEFAULT || is->minPri < priority) {
+			if (is->minPri == IP_DEFAULT || is->minPri <= priority) {
 				mask |= GetMask(is->idx);
 			}
 	}
 	return mask;
+}
+
+IM::irqmask_t
+IM::GetPLMask(int priority, IrqType type)
+{
+	if (priority == IP_DEFAULT) {
+		return 0;
+	}
+	irqmask_t *plCache;
+	if (type == IT_HW) {
+		plCache = hwPLCache;
+	} else if (type == IT_SW) {
+		plCache = swPLCache;
+	} else {
+		panic("Invalid IrqClient type (%d)", type);
+	}
+	return plCache[priority > IP_MAX ? IP_MAX : priority];
 }
 
 int
@@ -756,11 +780,35 @@ IM::RecalculatePriorities()
 {
 	int rc = RecalculatePriorities(IT_HW);
 	rc |= RecalculatePriorities(IT_SW);
-	return rc;
+	if (rc) {
+		return rc;
+	}
+
+	/* set mask for each client */
+	IrqSlot *is;
+	LIST_FOREACH(IrqSlot, list, is, hwSlots) {
+		IrqClient *ic;
+		LIST_FOREACH(IrqClient, list, ic, is->clients) {
+			irqmask_t mask = GetPLMask(ic->priority, IT_HW);
+			mask &= ~GetMask(ic->idx);
+			ic->hwMask = mask;
+			ic->swMask = GetPLMask(ic->priority, IT_SW);
+		}
+	}
+	LIST_FOREACH(IrqSlot, list, is, swSlots) {
+		IrqClient *ic;
+		LIST_FOREACH(IrqClient, list, ic, is->clients) {
+			irqmask_t mask = GetPLMask(ic->priority, IT_SW);
+			mask &= ~GetMask(ic->idx);
+			ic->swMask = mask;
+			ic->hwMask = GetPLMask(ic->priority, IT_HW);
+		}
+	}
+	return 0;
 }
 
 int
-IM::ReleaseIrq(HANDLE h)
+IM::ReleaseIrq(Handle h)
 {
 	if (!h) {
 		return -1;

@@ -274,4 +274,22 @@ pause()
 	__asm__ __volatile__ ("pause");
 }
 
+static __inline void
+lfence()
+{
+	__asm__ __volatile__ ("lfence");
+}
+
+static __inline void
+sfence()
+{
+	__asm__ __volatile__ ("sfence");
+}
+
+static __inline void
+mfence()
+{
+	__asm__ __volatile__ ("mfence");
+}
+
 #endif /* CPU_INSTR_H_ */

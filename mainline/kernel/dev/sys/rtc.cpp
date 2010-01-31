@@ -108,8 +108,15 @@ int
 RTC::UpdateTime()
 {
 	u32 x = IM::DisableIntr();
+	if (!(Read(REG_STATUSD) & STSD_VRT)) {
+		curTime = 0;
+		klog(KLOG_WARNING, "Invalid time in RTC (possible power failure of RTC chip)");
+		IM::RestoreIntr(x);
+		return -1;
+	}
 	int year = BCD(Read(REG_YEAR)) + BCD(Read(REG_CENTURY)) * 100;
 	if (year < 1970) {
+		curTime = 0;
 		klog(KLOG_WARNING, "Invalid year in RTC: %d", year);
 		IM::RestoreIntr(x);
 		return -1;
@@ -133,7 +140,7 @@ RTC::UpdateTime()
 }
 
 IM::IsrStatus
-RTC::IntrHandler(HANDLE h, void *arg)
+RTC::IntrHandler(Handle h, void *arg)
 {
 	return ((RTC *)arg)->OnIntr();
 }

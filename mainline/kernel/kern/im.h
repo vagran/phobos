@@ -26,8 +26,11 @@ public:
 	enum Priority {
 		IP_DEFAULT =	-1,
 
+		IP_TIMER,
+
 		IP_RTC,
 		IP_CLOCK,
+		IP_MAX,
 	};
 
 	enum IsrStatus {
@@ -49,7 +52,7 @@ public:
 
 	typedef u32 irqmask_t;
 
-	typedef IsrStatus (*ISR)(HANDLE h, void *arg);
+	typedef IsrStatus (*ISR)(Handle h, void *arg);
 
 private:
 	enum {
@@ -116,6 +119,7 @@ private:
 	u32 roundIdx; /* incremented at each round */
 	SpinLock selectLock, pollLock;
 	u32 selectIdx;
+	irqmask_t hwPLCache[IP_MAX + 1], swPLCache[IP_MAX + 1];
 
 	PIC *pic0, *pic1;
 
@@ -129,21 +133,23 @@ private:
 	int RecalculatePriorities(IrqType type);
 	int RecalculatePriorities();
 	irqmask_t RPGetMask(int priority, ListHead *slots);
+	inline irqmask_t GetPLMask(int priority, IrqType type);
 public:
 	IM();
 
-	HANDLE AllocateHwirq(ISR isr, void *arg = 0, u32 idx = 0,
+	Handle AllocateHwirq(ISR isr, void *arg = 0, u32 idx = 0,
 		u32 flags = AF_EXCLUSIVE, int priority = IP_DEFAULT);
-	HANDLE AllocateSwirq(ISR isr, void *arg = 0, u32 idx = 0,
+	Handle AllocateSwirq(ISR isr, void *arg = 0, u32 idx = 0,
 		u32 flags = AF_EXCLUSIVE, int priority = IP_DEFAULT);
-	int ReleaseIrq(HANDLE h);
-	inline u32 GetIndex(HANDLE h) { assert(h); return ((IrqClient *)h)->idx; }
+	int ReleaseIrq(Handle h);
+	inline u32 GetIndex(Handle h) { assert(h); return ((IrqClient *)h)->idx; }
 	static inline irqmask_t GetMask(u32 idx) { return (irqmask_t)1 << idx; }
 	static u32 DisableIntr(); /* return value used for RestoreIntr() */
 	static u32 EnableIntr(); /* return value used for RestoreIntr() */
 	static u32 RestoreIntr(u32 saved);
 	int Hwirq(u32 idx);
 	int Swirq(u32 idx);
+	int Irq(Handle h);
 	int HwEnable(u32 idx, int f = 1);
 	int HwAcknowledge(u32 idx);
 	int Poll();
