@@ -19,6 +19,8 @@ ConsoleDev::ConsoleDev(Type type, u32 unit, u32 classID) :
 	fgCol = COL_WHITE | COL_BRIGHT;
 	bgCol = COL_BLACK;
 	tabSize = 8;
+	memset(&outQueue, 0, sizeof(outQueue));
+	outIrq = 0;
 }
 
 ConsoleDev::~ConsoleDev()
@@ -35,8 +37,96 @@ ConsoleDev::~ConsoleDev()
 	outClientsMtx.Unlock();
 }
 
+/* queued data are dropped after queue reconfiguration */
+int
+ConsoleDev::SetQueue(u32 inputQueueSize, u32 outputQueueSize)
+{
+	/* XXX input queue is not supported yet */
+
+	if (outputQueueSize == outQueue.size) {
+		return 0;
+	}
+	u64 x = im->SetPL(IM::IP_CONSOLE);
+	outQueue.lock.Lock();
+	if (outQueue.size) {
+		MM::mfree(outQueue.data);
+		outQueue.data = 0;
+		if (!outputQueueSize) {
+			im->ReleaseIrq(outIrq);
+			outIrq = 0;
+			outQueue.size = 0;
+			outQueue.lock.Unlock();
+			im->RestorePL(x);
+			return 0;
+		}
+	} else {
+		outIrq = im->AllocateSwirq(OutputIntr, this, 0,
+			IM::AF_EXCLUSIVE, IM::IP_CONSOLE);
+		ensure(outIrq);
+	}
+	outQueue.data = (u8 *)MM::malloc(outputQueueSize);
+	ensure(outQueue.data);
+	outQueue.size = outputQueueSize;
+	outQueue.dataSize = 0;
+	outQueue.pRead = 0;
+	outQueue.pWrite = 0;
+	outQueue.lock.Unlock();
+	im->RestorePL(x);
+	return 0;
+}
+
+IM::IsrStatus
+ConsoleDev::OutputIntr(Handle h, void *arg)
+{
+	return ((ConsoleDev *)arg)->OutputIntr();
+}
+
+IM::IsrStatus
+ConsoleDev::OutputIntr()
+{
+	/* probably some data queued, check them and output if present */
+	outQueue.lock.Lock();
+	while (outQueue.dataSize) {
+		DevPutc(outQueue.data[outQueue.pRead]);
+		if (++outQueue.pRead >= outQueue.size) {
+			outQueue.pRead = 0;
+		}
+		outQueue.dataSize--;
+	}
+	outQueue.lock.Unlock();
+	return IM::IS_PROCESSED;
+}
+
+/* output queue must be locked */
 Device::IOStatus
-ConsoleDev::Putc(u8 c)
+ConsoleDev::QPutc(u8 c)
+{
+	u64 x = im->SetPL(IM::IP_CONSOLE);
+	outQueue.lock.Lock();
+	IOStatus rc = IOS_ERROR;
+	while (1) {
+		if (outQueue.pWrite == outQueue.pRead && outQueue.dataSize) {
+			/* queue full */
+			break;
+		}
+		outQueue.data[outQueue.pWrite] = c;
+		if (++outQueue.pWrite >= outQueue.size) {
+			outQueue.pWrite = 0;
+		}
+		outQueue.dataSize++;
+		rc = IOS_OK;
+		break;
+	}
+	outQueue.lock.Unlock();
+	im->RestorePL(x);
+	if (rc == IOS_OK) {
+		im->Irq(outIrq);
+	}
+	return rc;
+}
+
+Device::IOStatus
+ConsoleDev::DevPutc(u8 c)
 {
 	Device::IOStatus rc = IOS_OK;
 	outClientsMtx.Lock();
@@ -53,6 +143,15 @@ ConsoleDev::Putc(u8 c)
 	}
 	outClientsMtx.Unlock();
 	return rc;
+}
+
+Device::IOStatus
+ConsoleDev::Putc(u8 c)
+{
+	if (!outQueue.size) {
+		return DevPutc(c);
+	}
+	return QPutc(c);
 }
 
 Device::IOStatus

@@ -545,6 +545,11 @@ IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags, int priority)
 	u32 numSlots;
 	irqmask_t *maskValid;
 
+	if (priority != IP_DEFAULT && priority >= IP_MAX) {
+		klog(KLOG_ERROR, "Priority value too big (%d)", priority);
+		return 0;
+	}
+
 	if (type == IT_HW) {
 		isa = hwIrq;
 		numSlots = NUM_HWIRQ;

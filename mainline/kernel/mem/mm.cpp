@@ -709,6 +709,7 @@ MM::malloc(u32 size, u32 align)
 void
 MM::mfree(void *p)
 {
+	assert(p);
 	if (initState <= IS_MEMCOUNTED) {
 		return;
 	}

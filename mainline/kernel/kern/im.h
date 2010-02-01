@@ -26,6 +26,7 @@ public:
 	enum Priority {
 		IP_DEFAULT =	-1,
 
+		IP_CONSOLE,
 		IP_TIMER,
 
 		IP_RTC,

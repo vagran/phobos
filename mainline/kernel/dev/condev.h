@@ -11,10 +11,17 @@
 #include <sys.h>
 phbSource("$Id$");
 
+class ConsoleDev;
+
 #include <dev/device.h>
+#include <kern/im.h>
 
 class ConsoleDev : public ChrDevice {
 public:
+	enum {
+		DEF_QUEUE_SIZE =	16384,
+	};
+
 	typedef enum {
 		K_BACKSPACE =		8,
 		K_UP =				65,
@@ -42,11 +49,24 @@ private:
 		ChrDevice *dev;
 	} OutputClient;
 
+	typedef struct {
+		u32 size;
+		u8 *data;
+		u32 pRead, pWrite;
+		u32 dataSize;
+		SpinLock lock;
+	} IOQueue;
+
 	ListHead outClients;
 	Mutex outClientsMtx;
+	IOQueue outQueue;
+	Handle outIrq;
 
 	static void _Putc(int c, ConsoleDev *p);
-
+	static IM::IsrStatus OutputIntr(Handle h, void *arg);
+	IM::IsrStatus OutputIntr();
+	Device::IOStatus QPutc(u8 c);
+	Device::IOStatus DevPutc(u8 c);
 protected:
 	int fgCol, bgCol;
 	int tabSize;
@@ -68,6 +88,8 @@ public:
 	virtual int SetInputDevice(ChrDevice *dev);
 	virtual int AddOutputDevice(ChrDevice *dev);
 	virtual int RemoveOutputDevice(ChrDevice *dev);
+	virtual int SetQueue(u32 inputQueueSize = DEF_QUEUE_SIZE,
+		u32 outputQueueSize = DEF_QUEUE_SIZE); /* zero to disable queuing */
 };
 
 #endif /* CONDEV_H_ */
