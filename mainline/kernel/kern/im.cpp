@@ -189,6 +189,9 @@ IM::HwAcknowledge(u32 idx)
 	PIC *pic;
 	u32 picIdx;
 	if (!GetPIC(idx, &pic, &picIdx)) {
+		if (pic == pic1) {
+			pic0->EOI(PIC::IRQ_SLAVEPIC);
+		}
 		return pic->EOI(picIdx);
 	}
 	return -1;
@@ -242,7 +245,7 @@ IM::SelectClient(IrqType type)
 			if (mask & *activeMask) {
 				continue;
 			}
-			if (*masked) {
+			if (masked[is->idx]) {
 				continue;
 			}
 			if (is->lastRound != roundIdx) {
@@ -290,8 +293,7 @@ IM::SelectClient(IrqType type)
 		 * We have completed one iteration and have lines which still require servicing.
 		 * Reset 'touched' status and proceed to the next iteration.
 		 */
-		for (u32 idx = 0; idx < numLines; idx++) {
-			IrqSlot *is = &slots[idx];
+		LIST_FOREACH(IrqSlot, list, is, *slotsHead) {
 			is->touched = 0;
 		}
 	}
