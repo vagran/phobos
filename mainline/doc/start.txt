@@ -1,0 +1,8 @@
+---//$Id$//
+====== PhobOS ======
+
+PhobOS -- object-oriented operating system written in C++.
+
+====== Components ======
+
+  * [[components:kernel:kernel]]

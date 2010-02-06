@@ -1,0 +1,26 @@
+---//$Id$//
+====== Memory manager overview ======
+Main functionality of memory manager is implemented in MM class.
+
+====== Virtual memory layout ======
+^ Region  ^ Address/Size  ^
+| | FFFFFFFF  |
+| PT map  | PD_PAGES * PT_ENTRIES * PAGE_SIZE  |
+| | PTMAP_ADDRESS = FF800000  |
+| Alt. PT map  | PD_PAGES * PT_ENTRIES * PAGE_SIZE  |
+| | ALTPTMAP_ADDRESS = FF000000 (KERN_MEM_END)  |
+| Devices memory  | DEV_MEM_SIZE  |
+| | DEV_MEM_ADDRESS (KERN_DYN_MEM_END)  |
+| Kernel dynamical memory  | |
+| | firstAddr  |
+| Kernel image, initial memory  | |
+| | KERNEL_ADDRESS  |
+| Gate objects  | GATE_AREA_SIZE  |
+| | GATE_AREA_ADDRESS  |
+| Stack  | |
+|  ''%%.................%%''  ||
+| Process dynamic memory  | |
+| Process data  | |
+| Process code  | |
+| Guard page  | PAGE_SIZE  |
+| | 00000000  |

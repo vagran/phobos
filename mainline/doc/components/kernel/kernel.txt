@@ -1,0 +1,12 @@
+---//$Id$//
+====== Kernel overview ======
+
+====== Kernel components ======
+  * [[components:kernel:mm|Memory manager]]
+  * [[components:kernel:im|Interrupts manager]]
+  * [[components:kernel:tm|Time manager]]
+  * [[components:kernel:pm|Processes manager]]
+  * [[components:kernel:devicemanager|Devices manager]]
+ 
+ ====== Multiprocessors support ======
+PhobOS supports unlimited number of CPUs.
