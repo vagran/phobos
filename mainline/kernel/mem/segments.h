@@ -194,7 +194,48 @@ public:
 	SDT::PseudoDescriptor *GetPseudoDescriptor() { return &pd; }
 };
 
+class TSS {
+private:
+	typedef struct {
+		u32 tss_link; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_esp0; /* kernel stack pointer privilege level 0 */
+		u32 tss_ss0; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_esp1; /* kernel stack pointer privilege level 1 */
+		u32 tss_ss1; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_esp2; /* kernel stack pointer privilege level 2 */
+		u32 tss_ss2; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_cr3; /* page table directory */
+		u32 tss_eip; /* program counter */
+		u32 tss_eflags; /* program status longword */
+		u32 tss_eax;
+		u32 tss_ecx;
+		u32 tss_edx;
+		u32 tss_ebx;
+		u32 tss_esp; /* user stack pointer */
+		u32 tss_ebp; /* user frame pointer */
+		u32 tss_esi;
+		u32 tss_edi;
+		u32 tss_es; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_cs; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_ss; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_ds; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_fs; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_gs; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_ldt; /* actually 16 bits: top 16 bits must be zero */
+		u32 tss_ioopt; /* options and I/O offset bitmap: currently zero */
+	} TssData;
+
+	SDT::Descriptor *desc;
+	TssData data;
+
+public:
+	TSS(void *kernelStack);
+
+	int SetActive();
+};
+
 extern IDT *idt;
+extern TSS *defTss;
 extern "C" u8 TrapEntry, TrapEntryEnd;
 extern "C" void *TrapTable;
 

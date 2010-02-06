@@ -46,11 +46,13 @@ RTC::GetTime(GetTimeCbk cbk, void *arg)
 {
 	if (cbk) {
 		/* only one callback is supported */
+		u32 x = IM::DisableIntr();
 		if (gtc) {
 			gtc(curTime, gtcArg);
 		}
 		gtc = cbk;
 		gtcArg = arg;
+		IM::RestoreIntr(x);
 	}
 	return curTime;
 }

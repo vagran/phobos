@@ -17,6 +17,8 @@ class CPU;
 
 class CPU : public Device {
 public:
+	typedef void (*StartupFunc)(void *arg);
+
 	ListEntry list;
 	static ListHead allCpus;
 private:
@@ -44,6 +46,7 @@ private:
 	PrivSegment privSegData;
 	vaddr_t smpGDT;
 	u8 *initialStack;
+	TSS *tss;
 
 	int GetInfo();
 	int StartAPs(u32 vector);
@@ -61,7 +64,7 @@ public:
 
 	u32 GetID();
 	LAPIC *GetLapic();
-	int CreateInitialStack(u32 size = INITIAL_STACK_SIZE);
+	int Activate(StartupFunc func, void *arg = 0, u32 stackSize = INITIAL_STACK_SIZE);
 	void NestInterrupt(int nestIn = 1); /* nestIn zero for nest out */
 };
 

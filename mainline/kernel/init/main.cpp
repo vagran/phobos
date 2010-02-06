@@ -31,6 +31,8 @@ InitTables()
 {
 	idt = NEWSINGLE(IDT);
 	gdt = NEWSINGLE(GDT);
+	defTss = NEWSINGLE(TSS, &boot_stack);
+	defTss->SetActive();
 	return 0;
 }
 
@@ -148,15 +150,6 @@ ParseArguments()
 	return 0;
 }
 
-int MyTimer(Handle h, u64 ticks, void *arg)
-{
-	Time time;
-	tm->GetTime(&time);
-	printf("MyTimer: ticks = %llu, name = %s, time = %llu.%06lu\n",
-		ticks, (char *)arg, time.sec, time.usec);
-	return 0;
-}
-
 static int
 InitConsoles()
 {
@@ -172,6 +165,30 @@ InitConsoles()
 	dbgCons->SetInputDevice(serial);
 	return 0;
 }
+
+int MyTimer(Handle h, u64 ticks, void *arg)//temp
+{
+	Time time;
+	tm->GetTime(&time);
+	printf("MyTimer: ticks = %llu, name = %s, time = %llu.%06lu\n",
+		ticks, (char *)arg, time.sec, time.usec);
+	return 0;
+}
+
+static void
+SystemStartup(void *arg)
+{
+	CPU::StartSMP(); /* XXX should be called when processes are initialized */
+
+	sti();//temp
+	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));
+	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));
+	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(5000), (void *)"one-shot 5s");
+
+	while (1) hlt();
+}
+
+void Main(paddr_t firstAddr) __noreturn;
 
 void
 Main(paddr_t firstAddr)
@@ -212,18 +229,12 @@ Main(paddr_t firstAddr)
 	/* system time, timers, deferred calls and so on */
 	tm = NEWSINGLE(TM);
 
-	/* Attach bootstrap processor and try to involve others */
-	if (!CPU::Startup()) {
+	/* Attach and activate bootstrap processor */
+	CPU *bsCpu = CPU::Startup();
+	if (!bsCpu) {
 		panic("Unable to create device object for bootstrap CPU");
 	}
-	CPU::StartSMP(); /* XXX should be called when processes are initialized */
-
-	sti();//temp
-	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));
-	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));
-	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(5000), (void *)"one-shot 5s");
-	while (1) hlt();
+	bsCpu->Activate(SystemStartup);
 
 	panic("Main exited");
-	/* NOTREACHED */
 }

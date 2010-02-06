@@ -31,6 +31,7 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	initialStack = 0;
 	intrNesting = 0;
 	intrServiced = 0;
+	tss = 0;
 	LIST_ADD(list, this, allCpus);
 
 	if (numCpus) { /* for APs */
@@ -85,33 +86,30 @@ CPU::NestInterrupt(int nestIn)
 }
 
 int
-CPU::CreateInitialStack(u32 size)
+CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 {
 	/*
-	 * Create initial temporal stack. Calling function should not
+	 * Create kernel stack. Calling function should not
 	 * return and access its arguments after the stack is switched.
 	 */
-	initialStack = (u8 *)MM::malloc(size);
+	initialStack = (u8 *)MM::malloc(stackSize);
 	assert(initialStack);
-	/* we count stack up to the frame base of the calling function */
-	u32 *oldStack = (u32 *)__builtin_frame_address(0);
-	u32 delta = (u32)initialStack + size - *oldStack;
-	/* Copy old stack content, shift frame base pointer and switch stack pointer. */
+
+	/* Setup private TSS for this CPU*/
+	tss = NEWSINGLE(TSS, initialStack + stackSize);
+	ensure(tss);
+	tss->SetActive();
+
+	/* Switch stack and jump to startup code */
 	__asm__ __volatile__ (
-		"movl	%%esi, %%ecx\n"
-		"subl	%%esp, %%ecx\n"
-		"incl	%%ecx\n"
-		"std\n"
-		"rep movsb\n"
-		"addl	%2, %%ebp\n"
-		"addl	%2, (%%ebp)\n"
-		"addl	%2, %%esp\n"
+		"movl	%0, %%esp\n"
+		"pushl	%2\n"
+		"call	*%1\n"
 		:
-		: "S"(*oldStack - 1), "D"(initialStack + INITIAL_STACK_SIZE - 1),
-		  "r"(delta)
-		: "ecx", "cc"
+		: "r"(initialStack + stackSize), "r"(func), "r"(arg)
 	);
-	return 0;
+	/* should not reach here */
+	return -1;
 }
 
 u32
@@ -282,6 +280,24 @@ CPU::InstallTrampoline()
 	return sva;
 }
 
+void
+APStartup(vaddr_t entryAddr)
+{
+	CPU *cpu = CPU::GetCurrent();
+	/* After stack is switched we cannot return from this function and access arguments */
+	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + entryAddr);
+	AtomicOp::And(lock, 0);
+	if (CPU::GetCpuCount() == 4) {
+		//RunDebugger("4 cpus started");//temp
+	}
+	printf("CPU started %lu\n", cpu->GetUnit());
+	sti();
+	while (1) {
+		hlt();
+		printf("CPU waken: %lu\n", cpu->GetUnit());
+	}
+}
+
 /* every AP enters here after protected mode and paging is enabled */
 ASMCALL void
 APBootstrap(vaddr_t entryAddr)
@@ -290,17 +306,5 @@ APBootstrap(vaddr_t entryAddr)
 	if (!cpu) {
 		panic("Failed to create CPU device object");
 	}
-	volatile vaddr_t _entryAddr = entryAddr;
-	cpu->CreateInitialStack();
-	/* After stack is switched we cannot return from this function and access arguments */
-	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + _entryAddr);
-	AtomicOp::And(lock, 0);
-	if (CPU::GetCpuCount() == 4) {
-		//RunDebugger("4 cpus started");//temp
-	}
-	sti();
-	while (1) {
-		hlt();
-		printf("CPU waken: %lu\n", cpu->GetUnit());
-	}
+	cpu->Activate((CPU::StartupFunc)APStartup, (void *)entryAddr);
 }

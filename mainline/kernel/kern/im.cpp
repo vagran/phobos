@@ -414,9 +414,7 @@ IM::CallClient(IrqClient *ic)
 		AtomicOp::Or(pendingMask, mask);
 	}
 	if (status != IS_PENDING) {
-		slotLock.Lock();
 		ic->serviceComplete = 1;
-		slotLock.Unlock();
 	}
 
 	/* unmask masked interrupts */

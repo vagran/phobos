@@ -206,6 +206,16 @@ sldt()
 	return sel;
 }
 
+static __inline void
+ltr(u16 sel)
+{
+	__asm__ __volatile__ (
+		"ltr	%0"
+		:
+		: "r"(sel)
+	);
+}
+
 static __inline u64
 rdmsr(u32 msr)
 {

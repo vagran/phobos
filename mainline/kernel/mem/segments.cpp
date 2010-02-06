@@ -237,3 +237,24 @@ IDT::StrTrap(SysTraps trap)
 	}
 	return str[trap];
 }
+
+/*************************************************************/
+
+TSS *defTss;
+
+TSS::TSS(void *kernelStack)
+{
+	desc = gdt->AllocateSegment();
+	ensure(desc);
+	memset(&data, 0, sizeof(data));
+	data.tss_esp0 = (u32)kernelStack;
+	data.tss_cr3 = rcr3();
+	SDT::SetDescriptor(desc, (u32)&data, sizeof(data) - 1, 0, 1, SDT::SST_TSS32, 0);
+}
+
+int
+TSS::SetActive()
+{
+	ltr(gdt->GetSelector(desc));
+	return 0;
+}
