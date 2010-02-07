@@ -114,6 +114,8 @@ public:
 		enum Flags {
 			F_FILE =		0x1,
 			F_NOTPAGEABLE =	0x2,
+			F_STACK =		0x4,
+			F_HEAP =		0x8,
 		};
 
 		ListEntry	list; /* list of all objects */
@@ -132,11 +134,12 @@ public:
 		u32			refCount;
 		SpinLock	lock;
 
-		VMObject(vsize_t size);
+		VMObject(vsize_t size, u32 flags = 0);
 		~VMObject();
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
 		int SetSize(vsize_t size);
+		inline vsize_t GetSize() { return size; }
 		int InsertPage(Page *pg, vaddr_t offset);
 		Page *LookupPage(vaddr_t offset);
 	};
@@ -187,7 +190,6 @@ public:
 
 	class Map {
 	public:
-
 		vaddr_t		base;
 		vsize_t		size;
 		BuddyAllocator<vaddr_t> alloc; /* kernel virtual address space allocator */
@@ -198,6 +200,9 @@ public:
 		PTE::PDEntry *pdpt; /* PDPT map in kernel KVAS */
 		PTE::PDEntry *ptd; /* PTD map in kernel KVAS */
 		SpinLock	tablesLock;
+		ListEntry	list; /* submaps list */
+		ListHead	submaps;
+		Map			*parentMap, *rootMap;
 
 		class MapEntryAllocator;
 
@@ -207,6 +212,7 @@ public:
 				F_SPACE =		0x1, /* space only allocation */
 				F_RESERVE =		0x2, /* space reservation */
 				F_NOCACHE =		0x4, /* disable caching */
+				F_SUBMAP =		0x8, /* entry describes submap */
 			};
 
 			ListEntry			list;
@@ -227,9 +233,6 @@ public:
 			int GetOffset(vaddr_t va, vaddr_t *offs);
 		};
 
-		int AddEntry(Entry *e);
-		int DeleteEntry(Entry *e);
-
 		class MapEntryClient : public BuddyAllocator<vaddr_t>::BuddyClient {
 		private:
 			MemAllocator *m;
@@ -242,6 +245,8 @@ public:
 			virtual void FreeStruct(void *p, u32 size) {return m->FreeStruct(p, size);}
 			virtual int Allocate(vaddr_t base, vaddr_t size, void *arg = 0);
 			virtual int Free(vaddr_t base, vaddr_t size, void *arg = 0);
+			virtual int Reserve(vaddr_t base, vaddr_t size, void *arg = 0);
+			virtual int UnReserve(vaddr_t base, vaddr_t size, void *arg = 0);
 			virtual void Lock() { mtx.Lock(); }
 			virtual void Unlock() { mtx.Unlock(); }
 		};
@@ -270,17 +275,22 @@ public:
 		int Initialize();
 		Entry *IntInsertObject(VMObject *obj, vaddr_t base = 0, int fixed = 0,
 			vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
+		int FreeSubmaps(ListHead *submaps);
+		int AddEntry(Entry *e);
+		int DeleteEntry(Entry *e);
 	public:
 		Map(Map *copyFrom = 0);
 		Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree);
 		~Map();
 		int SetRange(vaddr_t base, vsize_t size, int minBlockOrder = 4, int maxBlockOrder = 30);
 
+		Map *CreateSubmap(vaddr_t base, vsize_t size);
 		Entry *Allocate(vsize_t size, vaddr_t *base, int fixed = 0);
 		Entry *AllocateSpace(vsize_t size, vaddr_t *base = 0, int fixed = 0);
-		Entry *ReserveSpace(vaddr_t base, vsize_t size);
-		Entry *Lookup(vaddr_t base);
 		int Free(vaddr_t base);
+		Entry *ReserveSpace(vaddr_t base, vsize_t size);
+		int UnReserveSpace(vaddr_t base);
+		Entry *Lookup(vaddr_t base);
 		Entry *InsertObject(VMObject *obj, vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
 		Entry *InsertObjectAt(VMObject *obj, vaddr_t base,
 			vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
@@ -293,7 +303,7 @@ public:
 		int AddPT(vaddr_t va); /* must be called with locked tables */
 	};
 
-	Map *kmemMap;
+	Map *kmemMap; /* idle process virtual address space */
 private:
 	typedef enum {
 		IS_INITIAL,
@@ -350,6 +360,8 @@ private:
 		virtual void FreeStruct(void *p, u32 size) {return m->FreeStruct(p, size);}
 		virtual int Allocate(vaddr_t base, vsize_t size, void *arg = 0);
 		virtual int Free(vaddr_t base, vsize_t size, void *arg = 0);
+		virtual int Reserve(vaddr_t base, vaddr_t size, void *arg = 0);
+		virtual int UnReserve(vaddr_t base, vaddr_t size, void *arg = 0);
 		virtual void Lock() { mtx.Lock(); }
 		virtual void Unlock() { mtx.Unlock(); }
 	};
@@ -366,6 +378,8 @@ private:
 		virtual void FreeStruct(void *p, u32 size) {return m->FreeStruct(p, size);}
 		virtual int Allocate(paddr_t base, psize_t size, void *arg = 0) { return 0; }
 		virtual int Free(paddr_t base, psize_t size, void *arg = 0) { return 0; }
+		virtual int Reserve(paddr_t base, paddr_t size, void *arg = 0) { return 0; }
+		virtual int UnReserve(paddr_t base, paddr_t size, void *arg = 0) { return 0; }
 		virtual void Lock() { mtx.Lock(); }
 		virtual void Unlock() { mtx.Unlock(); }
 	};
@@ -415,6 +429,7 @@ public:
 	int FreeDevPhys(paddr_t addr);
 	int MapPhys(vaddr_t va, paddr_t pa);
 	int UnmapPhys(vaddr_t va);
+	Map *CreateMap();
 };
 
 extern MM *mm;

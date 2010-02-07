@@ -125,12 +125,12 @@ private:
 	PIC *pic0, *pic1;
 
 	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags, int priority);
-	int Irq(IrqType type, u32 idx);
+	int Irq(IrqType type, u32 idx, int stiEnabled = 1);
 	static int HWIRQHandler(Frame *frame, void *arg);
 	int GetPIC(u32 idx, PIC **ppic, u32 *pidx);
 	IrqClient *SelectClient(IrqType type);
 	IrqClient *SelectClient();
-	IsrStatus CallClient(IrqClient *ic);
+	IsrStatus CallClient(IrqClient *ic, int stiEnabled);
 	int RecalculatePriorities(IrqType type);
 	int RecalculatePriorities();
 	irqmask_t RPGetMask(int priority, ListHead *slots);
@@ -148,14 +148,14 @@ public:
 	static u32 DisableIntr(); /* return value used for RestoreIntr() */
 	static u32 EnableIntr(); /* return value used for RestoreIntr() */
 	static u32 RestoreIntr(u32 saved);
-	int Hwirq(u32 idx);
+	int Hwirq(u32 idx, int stiEnabled = 1);
 	int Swirq(u32 idx);
 	int Irq(Handle h);
 	int HwEnable(u32 idx, int f = 1);
 	int HwAcknowledge(u32 idx);
-	int Poll();
+	int Poll(int stiEnabled);
 	int MaskIrq(IrqType type, u32 idx);
-	int UnMaskIrq(IrqType type, u32 idx);
+	int UnMaskIrq(IrqType type, u32 idx, int stiEnabled = 1);
 	u64 SetPL(int priority); /* set priority level, all interrupts with lower priority are masked */
 	int RestorePL(u64 saved); /* argument is a value returned by SetPL() */
 };

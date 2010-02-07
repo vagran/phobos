@@ -19,8 +19,9 @@
 
 /*
  * Use trick with 1 offset to allow this macro usage for classes, perhaps compiler
- * will optimize this to single constant. It's hack for classes and it will probably not
- * work with virtual inheritance.
+ * will optimize this to single constant. Keep in mind that struc_name for classes
+ * should always be class name in which field is defined, i.e. do not use parent
+ * or derived classes. They can be casted to necessary class if required.
  */
 #define OFFSETOF(struc_name, field_name) (((unsigned int)&((struc_name *)1)->field_name) - 1)
 
@@ -52,6 +53,11 @@
 
 #define roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
 #define rounddown2(size, balign)	((size) & (~((balign) - 1)))
+
+#define	bitset(a, i)		(((u8 *)(a))[(i) / NBBY] |= 1 << ((i) % NBBY))
+#define	bitclear(a, i)		(((u8 *)(a))[(i) / NBBY] &= ~(1 << ((i)%NBBY)))
+#define	bitisset(a, i)		(((const u8 *)(a))[(i) / NBBY] & (1 << ((i) % NBBY)))
+#define	bitisclear(a,i)		(!bitisset(a, i))
 
 #if !defined(ASSEMBLER) && defined(KERNEL)
 /*

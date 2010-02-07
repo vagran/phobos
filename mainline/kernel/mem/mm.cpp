@@ -611,6 +611,18 @@ MM::CreatePageDescs()
 	return 0;
 }
 
+MM::Map *
+MM::CreateMap()
+{
+	Map *m = NEW(Map, kmemMap);
+	if (!m) {
+		klog(KLOG_WARNING, "Cannot create map (no memory)");
+		return 0;
+	}
+	ensure(!m->SetRange(0, ALTPTMAP_ADDRESS));
+	return m;
+}
+
 MM::Page *
 MM::GetPage(paddr_t pa)
 {
@@ -732,7 +744,24 @@ MM::KmemMapClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 int
 MM::KmemMapClient::Free(vaddr_t base, vaddr_t size, void *arg)
 {
-	/* XXX */
+	DELETE((Map::Entry *)arg);
+	return 0;
+}
+
+int
+MM::KmemMapClient::Reserve(vaddr_t base, vaddr_t size, void *arg)
+{
+	Map::Entry *e = (Map::Entry *)arg;
+	e->base = base;
+	e->size = size;
+	e->flags |= Map::Entry::F_RESERVE;
+	return 0;
+}
+
+int
+MM::KmemMapClient::UnReserve(vaddr_t base, vaddr_t size, void *arg)
+{
+	DELETE((Map::Entry *)arg);
 	return 0;
 }
 
@@ -822,7 +851,7 @@ MM::Page::Wire()
 /*************************************************************/
 /* MM::VMObject class */
 
-MM::VMObject::VMObject(vsize_t size)
+MM::VMObject::VMObject(vsize_t size, u32 flags)
 {
 	TREE_INIT(pages);
 	numPages = 0;
@@ -830,6 +859,7 @@ MM::VMObject::VMObject(vsize_t size)
 	copyObj = 0;
 	copyOffset = 0;
 	LIST_INIT(shadowObj);
+	this->flags = flags;
 	refCount = 1;
 }
 
@@ -895,11 +925,12 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 	freeTables = 1;
 	pdpt = (PTE::PDEntry *)malloc(sizeof(PTE::PDEntry) * PD_PAGES);
 	assert(pdpt);
-	assert((u32)pdpt & (sizeof(PTE::PDEntry) * PD_PAGES - 1));
+	/* should be properly aligned */
+	assert(!((u32)pdpt & (sizeof(PTE::PDEntry) * PD_PAGES - 1)));
 	memset(pdpt, 0, sizeof(PTE::PDEntry) * PD_PAGES);
 	ptd = (PTE::PDEntry *)malloc(PD_PAGES * PAGE_SIZE);
 	assert(ptd);
-	assert((u32)ptd & (PAGE_SIZE - 1));
+	assert(!((u32)ptd & (PAGE_SIZE - 1)));
 	memset(ptd, 0, PD_PAGES * PAGE_SIZE);
 	for (int i = 0; i < PD_PAGES; i++) {
 		pdpt[i].raw = mm->Kextract((vaddr_t)ptd + i * PAGE_SIZE) | PTE::F_P;
@@ -934,6 +965,7 @@ MM::Map::Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree) :
 
 MM::Map::~Map()
 {
+	FreeSubmaps(&submaps);
 	if (freeTables) {
 		mfree(pdpt);
 		mfree(ptd);
@@ -947,6 +979,9 @@ MM::Map::Initialize()
 	size = 0;
 	numEntries = 0;
 	LIST_INIT(entries);
+	LIST_INIT(submaps);
+	parentMap = 0;
+	rootMap = this;
 	return 0;
 }
 
@@ -962,6 +997,52 @@ MM::Map::SetRange(vaddr_t base, vsize_t size, int minBlockOrder, int maxBlockOrd
 	}
 	this->base = base;
 	this->size = size;
+	return 0;
+}
+
+MM::Map *
+MM::Map::CreateSubmap(vaddr_t base, vsize_t size)
+{
+	if ((base & (PAGE_SIZE - 1)) || (size & (PAGE_SIZE - 1))) {
+		panic("Region is not page aligned");
+	}
+	if (base < this->base || base + size > this->base + this->size) {
+		klog(KLOG_ERROR,
+			"Attempted to allocate submap out of map range 0x%08lx - 0x%08lx/0x%08lx - 0x%08lx",
+			base, base + size, this->base, this->base + this->size);
+		return 0;
+	}
+	Entry *e = ReserveSpace(base, size);
+	if (!e) {
+		klog(KLOG_DEBUG, "No space for submap");
+		return 0;
+	}
+	e->flags |= Entry::F_SUBMAP;
+	Map *submap = NEW(Map, rootMap->pdpt, rootMap->ptd, 1);
+	if (!submap) {
+		klog(KLOG_WARNING, "Failed to allocate submap (no memory)");
+		UnReserveSpace(base);
+		return 0;
+	}
+	submap->parentMap = this;
+	submap->rootMap = this->rootMap;
+	u16 minOrder, maxOrder;
+	alloc.GetOrders(&minOrder, &maxOrder);
+	ensure(!submap->SetRange(base, size, minOrder, maxOrder));
+	return submap;
+}
+
+int
+MM::Map::FreeSubmaps(ListHead *submaps)
+{
+	if (!submaps) {
+		return 0;
+	}
+	Map *m;
+	while ((m = LIST_FIRST(Map, list, *submaps))) {
+		LIST_DELETE(list, m, *submaps);
+		DELETE(m);
+	}
 	return 0;
 }
 
@@ -1176,6 +1257,12 @@ MM::Map::Free(vaddr_t base)
 }
 
 int
+MM::Map::UnReserveSpace(vaddr_t base)
+{
+	return alloc.UnReserve(base);
+}
+
+int
 MM::Map::AddPT(vaddr_t va)
 {
 	PTE::PDEntry *pde = GetPDE(va);
@@ -1233,6 +1320,18 @@ int
 MM::Map::MapEntryClient::Free(vaddr_t base, vaddr_t size, void *arg)
 {
 	/* XXX */
+	return 0;
+}
+
+int
+MM::Map::MapEntryClient::Reserve(vaddr_t base, vaddr_t size, void *arg)
+{
+	return 0;
+}
+
+int
+MM::Map::MapEntryClient::UnReserve(vaddr_t base, vaddr_t size, void *arg)
+{
 	return 0;
 }
 

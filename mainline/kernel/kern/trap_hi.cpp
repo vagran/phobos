@@ -16,7 +16,7 @@ ASMCALL void
 OnUserRet(Frame *frame)
 {
 	if (im) {
-		im->Poll();
+		im->Poll(1);
 	}
 }
 

@@ -175,7 +175,13 @@ int MyTimer(Handle h, u64 ticks, void *arg)//temp
 	return 0;
 }
 
-static void
+int MyProcess(void *arg)//temp
+{
+	printf("Process: %s\n", (char *)arg);
+	return 0;
+}
+
+static int
 SystemStartup(void *arg)
 {
 	CPU::StartSMP(); /* XXX should be called when processes are initialized */
@@ -185,7 +191,10 @@ SystemStartup(void *arg)
 	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));
 	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(5000), (void *)"one-shot 5s");
 
+	pm->CreateProcess(MyProcess, (void *)"process 1");
+
 	while (1) hlt();
+	return 0;
 }
 
 void Main(paddr_t firstAddr) __noreturn;
@@ -228,6 +237,9 @@ Main(paddr_t firstAddr)
 
 	/* system time, timers, deferred calls and so on */
 	tm = NEWSINGLE(TM);
+
+	/* processes management */
+	pm = NEWSINGLE(PM);
 
 	/* Attach and activate bootstrap processor */
 	CPU *bsCpu = CPU::Startup();

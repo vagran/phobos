@@ -21,12 +21,12 @@ phbSource("$Id$");
 	: : "a"(c) : "edx")
 
 /* standard methods declarations for kernel objects */
-#define OBJ_ADDREF(refCount)	void inline AddRef() { \
+#define OBJ_ADDREF(refCount)	inline void AddRef() { \
 	AtomicOp::Inc(&(refCount)); \
 }
 
 /* return zero if object was actually freed */
-#define OBJ_RELEASE(refCount)		int inline Release() { \
+#define OBJ_RELEASE(refCount)		inline int Release() { \
 	int rc = AtomicOp::Dec(&(refCount)); \
 	if (!rc) { \
 		DELETE(this); \
@@ -59,6 +59,7 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #include <dev/sys/cpu.h>
 #include <log.h>
 #include <kdb/debugger.h>
+#include <kern/pm.h>
 
 #ifdef KERNEL
 

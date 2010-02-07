@@ -363,7 +363,9 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	range_t cl_size = head->busyHead.blockSize;
 	void *cl_arg = head->busyHead.allocArg;
 	client->Unlock();
-	if (!reserve) {
+	if (reserve) {
+		client->Reserve(cl_loc, cl_size, cl_arg);
+	} else {
 		client->Allocate(cl_loc, cl_size, cl_arg);
 	}
 	return 0;
@@ -600,6 +602,8 @@ BuddyAllocator<range_t>::UnReserve(range_t location)
 		client->Unlock();
 		return -1;
 	}
+	range_t blockSize = b->busyHead.blockSize;
+	void *allocArg = b->busyHead.allocArg;
 	while (!LIST_ISEMPTY(b->busyHead.chain)) {
 		BlockDesc *cb = LIST_FIRST(BlockDesc, busyChain.list, b->busyHead.chain);
 		LIST_DELETE(busyChain.list, cb, b->busyHead.chain);
@@ -612,6 +616,7 @@ BuddyAllocator<range_t>::UnReserve(range_t location)
 	AddFreeBlock(b);
 	MergeBlock(b);
 	client->Unlock();
+	client->UnReserve(location, blockSize, allocArg);
 	return 0;
 }
 
@@ -629,6 +634,19 @@ BuddyAllocator<range_t>::FreeTree()
 		TREE_DELETE(node, d, tree);
 		client->FreeStruct(d, sizeof(BlockDesc));
 	}
+}
+
+template <typename range_t>
+int
+BuddyAllocator<range_t>::GetOrders(u16 *pminOrder,u16 *pmaxOrder)
+{
+	if (pminOrder) {
+		*pminOrder = minOrder;
+	}
+	if (pmaxOrder) {
+		*pmaxOrder = maxOrder;
+	}
+	return 0;
 }
 
 /* compile methods for supported base types */

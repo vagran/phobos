@@ -25,6 +25,8 @@ public:
 	public:
 		virtual int Allocate(range_t base, range_t size, void *arg = 0) = 0;
 		virtual int Free(range_t base, range_t size, void *arg = 0) = 0;
+		virtual int Reserve(range_t base, range_t size, void *arg = 0) = 0;
+		virtual int UnReserve(range_t base, range_t size, void *arg = 0) = 0;
 		virtual void Lock() {}
 		virtual void Unlock() {}
 	};
@@ -101,6 +103,7 @@ public:
 	virtual int UnReserve(range_t location);
 	virtual int Lookup(range_t location, range_t *pBase = 0, range_t *pSize = 0,
 		void **pAllocArg = 0, int flags = LUF_ALLOCATED, int *pFlags = 0);
+	virtual int GetOrders(u16 *pminOrder,u16 *pmaxOrder);
 };
 
 

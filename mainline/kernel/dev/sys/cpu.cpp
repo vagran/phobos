@@ -88,10 +88,7 @@ CPU::NestInterrupt(int nestIn)
 int
 CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 {
-	/*
-	 * Create kernel stack. Calling function should not
-	 * return and access its arguments after the stack is switched.
-	 */
+	/* Create kernel stack */
 	initialStack = (u8 *)MM::malloc(stackSize);
 	assert(initialStack);
 
@@ -101,15 +98,15 @@ CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 	tss->SetActive();
 
 	/* Switch stack and jump to startup code */
+	int rc;
 	__asm__ __volatile__ (
-		"movl	%0, %%esp\n"
-		"pushl	%2\n"
-		"call	*%1\n"
-		:
+		"movl	%1, %%esp\n"
+		"pushl	%3\n"
+		"call	*%2\n"
+		: "=a"(rc)
 		: "r"(initialStack + stackSize), "r"(func), "r"(arg)
 	);
-	/* should not reach here */
-	return -1;
+	return rc;
 }
 
 u32
@@ -280,7 +277,7 @@ CPU::InstallTrampoline()
 	return sva;
 }
 
-void
+int
 APStartup(vaddr_t entryAddr)
 {
 	CPU *cpu = CPU::GetCurrent();
@@ -296,6 +293,7 @@ APStartup(vaddr_t entryAddr)
 		hlt();
 		printf("CPU waken: %lu\n", cpu->GetUnit());
 	}
+	return 0;
 }
 
 /* every AP enters here after protected mode and paging is enabled */

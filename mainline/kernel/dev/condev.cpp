@@ -102,6 +102,8 @@ Device::IOStatus
 ConsoleDev::QPutc(u8 c)
 {
 	u64 x = im->SetPL(IM::IP_CONSOLE);
+	/* disable interrupts to avoid recursive locking */
+	u32 intr = im->DisableIntr();
 	outQueue.lock.Lock();
 	IOStatus rc = IOS_ERROR;
 	while (1) {
@@ -118,6 +120,7 @@ ConsoleDev::QPutc(u8 c)
 		break;
 	}
 	outQueue.lock.Unlock();
+	im->RestoreIntr(intr);
 	im->RestorePL(x);
 	if (rc == IOS_OK) {
 		im->Irq(outIrq);

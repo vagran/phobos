@@ -109,15 +109,15 @@ IM::HwEnable(u32 idx, int f)
 }
 
 int
-IM::Hwirq(u32 idx)
+IM::Hwirq(u32 idx, int stiEnabled)
 {
-	return Irq(IT_HW, idx);
+	return Irq(IT_HW, idx, stiEnabled);
 }
 
 int
 IM::Swirq(u32 idx)
 {
-	return Irq(IT_SW, idx);
+	return Irq(IT_SW, idx, GetEflags() & EFLAGS_IF);
 }
 
 int
@@ -133,7 +133,7 @@ IM::Irq(Handle h)
 }
 
 int
-IM::Irq(IrqType type, u32 idx)
+IM::Irq(IrqType type, u32 idx, int stiEnabled)
 {
 	irqmask_t mask, *validMask, *activeMask;
 	u8 *masked;
@@ -178,7 +178,7 @@ IM::Irq(IrqType type, u32 idx)
 
 	/* try to handle */
 	if (!*masked && !(mask & *activeMask) && pollNesting < MAX_POLL_NESTING) {
-		Poll();
+		Poll(stiEnabled);
 	}
 	return 0;
 }
@@ -230,10 +230,10 @@ IM::SelectClient(IrqType type)
 		return 0;
 	}
 
-	int derefered = 0;
 	slotLock.Lock();
 	while (1) {
 		IrqSlot *is;
+		int derefered = 0;
 		LIST_FOREACH(IrqSlot, list, is, *slotsHead) {
 			irqmask_t mask = GetMask(is->idx);
 			if (!(mask & *validMask)) {
@@ -326,7 +326,7 @@ IM::SelectClient()
 
 /* must be called with interrupts disabled */
 IM::IsrStatus
-IM::CallClient(IrqClient *ic)
+IM::CallClient(IrqClient *ic, int stiEnabled)
 {
 	irqmask_t *pendingMask, *activeMask;
 	u8 *masked;
@@ -407,9 +407,13 @@ IM::CallClient(IrqClient *ic)
 	}
 
 	AtomicOp::And(pendingMask, ~mask);
-	sti();
+	if (stiEnabled) {
+		sti();
+	}
 	status = ic->isr((Handle)ic, ic->arg);
-	cli();
+	if (stiEnabled) {
+		cli();
+	}
 	if (status == IS_PENDING || status == IS_NOINTR) {
 		AtomicOp::Or(pendingMask, mask);
 	}
@@ -425,7 +429,7 @@ IM::CallClient(IrqClient *ic)
 			}
 			irqmask_t curMask = GetMask(i);
 			if (ic->swMask & curMask) {
-				UnMaskIrq(IT_SW, i);
+				UnMaskIrq(IT_SW, i, stiEnabled);
 			}
 		}
 	}
@@ -436,7 +440,7 @@ IM::CallClient(IrqClient *ic)
 			}
 			irqmask_t curMask = GetMask(i);
 			if (ic->hwMask & curMask) {
-				UnMaskIrq(IT_HW, i);
+				UnMaskIrq(IT_HW, i, stiEnabled);
 			}
 		}
 	}
@@ -449,7 +453,7 @@ IM::CallClient(IrqClient *ic)
 
 /* safe to be called recursively */
 int
-IM::Poll()
+IM::Poll(int stiEnabled)
 {
 	IrqClient *ic;
 
@@ -460,7 +464,7 @@ IM::Poll()
 	}
 	pollLock.Unlock();
 	while ((ic = SelectClient())) {
-		CallClient(ic);
+		CallClient(ic, stiEnabled);
 	}
 	AtomicOp::Dec(&pollNesting);
 	RestoreIntr(x);
@@ -492,7 +496,7 @@ IM::MaskIrq(IrqType type, u32 idx)
 }
 
 int
-IM::UnMaskIrq(IrqType type, u32 idx)
+IM::UnMaskIrq(IrqType type, u32 idx, int stiEnabled)
 {
 	irqmask_t *pendingMask, *activeMask;
 	u8 *masked;
@@ -521,7 +525,7 @@ IM::UnMaskIrq(IrqType type, u32 idx)
 	maskLock.Unlock();
 	if (!isMasked && (mask & *pendingMask) && !(mask & *activeMask)
 		&& pollNesting < MAX_POLL_NESTING) {
-		Poll();
+		Poll(stiEnabled);
 	}
 	return 0;
 }
@@ -665,16 +669,17 @@ IM::RestorePL(u64 saved)
 {
 	irqmask_t hwMask = (irqmask_t)saved;
 	irqmask_t swMask = (irqmask_t)(saved >> 32);
+	int stiEnabled = GetEflags() & EFLAGS_IF;
 	for (u32 idx = 0; idx < NUM_SWIRQ; idx++) {
 		irqmask_t mask = GetMask(idx);
 		if (swMask & mask) {
-			UnMaskIrq(IT_SW, idx);
+			UnMaskIrq(IT_SW, idx, stiEnabled);
 		}
 	}
 	for (u32 idx = 0; idx < NUM_HWIRQ; idx++) {
 		irqmask_t mask = GetMask(idx);
 		if (hwMask & mask) {
-			UnMaskIrq(IT_HW, idx);
+			UnMaskIrq(IT_HW, idx, stiEnabled);
 		}
 	}
 	return 0;

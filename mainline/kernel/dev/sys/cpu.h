@@ -17,7 +17,7 @@ class CPU;
 
 class CPU : public Device {
 public:
-	typedef void (*StartupFunc)(void *arg);
+	typedef int (*StartupFunc)(void *arg);
 
 	ListEntry list;
 	static ListHead allCpus;

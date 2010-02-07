@@ -19,6 +19,8 @@ public:
 
 	virtual int Allocate(u32 base, u32 size, void *arg = 0);
 	virtual int Free(u32 base, u32 size, void *arg = 0);
+	virtual int Reserve(u32 base, u32 size, void *arg = 0);
+	virtual int UnReserve(u32 base, u32 size, void *arg = 0);
 	virtual void *malloc(u32 size);
 	virtual void mfree(void *p);
 };
@@ -48,6 +50,18 @@ BuddyClient::Allocate(u32 base, u32 size, void *arg)
 
 int
 BuddyClient::Free(u32 base, u32 size, void *arg)
+{
+	return 0;
+}
+
+int
+BuddyClient::Reserve(u32 base, u32 size, void *arg)
+{
+	return 0;
+}
+
+int
+BuddyClient::UnReserve(u32 base, u32 size, void *arg)
 {
 	return 0;
 }
