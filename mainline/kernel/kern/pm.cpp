@@ -272,8 +272,17 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize)
 	 * it cannot be handled by page fault processing.
 	 */
 	ensure(!proc->userMap->Pagein((vaddr_t)esp));
-	*(esp--) = (u32)this; /* argument for exit function */
-	*(esp) = (u32)_OnThreadExit;
+	/*
+	 * Create initial content in stack. Since it is mapped only in
+	 * another address space we need to use temporal mappings
+	 * for the stack physical pages.
+	 */
+	paddr_t pa = proc->userMap->Extract((vaddr_t)esp);
+	u32 *_esp = (u32 *)mm->QuickMapEnter(pa);
+	*(_esp--) = (u32)this; /* argument for exit function */
+	esp--;
+	*(_esp) = (u32)_OnThreadExit;
+	mm->QuickMapRemove((vaddr_t)_esp);
 	ctx.esp = ctx.ebp = (u32)esp;
 	return 0;
 }

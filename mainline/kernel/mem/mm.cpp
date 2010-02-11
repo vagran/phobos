@@ -35,8 +35,8 @@ PTE::PDEntry *MM::altPTD = (PTE::PDEntry *)(ALTPTMAP_ADDRESS +
 PTE::PDEntry *MM::PTDpde = (PTE::PDEntry *)(PTMAP_ADDRESS +
 	PTDPTDI * (PAGE_SIZE + sizeof(PTE::PTEntry)));
 
-PTE::PDEntry *MM::altPTDpde = (PTE::PDEntry *)(ALTPTMAP_ADDRESS +
-	APTDPTDI * (PAGE_SIZE + sizeof(PTE::PTEntry)));
+PTE::PDEntry *MM::altPTDpde = (PTE::PDEntry *)(PTMAP_ADDRESS +
+	PTDPTDI * PAGE_SIZE + APTDPTDI * sizeof(PTE::PTEntry));
 
 PTE::PTEntry *MM::quickMapPTE;
 
@@ -424,7 +424,6 @@ MM::QuickMapEnter(paddr_t pa)
 		return (void *)(va + (pa & (PAGE_SIZE - 1)));
 	}
 	panic("No free quick map entry");
-	return 0;
 }
 
 void
@@ -960,6 +959,7 @@ int
 MM::VMObject::InsertPage(Page *pg, vaddr_t offset)
 {
 	int rc;
+	assert(!LookupPage(offset));
 	lock.Lock();
 	if (flags & F_NOTPAGEABLE) {
 		rc = pg->Wire();
@@ -970,7 +970,6 @@ MM::VMObject::InsertPage(Page *pg, vaddr_t offset)
 		lock.Unlock();
 		return rc;
 	}
-	assert(!LookupPage(offset));
 	pg->object = this;
 	pg->offset = offset;
 	TREE_ADD(objEntry, pg, pages, offset);
@@ -1012,7 +1011,7 @@ MM::VMObject::Pagein(vaddr_t offset, Page **ppg)
 		klog(KLOG_ERROR, "Cannot get page from pager");
 		return -1;
 	}
-	ensure(InsertPage(pg, offset));
+	ensure(!InsertPage(pg, offset));
 	if (ppg) {
 		*ppg = pg;
 	}
@@ -1055,13 +1054,15 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 	assert(ptd);
 	assert(!((u32)ptd & (PAGE_SIZE - 1)));
 	memset(ptd, 0, PD_PAGES * PAGE_SIZE);
-	for (int i = 0; i < PD_PAGES; i++) {
-		pdpt[i].raw = mm->Kextract((vaddr_t)ptd + i * PAGE_SIZE) | PTE::F_P;
-	}
 	if (copyFrom) {
+		u32 startIdx = KERNEL_ADDRESS >> PD_SHIFT;
 		copyFrom->tablesLock.Lock();
-		memcpy(ptd, copyFrom->ptd, PD_PAGES * PAGE_SIZE);
-		for (u32 i = 0; i < PT_ENTRIES * PD_PAGES; i++) {
+		memcpy(&ptd[startIdx], &copyFrom->ptd[startIdx],
+			PD_PAGES * PAGE_SIZE - startIdx * sizeof(PTE::PDEntry));
+		for (u32 i = startIdx; i < PT_ENTRIES * PD_PAGES; i++) {
+			if (i >= PTDPTDI && i < PTDPTDI + PD_PAGES) {
+				continue;
+			}
 			PTE::PDEntry *pde = &ptd[i];
 			if (pde->fields.present) {
 				paddr_t ptpa = pde->raw & PG_FRAME;
@@ -1072,6 +1073,12 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 			}
 		}
 		copyFrom->tablesLock.Unlock();
+	}
+	for (int i = 0; i < PD_PAGES; i++) {
+		paddr_t pa = mm->Kextract((vaddr_t)ptd + i * PAGE_SIZE);
+		pdpt[i].raw = pa | PTE::F_P;
+		/* recursive entries */
+		ptd[PTDPTDI + i].raw = pa | PTE::F_S | PTE::F_W | PTE::F_P;
 	}
 }
 
