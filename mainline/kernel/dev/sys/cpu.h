@@ -23,7 +23,7 @@ public:
 	static ListHead allCpus;
 private:
 	enum {
-		INITIAL_STACK_SIZE = 128 * 1024,
+		DEF_KERNEL_STACK_SIZE = 128 * 1024,
 	};
 
 	static u32 numCpus;
@@ -64,7 +64,7 @@ public:
 
 	u32 GetID();
 	LAPIC *GetLapic();
-	int Activate(StartupFunc func, void *arg = 0, u32 stackSize = INITIAL_STACK_SIZE);
+	int Activate(StartupFunc func, void *arg = 0, u32 stackSize = DEF_KERNEL_STACK_SIZE);
 	void NestInterrupt(int nestIn = 1); /* nestIn zero for nest out */
 };
 

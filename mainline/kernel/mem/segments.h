@@ -103,6 +103,11 @@ public:
 		SI_TSS,
 		SI_CUSTOM,
 	} SelIdx;
+
+	typedef enum {
+		PL_KERNEL =		0,
+		PL_USER =		3,
+	} PriorityLevel;
 private:
 	enum {
 		GDT_SIZE =		512,
@@ -131,8 +136,9 @@ private:
 public:
 	GDT();
 
-	static inline u16 GetSelector(u32 idx, u16 rpl = 0) {return (idx << 3) | rpl;}
-	u16 GetSelector(SDT::Descriptor *d, u16 rpl = 0);
+	static inline u16 GetSelector(u32 idx, u16 rpl = PL_KERNEL) { return (idx << 3) | rpl; }
+	static inline PriorityLevel GetRPL(u16 selector) { return (PriorityLevel)(selector & 3); }
+	u16 GetSelector(SDT::Descriptor *d, u16 rpl = PL_KERNEL);
 	SDT::Descriptor *AllocateSegment();
 	int ReleaseSegment(SDT::Descriptor *d);
 	SDT::PseudoDescriptor *GetPseudoDescriptor() { return &pd; }

@@ -267,6 +267,11 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize)
 	ctx.ss = ctx.ds = ctx.es = GDT::GetSelector(GDT::SI_KDATA);
 	ctx.eip = (u32)entry;
 	u32 *esp = (u32 *)(stackEntry->base + stackEntry->size - sizeof(u32));
+	/*
+	 * Prefault stack page because the thread is not yet current and
+	 * it cannot be handled by page fault processing.
+	 */
+	ensure(!proc->userMap->Pagein((vaddr_t)esp));
 	*(esp--) = (u32)this; /* argument for exit function */
 	*(esp) = (u32)_OnThreadExit;
 	ctx.esp = ctx.ebp = (u32)esp;

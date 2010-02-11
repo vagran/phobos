@@ -116,7 +116,8 @@ Debugger::_DebugHandler(Frame *frame, Debugger *d)
 int
 Debugger::Trap(Frame *frame)
 {
-	con->Printf("Trap: %lu - %s\n", frame->vectorIdx, IDT::StrTrap((IDT::SysTraps)frame->vectorIdx));
+	con->Printf("Trap: %lu - %s\n", frame->vectorIdx,
+		IDT::StrTrap((IDT::SysTraps)frame->vectorIdx));
 	requestedBreak = 1;
 	return BPHandler(frame);
 }

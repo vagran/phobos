@@ -109,6 +109,35 @@ public:
 
 	class Page;
 
+	class Pager {
+	public:
+		enum Type {
+			T_SWAP,
+			T_FILE,
+			T_DEVICE,
+
+			T_DEFAULT = T_SWAP
+		};
+	protected:
+		u32			refCount;
+		Type		type;
+		u32			size;
+		Handle		handle;
+	public:
+		Pager(Type type, vsize_t size, Handle handle = 0);
+		virtual ~Pager();
+		OBJ_ADDREF(refCount);
+		OBJ_RELEASE(refCount);
+
+		static Pager *CreatePager(Type type, vsize_t size, Handle handle = 0);
+
+		inline Type GetType() { return type; }
+
+		virtual int HasPage(vaddr_t offset) = 0;
+		virtual int GetPage(Page *pg, vaddr_t offset) = 0;
+		virtual int PutPage(Page *pg, vaddr_t offset) = 0;
+	};
+
 	class VMObject {
 	public:
 		enum Flags {
@@ -133,6 +162,7 @@ public:
 		vaddr_t		copyOffset; /* offset in copy object */
 		u32			refCount;
 		SpinLock	lock;
+		Pager		*pager; /* backing storage */
 
 		VMObject(vsize_t size, u32 flags = 0);
 		~VMObject();
@@ -142,6 +172,8 @@ public:
 		inline vsize_t GetSize() { return size; }
 		int InsertPage(Page *pg, vaddr_t offset);
 		Page *LookupPage(vaddr_t offset);
+		int Pagein(vaddr_t offset, Page **ppg = 0);
+		int Pageout(vaddr_t offset, Page **ppg = 0);
 	};
 
 	VMObject *kmemObj, *devObj;
@@ -173,6 +205,7 @@ public:
 		u16			flags;
 		u16			wireCount;
 		VMObject	*object;
+		vaddr_t		offset; /* offset in object */
 		ListEntry	queue; /* entry in free, active, inactive or cached pages queue */
 		/* entry in VMObject pages list, key is offset */
 		Tree<vaddr_t>::TreeEntry	objEntry;
@@ -282,7 +315,8 @@ public:
 		Map(Map *copyFrom = 0);
 		Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree);
 		~Map();
-		int SetRange(vaddr_t base, vsize_t size, int minBlockOrder = 4, int maxBlockOrder = 30);
+		int SetRange(vaddr_t base, vsize_t size,
+			int minBlockOrder = KMEM_MIN_BLOCK, int maxBlockOrder = KMEM_MAX_BLOCK);
 
 		Map *CreateSubmap(vaddr_t base, vsize_t size);
 		Entry *Allocate(vsize_t size, vaddr_t *base, int fixed = 0);
@@ -301,6 +335,7 @@ public:
 		int IsAlt();
 		void SetAlt(); /* set this map as current alternative AS */
 		int AddPT(vaddr_t va); /* must be called with locked tables */
+		int Pagein(vaddr_t va); /* make this page resident */
 	};
 
 	Map *kmemMap; /* idle process virtual address space */
@@ -402,6 +437,8 @@ private:
 	int CreatePageDescs();
 	Page *GetFreePage(int zone = ZONE_REST); /* pages queues must be locked */
 	Page *GetCachedPage(PageZones zone = ZONE_REST); /* pages queues must be locked */
+	static int OnPageFault(Frame *frame, void *arg);
+	int OnPageFault(vaddr_t va, u32 code, int isUserMode); /* ret zero if handled */
 public:
 	static void PreInitialize(vaddr_t addr);
 	static paddr_t VtoP(vaddr_t va); /* in current AS */

@@ -281,9 +281,10 @@ int
 APStartup(vaddr_t entryAddr)
 {
 	CPU *cpu = CPU::GetCurrent();
-	/* After stack is switched we cannot return from this function and access arguments */
+	/* open gate for a next CPU */
 	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + entryAddr);
 	AtomicOp::And(lock, 0);
+
 	if (CPU::GetCpuCount() == 4) {
 		//RunDebugger("4 cpus started");//temp
 	}

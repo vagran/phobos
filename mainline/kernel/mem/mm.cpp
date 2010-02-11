@@ -10,6 +10,7 @@
 phbSource("$Id$");
 
 #include <boot.h>
+#include <mem/SwapPager.h>
 
 paddr_t IdlePDPT, IdlePTD;
 vaddr_t vIdlePDPT, vIdlePTD; /* virtual addresses */
@@ -245,6 +246,8 @@ MM::InitMM()
 	devAlloc = devEntry->CreateAllocator();
 	assert(devAlloc);
 	initState = IS_NORMAL;
+
+	idt->RegisterHandler(IDT::ST_PAGEFAULT, OnPageFault, this);
 }
 
 paddr_t
@@ -260,7 +263,6 @@ MM::AllocDevPhys(psize_t size)
 	}
 	return addr;
 }
-
 
 int
 MM::FreeDevPhys(paddr_t addr)
@@ -765,8 +767,40 @@ MM::KmemMapClient::UnReserve(vaddr_t base, vaddr_t size, void *arg)
 	return 0;
 }
 
+int
+MM::OnPageFault(Frame *frame, void *arg)
+{
+	vaddr_t va = rcr2();
+	int isUserMode = GDT::GetRPL(frame->cs) == GDT::PL_USER;
+	if (((MM *)arg)->OnPageFault(va, frame->code, isUserMode)) {
+		if (isUserMode) {
+			/* send signal to process */
+			//notimpl
+		} else {
+			printf("Unhandled page fault in kernel mode: "
+				"at 0x%08lx accessing address 0x%08lx, code = 0x%08lx\n",
+				frame->eip, va, frame->code);
+			if (Debugger::debugFaults && sysDebugger) {
+				sysDebugger->Trap(frame);
+			}
+			panic("Unhandled page fault in kernel mode");
+		}
+	}
+	return 0;
+}
+
+int
+MM::OnPageFault(vaddr_t va, u32 code, int isUserMode)
+{
+	printf("Processing page fault on 0x%08lx, code = 0x%08lx, userMode = %d",
+		va, code, isUserMode);//temp
+	//notimpl
+	return -1;
+}
+
 /*************************************************************/
 /* MM::Page class */
+
 MM::Page::Page(paddr_t pa, u16 flags)
 {
 	this->pa = pa;
@@ -784,7 +818,7 @@ MM::Page::GetZone()
 	if (pa >= 0x1000000ull) {
 		return ZONE_4GB;
 	}
-	if (pa>= 0x100000ull) {
+	if (pa >= 0x100000ull) {
 		return ZONE_16MB;
 	}
 	return ZONE_1MB;
@@ -849,12 +883,47 @@ MM::Page::Wire()
 }
 
 /*************************************************************/
+/* MM::Pager class */
+
+MM::Pager *
+MM::Pager::CreatePager(Type type, vsize_t size, Handle handle)
+{
+	Pager *p;
+	switch (type) {
+	case T_SWAP:
+		p = NEW(SwapPager, size, handle);
+		break;
+	default:
+		panic("Invalid pager type: %d", type);
+	}
+	if (!p) {
+		klog(KLOG_WARNING, "Failed to allocate memory for pager");
+	}
+	return p;
+}
+
+MM::Pager::Pager(Type type, vsize_t size, Handle handle)
+{
+	refCount = 1;
+	this->type = type;
+	assert(size);
+	this->size = size;
+	this->handle = handle;
+}
+
+MM::Pager::~Pager()
+{
+
+}
+
+/*************************************************************/
 /* MM::VMObject class */
 
 MM::VMObject::VMObject(vsize_t size, u32 flags)
 {
 	TREE_INIT(pages);
 	numPages = 0;
+	pager = 0;
 	this->size = size;
 	copyObj = 0;
 	copyOffset = 0;
@@ -866,6 +935,9 @@ MM::VMObject::VMObject(vsize_t size, u32 flags)
 MM::VMObject::~VMObject()
 {
 	assert(!refCount);
+	if (pager) {
+		pager->Release();
+	}
 }
 
 int
@@ -898,8 +970,9 @@ MM::VMObject::InsertPage(Page *pg, vaddr_t offset)
 		lock.Unlock();
 		return rc;
 	}
-
+	assert(!LookupPage(offset));
 	pg->object = this;
+	pg->offset = offset;
 	TREE_ADD(objEntry, pg, pages, offset);
 	numPages++;
 	lock.Unlock();
@@ -915,8 +988,58 @@ MM::VMObject::LookupPage(vaddr_t offset)
 	return pg;
 }
 
+int
+MM::VMObject::Pagein(vaddr_t offset, Page **ppg)
+{
+	offset = rounddown2(offset, PAGE_SIZE);
+	if (offset >= size) {
+		panic("Offset out of range: 0x%08lx", offset);
+	}
+	if (!pager) {
+		pager = Pager::CreatePager(Pager::T_DEFAULT, size);
+		if (!pager) {
+			klog(KLOG_ERROR, "Cannot create pager");
+			return -1;
+		}
+	}
+	Page *pg = mm->AllocatePage();
+	if (!pg) {
+		klog(KLOG_WARNING, "Cannot allocate page");
+		return -1;
+	}
+	if (pager->GetPage(pg, offset)) {
+		mm->FreePage(pg);
+		klog(KLOG_ERROR, "Cannot get page from pager");
+		return -1;
+	}
+	ensure(InsertPage(pg, offset));
+	if (ppg) {
+		*ppg = pg;
+	}
+	return 0;
+}
+
+int
+MM::VMObject::Pageout(vaddr_t offset, Page **ppg)
+{
+	offset = rounddown2(offset, PAGE_SIZE);
+	if (offset >= size) {
+		panic("Offset out of range: 0x%08lx", offset);
+	}
+	if (!pager) {
+		pager = Pager::CreatePager(Pager::T_DEFAULT, size);
+		if (!pager) {
+			klog(KLOG_ERROR, "Cannot create pager");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 /*************************************************************/
 /* MM::Map class */
+
 MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemSlab)
 {
 	int rc = Initialize();
@@ -1279,8 +1402,31 @@ MM::Map::AddPT(vaddr_t va)
 	return 0;
 }
 
+int
+MM::Map::Pagein(vaddr_t va)
+{
+	Entry *e = Lookup(va);
+	if (!e) {
+		return -1;
+	}
+	/* do not process space reservation entries */
+	if (e->flags & (Entry::F_SPACE | Entry::F_RESERVE)) {
+		return -1;
+	}
+	ensure(e->object);
+	Page *pg;
+	vaddr_t offset;
+	ensure(!e->GetOffset(va, &offset));
+	if (e->object->Pagein(offset, &pg)) {
+		return -1;
+	}
+	ensure(!e->MapPage(rounddown2(va, PAGE_SIZE), pg));
+	return 0;
+}
+
 /*************************************************************/
 /* MM::Map::MapEntryClient class */
+
 /* allocate memory chunk in the map entry, set it resident */
 int
 MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
@@ -1337,6 +1483,7 @@ MM::Map::MapEntryClient::UnReserve(vaddr_t base, vaddr_t size, void *arg)
 
 /*************************************************************/
 /* MapEntryAllocator class */
+
 MM::Map::MapEntryAllocator::MapEntryAllocator(Entry *e) :
 	alloc(&e->map->mapEntryClient)
 {
@@ -1370,6 +1517,7 @@ MM::Map::MapEntryAllocator::mfree(void *p)
 
 /*************************************************************/
 /* MM::Map::Entry class */
+
 MM::Map::Entry::Entry(Map *map)
 {
 	this->map = 0;
@@ -1447,11 +1595,11 @@ int
 MM::Map::Entry::MapPage(vaddr_t va, Page *pg)
 {
 	assert(!(va & ~PG_FRAME));
-	vaddr_t offs;
-	if (GetOffset(va, &offs)) {
-		return -1;
-	}
 	if (!pg) {
+		vaddr_t offs;
+		if (GetOffset(va, &offs)) {
+			return -1;
+		}
 		pg = object->LookupPage(offs);
 		if (!pg) {
 			return -1;

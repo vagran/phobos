@@ -262,7 +262,7 @@ TreeTest::Run()
 		buf[iDel] = 1;
 		TREE_DELETE(tree, &items[iDel], root);
 	}
-	//searching should fail
+	/* searching should fail */
 	int numDelFound = 0;
 	for (int i = 0; i < numItems; i++) {
 		if (buf[i]) {

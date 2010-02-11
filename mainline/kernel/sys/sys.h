@@ -42,6 +42,10 @@ phbSource("$Id$");
 #include <stdlib.h>
 #include <cpu_instr.h>
 
+/*
+ * The condition in assert is not evaluated in non-DEBUG versions, so
+ * be careful when using functions results in conditions.
+ */
 #define ASSERT(x)	{if (!(x)) __assert(__FILE__, __LINE__, __STR(x));}
 #ifdef DEBUG
 #define assert(x)	ASSERT(x)

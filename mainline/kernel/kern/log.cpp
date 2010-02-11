@@ -21,14 +21,16 @@ Log::Log()
 int
 Log::Write(const char *funcName, int line, Level level, const char *fmt,...)
 {
-	lock.Lock();
 	if (level >= curLevel) {
 		va_list va;
 		va_start(va, fmt);
 		printf("[%s] %s@%d: ", levelStr[level], funcName, line);
 		vprintf(fmt, va);
 		printf("\n");
+		lock.Lock();
+		/* update log */
+		//notimpl
+		lock.Unlock();
 	}
-	lock.Unlock();
 	return 0;
 }
