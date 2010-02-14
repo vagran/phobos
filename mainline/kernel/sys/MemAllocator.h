@@ -14,6 +14,7 @@ phbSource("$Id$");
 class MemAllocator {
 public:
 	virtual void *malloc(u32 size) = 0;
+	virtual void *malloc(u32 size, void *param) { return malloc(size); }
 	virtual void mfree(void *p) = 0;
 	virtual void *AllocateStruct(u32 size) {return malloc(size);}
 	virtual void FreeStruct(void *p, u32 size = 0) {return mfree(p);}

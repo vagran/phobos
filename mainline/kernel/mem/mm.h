@@ -182,7 +182,7 @@ public:
 		PAF_NOWAIT =		0x1,
 	};
 
-	enum PageZones {
+	enum PageZone {
 		ZONE_1MB,
 		ZONE_16MB,
 		ZONE_4GB,
@@ -211,7 +211,7 @@ public:
 		Tree<vaddr_t>::TreeEntry	objEntry;
 
 		Page(paddr_t pa, u16 flags);
-		inline PageZones GetZone();
+		inline PageZone GetZone();
 		int Unqueue(); /* must be called with pages queues locked */
 		int Activate();
 		int Wire();
@@ -236,6 +236,7 @@ public:
 		ListEntry	list; /* submaps list */
 		ListHead	submaps;
 		Map			*parentMap, *rootMap;
+		u32			cr3;
 
 		class MapEntryAllocator;
 
@@ -247,6 +248,11 @@ public:
 				F_NOCACHE =		0x4, /* disable caching */
 				F_SUBMAP =		0x8, /* entry describes submap */
 			};
+
+			typedef struct {
+				Entry *e;
+				PageZone zone;
+			}  EntryAllocParam;
 
 			ListEntry			list;
 			Map					*map;
@@ -301,7 +307,8 @@ public:
 			OBJ_ADDREF(refCount);
 			OBJ_RELEASE(refCount);
 
-			virtual void *malloc(u32 size);
+			virtual void *malloc(u32 size, void *param);
+			virtual void *malloc(u32 size) { return malloc(size, (void *)ZONE_REST); }
 			virtual void mfree(void *p);
 		};
 
@@ -336,6 +343,7 @@ public:
 		void SetAlt(); /* set this map as current alternative AS */
 		int AddPT(vaddr_t va); /* must be called with locked tables */
 		int Pagein(vaddr_t va); /* make this page resident */
+		void SwitchTo();
 	};
 
 	Map *kmemMap; /* kernel process virtual address space */
@@ -436,7 +444,7 @@ private:
 	const char *StrMemType(SMMemType type);
 	int CreatePageDescs();
 	Page *GetFreePage(int zone = ZONE_REST); /* pages queues must be locked */
-	Page *GetCachedPage(PageZones zone = ZONE_REST); /* pages queues must be locked */
+	Page *GetCachedPage(PageZone zone = ZONE_REST); /* pages queues must be locked */
 	static int OnPageFault(Frame *frame, void *arg);
 	int OnPageFault(vaddr_t va, u32 code, int isUserMode); /* ret zero if handled */
 public:
@@ -449,14 +457,14 @@ public:
 	static inline void *OpNew(u32 size, int isSingle);
 	static inline void *OpNew(u32 size, int isSingle, const char *className, const char *fileName, int line);
 	static inline void OpDelete(void *p);
-	static void *malloc(u32 size, u32 align = 4);
+	static void *malloc(u32 size, u32 align = 4, PageZone zone = ZONE_REST);
 	static void mfree(void *p);
 	static void *QuickMapEnter(paddr_t pa);
 	static void QuickMapRemove(vaddr_t va);
 	static void ZeroPage(paddr_t pa);
 
 	MM();
-	Page *AllocatePage(int flags = 0, PageZones zone = ZONE_REST);
+	Page *AllocatePage(int flags = 0, PageZone zone = ZONE_REST);
 	Page *GetPage(paddr_t pa);
 	int FreePage(Page *pg);
 	paddr_t Kextract(vaddr_t va); /* in kernel AS */

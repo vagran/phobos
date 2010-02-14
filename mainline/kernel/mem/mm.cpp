@@ -603,7 +603,7 @@ MM::CreatePageDescs()
 		}
 		construct(&pages[i], Page, pa, flags);
 		if (flags & Page::F_FREE) {
-			PageZones zone = pages[i].GetZone();
+			PageZone zone = pages[i].GetZone();
 			numPgFree++;
 			LIST_ADD(queue, &pages[i], pagesFree[zone]);
 		}
@@ -653,7 +653,7 @@ MM::GetFreePage(int zone)
 }
 
 MM::Page *
-MM::GetCachedPage(PageZones zone)
+MM::GetCachedPage(PageZone zone)
 {
 	Page *p = 0;
 	while (zone < NUM_ZONES) {
@@ -667,7 +667,7 @@ MM::GetCachedPage(PageZones zone)
 }
 
 MM::Page *
-MM::AllocatePage(int flags, PageZones zone)
+MM::AllocatePage(int flags, PageZone zone)
 {
 	/* XXX need management implementation */
 	mm->pgqLock.Lock();
@@ -702,7 +702,7 @@ MM::UnmapPhys(vaddr_t va)
 }
 
 void *
-MM::malloc(u32 size, u32 align)
+MM::malloc(u32 size, u32 align, PageZone zone)
 {
 	if (initState <= IS_MEMCOUNTED) {
 		firstAddr = roundup(firstAddr, align);
@@ -716,7 +716,7 @@ MM::malloc(u32 size, u32 align)
 	}
 	/* align is ignored */
 	assert(initState == IS_NORMAL);
-	return mm->kmemAlloc->malloc(size);
+	return mm->kmemAlloc->malloc(size, (void *)zone);
 }
 
 void
@@ -808,7 +808,7 @@ MM::Page::Page(paddr_t pa, u16 flags)
 	wireCount = 0;
 }
 
-MM::PageZones
+MM::PageZone
 MM::Page::GetZone()
 {
 	if (pa >= 0x100000000ull) {
@@ -827,7 +827,7 @@ int
 MM::Page::Unqueue()
 {
 	int rc = 0;
-	PageZones zone = GetZone();
+	PageZone zone = GetZone();
 	if (flags & F_FREE) {
 		mm->numPgFree--;
 		LIST_DELETE(queue, this, mm->pagesFree[zone]);
@@ -1045,11 +1045,13 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 	assert(!rc);
 	(void)rc;
 	freeTables = 1;
-	pdpt = (PTE::PDEntry *)malloc(sizeof(PTE::PDEntry) * PD_PAGES);
+	pdpt = (PTE::PDEntry *)malloc(sizeof(PTE::PDEntry) * PD_PAGES, 0, ZONE_4GB);
 	assert(pdpt);
 	/* should be properly aligned */
 	assert(!((u32)pdpt & (sizeof(PTE::PDEntry) * PD_PAGES - 1)));
 	memset(pdpt, 0, sizeof(PTE::PDEntry) * PD_PAGES);
+	assert(Extract((vaddr_t)pdpt) <= 0xffffffffull);
+	cr3 = (u32)Extract((vaddr_t)pdpt);
 	ptd = (PTE::PDEntry *)malloc(PD_PAGES * PAGE_SIZE);
 	assert(ptd);
 	assert(!((u32)ptd & (PAGE_SIZE - 1)));
@@ -1431,6 +1433,12 @@ MM::Map::Pagein(vaddr_t va)
 	return 0;
 }
 
+void
+MM::Map::SwitchTo()
+{
+	wcr3(cr3);
+}
+
 /*************************************************************/
 /* MM::Map::MapEntryClient class */
 
@@ -1438,7 +1446,8 @@ MM::Map::Pagein(vaddr_t va)
 int
 MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 {
-	Entry *e = (Entry *)arg;
+	Entry::EntryAllocParam *eap = (Entry::EntryAllocParam *)arg;
+	Entry *e = eap->e;
 	VMObject *obj = e->object;
 	assert(base + size <= e->base + e->size);
 	if ((e->flags & Entry::F_SPACE) || (e->flags & Entry::F_RESERVE)) {
@@ -1458,7 +1467,7 @@ MM::Map::MapEntryClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 		if (pg) {
 			continue;
 		}
-		pg = mm->AllocatePage();
+		pg = mm->AllocatePage(0, eap->zone);
 		if (!pg) {
 			/* XXX should free all pages allocated so far */
 			return -1;
@@ -1507,10 +1516,14 @@ MM::Map::MapEntryAllocator::~MapEntryAllocator()
 }
 
 void *
-MM::Map::MapEntryAllocator::malloc(u32 size)
+MM::Map::MapEntryAllocator::malloc(u32 size, void *param)
 {
 	vaddr_t addr;
-	if (alloc.Allocate(size, &addr, e)) {
+	Entry::EntryAllocParam eap;
+
+	eap.e = e;
+	eap.zone = (PageZone)(u32)param;
+	if (alloc.Allocate(size, &addr, &eap)) {
 		return 0;
 	}
 	return (void *)addr;

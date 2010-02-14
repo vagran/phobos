@@ -595,6 +595,10 @@ PM::Thread::SwitchTo()
 {
 	assert(cpu == CPU::GetCurrent());
 	Thread *prev = GetCurrent();
+	/* switch address space if it is another process */
+	if (prev->proc != proc) {
+		proc->map->SwitchTo();
+	}
 	if (prev) {
 		if (prev->SaveContext(&prev->ctx)) {
 			/* switched to this thread */
