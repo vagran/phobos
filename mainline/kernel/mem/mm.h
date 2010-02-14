@@ -338,7 +338,7 @@ public:
 		int Pagein(vaddr_t va); /* make this page resident */
 	};
 
-	Map *kmemMap; /* idle process virtual address space */
+	Map *kmemMap; /* kernel process virtual address space */
 private:
 	typedef enum {
 		IS_INITIAL,

@@ -54,11 +54,6 @@
 #define roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
 #define rounddown2(size, balign)	((size) & (~((balign) - 1)))
 
-#define	bitset(a, i)		(((u8 *)(a))[(i) / NBBY] |= 1 << ((i) % NBBY))
-#define	bitclear(a, i)		(((u8 *)(a))[(i) / NBBY] &= ~(1 << ((i)%NBBY)))
-#define	bitisset(a, i)		(((const u8 *)(a))[(i) / NBBY] & (1 << ((i) % NBBY)))
-#define	bitisclear(a,i)		(!bitisset(a, i))
-
 #if !defined(ASSEMBLER) && defined(KERNEL)
 /*
  * Source control system

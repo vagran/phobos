@@ -175,16 +175,27 @@ int MyTimer(Handle h, u64 ticks, void *arg)//temp
 	return 0;
 }
 
+static int proc1, proc2;
+
 int MyProcess(void *arg)//temp
 {
 	printf("Process: %s\n", (char *)arg);
+	while (1) {
+		pm->Wakeup(&proc1);
+		pm->Sleep(&proc2, "proc2");
+		printf("process 1 waken\n");
+	}
 	return 0;
 }
 
+/* initial kernel thread */
 static int
-SystemStartup(void *arg)
+StartupProc(void *arg)
 {
-	CPU::StartSMP(); /* XXX should be called when processes are initialized */
+	/* now we are in the first process */
+
+	/* wake up the rest CPUs */
+	CPU::StartSMP();
 
 	sti();//temp
 	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));
@@ -193,8 +204,21 @@ SystemStartup(void *arg)
 
 	pm->CreateProcess(MyProcess, (void *)"process 1");
 
-	while (1) hlt();
+	while (1) {
+		pm->Wakeup(&proc2);
+		pm->Sleep(&proc1, "proc1");
+		printf("init proc waken\n");
+	}
 	return 0;
+}
+
+static int
+SystemStartup(void *arg)
+{
+	/* processes management */
+	pm = NEWSINGLE(PM, StartupProc);
+	pm->RunKernelProc();
+	/* NOT REACHED */
 }
 
 void Main(paddr_t firstAddr) __noreturn;
@@ -237,9 +261,6 @@ Main(paddr_t firstAddr)
 
 	/* system time, timers, deferred calls and so on */
 	tm = NEWSINGLE(TM);
-
-	/* processes management */
-	pm = NEWSINGLE(PM);
 
 	/* Attach and activate bootstrap processor */
 	CPU *bsCpu = CPU::Startup();

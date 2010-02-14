@@ -21,6 +21,13 @@ public:
 
 	ListEntry list;
 	static ListHead allCpus;
+
+	/* any per CPU handles could be stored here */
+	struct PerCpuData {
+		void *runQueue; /* PM::Runqueue * */
+
+	} pcpu;
+
 private:
 	enum {
 		DEF_KERNEL_STACK_SIZE = 128 * 1024,

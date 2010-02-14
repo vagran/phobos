@@ -224,7 +224,7 @@ MM::InitMM()
 	kmemMap = NEW(Map, (PTE::PDEntry *)vIdlePDPT, (PTE::PDEntry *)vIdlePTD, 1);
 	assert(kmemMap);
 	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
-	kmemMap->SetRange(firstAddr, KERN_MEM_END - firstAddr,
+	kmemMap->SetRange(0, KERN_MEM_END,
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
 	kmemObj->SetSize(KERN_DYN_MEM_END - firstAddr);
 
@@ -791,7 +791,7 @@ MM::OnPageFault(Frame *frame, void *arg)
 int
 MM::OnPageFault(vaddr_t va, u32 code, int isUserMode)
 {
-	printf("Processing page fault on 0x%08lx, code = 0x%08lx, userMode = %d",
+	printf("Processing page fault on 0x%08lx, code = 0x%08lx, userMode = %d\n",
 		va, code, isUserMode);//temp
 	//notimpl
 	return -1;

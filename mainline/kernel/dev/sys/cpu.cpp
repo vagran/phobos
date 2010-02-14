@@ -32,6 +32,7 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	intrNesting = 0;
 	intrServiced = 0;
 	tss = 0;
+	memset(&pcpu, 0, sizeof(pcpu));
 	LIST_ADD(list, this, allCpus);
 
 	if (numCpus) { /* for APs */
@@ -284,6 +285,8 @@ APStartup(vaddr_t entryAddr)
 	/* open gate for a next CPU */
 	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + entryAddr);
 	AtomicOp::And(lock, 0);
+	/* involve the CPU to the processes management */
+	pm->AttachCPU();
 
 	if (CPU::GetCpuCount() == 4) {
 		//RunDebugger("4 cpus started");//temp

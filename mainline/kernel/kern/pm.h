@@ -16,31 +16,49 @@ phbSource("$Id$");
 class PM {
 public:
 	enum {
-		MAX_PROCESSES = 65536,
+		MAX_PROCESSES =		65536,
+		NUM_PRIORITIES =	128,
+		DEF_PRIORITY =		NUM_PRIORITIES / 2,
+		KERNEL_PRIORITY =	DEF_PRIORITY,
+		IDLE_PRIORITY =		NUM_PRIORITIES - 1,
+		MAX_SLICE =			100, /* maximal time slice for a thread in ms */
+		MIN_SLICE =			10, /* minimal time slice for a thread in ms */
 	};
 	typedef u16 pid_t;
+	typedef u32 waitid_t;
 
 public:
 	class Process;
+	class Runqueue;
 
 	class Thread {
 	public:
 		enum {
 			DEF_STACK_SIZE =		16 * 1024 * 1024, /* Default stack size */
+			DEF_KERNEL_STACK_SIZE =	8 * 1024 * 1024, /* Default stack size for kernel threads */
 		};
+
+		enum State {
+			S_NONE,
+			S_RUNNING,
+			S_SLEEP,
+		};
+
 		typedef int (*ThreadEntry)(void *arg);
 
 		typedef struct {
-			u32 eax, ebx, ecx, edx,
-				esi, edi,
-				esp, ebp, eip;
-			u16 cs, ss, ds, es;
+			u32 esp, ebp, eip;
 			/* XXX FPU state */
 		} Context;
 	private:
 		friend class Process;
+		friend class Runqueue;
+		friend class PM;
 
 		ListEntry list; /* list of threads in process */
+		ListEntry rqList; /* entry in run-queue */
+		ListEntry sleepList;
+		u32 rqFlags;
 		Process *proc;
 		u32 stackSize;
 		vaddr_t stackAddr;
@@ -48,13 +66,28 @@ public:
 		MM::Map::Entry *stackEntry;
 		CPU *cpu;
 		Context ctx;
+		u32 priority;
+		u32 sliceTicks; /* ticks of time slice left */
+		void *waitEntry; /* zero if not waiting */
+		const char *waitString;
+		void *rqQueue; /* active or expired queue */
+		State state;
 
 	public:
 		Thread(Process *proc);
 		~Thread();
 
-		int Initialize(ThreadEntry entry, void *arg = 0, u32 stackSize = DEF_STACK_SIZE);
+		int Initialize(ThreadEntry entry, void *arg = 0,
+			u32 stackSize = DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
 		int Exit(u32 exitCode);
+		int SaveContext(Context *ctx); /* return 0 for caller, 1 for restored thread */
+		void RestoreContext(Context *ctx); /* jump to SaveContext */
+		void SwitchTo(); /* thread must be in same CPU runqueue with the current thread */
+		static Thread *GetCurrent();
+		int Run(CPU *cpu = 0);
+		int Sleep(void *waitEntry, const char *waitString);
+		int Unsleep();
+		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
 	};
 
 	class Process {
@@ -67,32 +100,86 @@ public:
 		u32 numThreads;
 		SpinLock thrdListLock;
 		MM::Map *map, *userMap, *gateMap;
+		u32 priority;
 	public:
 		Process();
 		~Process();
 
-		int Initialize();
+		int Initialize(u32 priority, int isKernelProc = 0);
 
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
-			u32 stackSize = Thread::DEF_STACK_SIZE);
+			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
 	};
 
+	class Runqueue {
+	public:
+		enum ThreadFlags {
+			TF_EXPIRED =		0x1,
+		};
+	private:
+
+		inline u32 GetSliceTicks(Thread *thrd);
+	public:
+		ListEntry list;
+		SpinLock qLock;
+		typedef struct {
+			ListHead queue[NUM_PRIORITIES]; /* runnable threads */
+		} Queue;
+		Queue queues[2];
+		Queue *qActive, *qExpired;
+		u8 activeMask[NUM_PRIORITIES / NBBY], queuedMask[NUM_PRIORITIES / NBBY];
+		CPU *cpu;
+		Thread *curThread;
+		u32 numQueued, numActive;
+
+		Runqueue();
+		int AddThread(Thread *thrd);
+		int RemoveThread(Thread *thrd);
+		Thread *SelectThread(); /* select next thread to run */
+		inline Thread *GetCurrentThread() { return curThread; }
+	};
 
 private:
+	typedef struct {
+		Tree<waitid_t>::TreeEntry tree;
+		ListHead threads;
+		u32 numThreads;
+	} SleepEntry;
+
 	ListHead processes;
+	SpinLock rqLock;
+	ListHead runQueues;
 	u32 numProcesses;
 	Tree<pid_t>::TreeRoot pids;
 	SpinLock procListLock;
 	u8 pidMap[MAX_PROCESSES / NBBY];
 	int pidFirstSet, pidLastUsed;
 	SpinLock pidMapLock;
+	SpinLock tqLock;
+	Tree<waitid_t>::TreeRoot tqSleep; /* sleeping threads keyed by waiting channel ID */
+	Process *kernelProc;
+	Thread *idleThread, *kernInitThread;
 
 	pid_t AllocatePID();
 	int ReleasePID(pid_t pid);
+	static int IdleThread(void *arg);
+	void IdleThread() __noreturn;
+	Process *IntCreateProcess(Thread::ThreadEntry entry, void *arg = 0,
+		int priority = DEF_PRIORITY, int isKernelProc = 0);
+	SleepEntry *GetSleepEntry(waitid_t id); /* must be called with tqLock */
+	SleepEntry *CreateSleepEntry(waitid_t id); /* must be called with tqLock */
+	void FreeSleepEntry(SleepEntry *p); /* must be called with tqLock */
 public:
-	PM();
-	Process *CreateProcess(Thread::ThreadEntry entry, void *arg = 0);
+	PM(Thread::ThreadEntry kernelProcEntry, void *arg = 0);
+	void RunKernelProc() __noreturn;
+	Process *CreateProcess(Thread::ThreadEntry entry, void *arg = 0, int priority = DEF_PRIORITY);
 	int DestroyProcess(Process *proc);
+	int AttachCPU(Thread::ThreadEntry kernelProcEntry = 0, void *arg = 0);
+	inline Process *GetKernelProc() { return kernelProc; }
+	int Sleep(waitid_t channelID, const char *sleepString);
+	int Sleep(void *channelID, const char *sleepString);
+	int Wakeup(waitid_t channelID);
+	int Wakeup(void *channelID);
 
 	/* returns index or -1 if no bits available */
 	static int AllocateBit(u8 *bits, int numBits, int *firstSet, int *lastUsed);

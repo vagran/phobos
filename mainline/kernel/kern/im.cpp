@@ -361,10 +361,7 @@ IM::CallClient(IrqClient *ic, int stiEnabled)
 	AtomicOp::Or(activeMask, mask);
 	activeLock.Unlock();
 
-	maskLock.Lock();
-	irqmask_t isMasked = *masked;
-	maskLock.Unlock();
-	if (isMasked) {
+	if (*masked) {
 		AtomicOp::And(activeMask, ~mask);
 		return IS_PENDING;
 	}

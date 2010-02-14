@@ -11,12 +11,21 @@
 #include <sys.h>
 phbSource("$Id$");
 
+static __inline u32
+bsf(u32 string)
+{
+	u32 rc;
+
+	__asm__ __volatile__ ("bsfl %0, %1" : "=r"(rc) : "r"(string));
+	return rc;
+}
+
 static __inline u8
 inb(u16 port)
 {
   u8 _v;
 
-  __asm__ __volatile__ ("inb %w1,%0":"=a" (_v):"Nd" (port));
+  __asm__ __volatile__ ("inb %w1,%0" : "=a" (_v):"Nd" (port));
   return _v;
 }
 
@@ -25,7 +34,7 @@ inw(u16 port)
 {
   u16 _v;
 
-  __asm__ __volatile__ ("inw %w1,%0":"=a" (_v):"Nd" (port));
+  __asm__ __volatile__ ("inw %w1,%0" : "=a" (_v):"Nd" (port));
   return _v;
 }
 
@@ -34,14 +43,14 @@ inl(u16 port)
 {
   u32 _v;
 
-  __asm__ __volatile__ ("inl %w1,%0":"=a" (_v):"Nd" (port));
+  __asm__ __volatile__ ("inl %w1,%0" : "=a" (_v):"Nd" (port));
   return _v;
 }
 
 static __inline void
 outb(u16 port, u8 value)
 {
-  __asm__ __volatile__ ("outb %b0,%w1": :"a" (value), "Nd" (port));
+  __asm__ __volatile__ ("outb %b0,%w1" : : "a" (value), "Nd" (port));
 }
 
 static __inline void
@@ -54,13 +63,13 @@ outw(u16 port, u16 value)
 static __inline void
 outl(u16 port, u32 value)
 {
-  __asm__ __volatile__ ("outl %0,%w1": :"a" (value), "Nd" (port));
+  __asm__ __volatile__ ("outl %0,%w1" : : "a" (value), "Nd" (port));
 }
 
 static __inline void
 invlpg(vaddr_t va)
 {
-	__asm__ __volatile__ ("invlpg %0"::"m"(*(u8 *)va));
+	__asm__ __volatile__ ("invlpg %0" : : "m"(*(u8 *)va));
 }
 
 static __inline u32

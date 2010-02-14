@@ -41,6 +41,7 @@ phbSource("$Id$");
 #include <frame.h>
 #include <stdlib.h>
 #include <cpu_instr.h>
+#include <bitops.h>
 
 /*
  * The condition in assert is not evaluated in non-DEBUG versions, so
