@@ -85,15 +85,23 @@ IM::IsrStatus
 ConsoleDev::OutputIntr()
 {
 	/* probably some data queued, check them and output if present */
-	outQueue.lock.Lock();
-	while (outQueue.dataSize) {
-		DevPutc(outQueue.data[outQueue.pRead]);
+	while (1) {
+		u32 x = IM::DisableIntr();
+		outQueue.lock.Lock();
+		if (!outQueue.dataSize) {
+			outQueue.lock.Unlock();
+			IM::RestoreIntr(x);
+			break;
+		}
+		u8 c = outQueue.data[outQueue.pRead];
 		if (++outQueue.pRead >= outQueue.size) {
 			outQueue.pRead = 0;
 		}
 		outQueue.dataSize--;
+		outQueue.lock.Unlock();
+		IM::RestoreIntr(x);
+		DevPutc(c);
 	}
-	outQueue.lock.Unlock();
 	return IM::IS_PROCESSED;
 }
 

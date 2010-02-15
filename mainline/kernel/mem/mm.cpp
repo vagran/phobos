@@ -29,7 +29,7 @@ PTE::PTEntry *MM::altPTmap = (PTE::PTEntry *)ALTPTMAP_ADDRESS;
 PTE::PDEntry *MM::PTD = (PTE::PDEntry *)(PTMAP_ADDRESS +
 	PTDPTDI * PAGE_SIZE);
 
-PTE::PDEntry *MM::altPTD = (PTE::PDEntry *)(ALTPTMAP_ADDRESS +
+PTE::PDEntry *MM::altPTD = (PTE::PDEntry *)(PTMAP_ADDRESS +
 	APTDPTDI * PAGE_SIZE);
 
 PTE::PDEntry *MM::PTDpde = (PTE::PDEntry *)(PTMAP_ADDRESS +
@@ -305,7 +305,10 @@ MM::VtoP(vaddr_t va)
 paddr_t
 MM::Kextract(vaddr_t va)
 {
-	return kmemMap->Extract(va);
+	if (kmemMap) {
+		return kmemMap->Extract(va);
+	}
+	return VtoP(va);
 }
 
 vaddr_t
@@ -1045,13 +1048,6 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 	assert(!rc);
 	(void)rc;
 	freeTables = 1;
-	pdpt = (PTE::PDEntry *)malloc(sizeof(PTE::PDEntry) * PD_PAGES, 0, ZONE_4GB);
-	assert(pdpt);
-	/* should be properly aligned */
-	assert(!((u32)pdpt & (sizeof(PTE::PDEntry) * PD_PAGES - 1)));
-	memset(pdpt, 0, sizeof(PTE::PDEntry) * PD_PAGES);
-	assert(Extract((vaddr_t)pdpt) <= 0xffffffffull);
-	cr3 = (u32)Extract((vaddr_t)pdpt);
 	ptd = (PTE::PDEntry *)malloc(PD_PAGES * PAGE_SIZE);
 	assert(ptd);
 	assert(!((u32)ptd & (PAGE_SIZE - 1)));
@@ -1076,6 +1072,13 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 		}
 		copyFrom->tablesLock.Unlock();
 	}
+	pdpt = (PTE::PDEntry *)malloc(sizeof(PTE::PDEntry) * PD_PAGES, 0, ZONE_4GB);
+	assert(pdpt);
+	/* should be properly aligned */
+	assert(!((u32)pdpt & (sizeof(PTE::PDEntry) * PD_PAGES - 1)));
+	memset(pdpt, 0, sizeof(PTE::PDEntry) * PD_PAGES);
+	assert(mm->Kextract((vaddr_t)pdpt) <= 0xffffffffull);
+	cr3 = (u32)mm->Kextract((vaddr_t)pdpt);
 	for (int i = 0; i < PD_PAGES; i++) {
 		paddr_t pa = mm->Kextract((vaddr_t)ptd + i * PAGE_SIZE);
 		pdpt[i].raw = pa | PTE::F_P;
@@ -1093,6 +1096,8 @@ MM::Map::Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree) :
 	freeTables = !noFree;
 	this->pdpt = pdpt;
 	this->ptd = ptd;
+	assert(mm->Kextract((vaddr_t)pdpt) <= 0xffffffffull);
+	cr3 = (u32)mm->Kextract((vaddr_t)pdpt);
 }
 
 MM::Map::~Map()
