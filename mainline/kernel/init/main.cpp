@@ -192,7 +192,7 @@ int MyProcess(void *arg)//temp
 static int
 StartupProc(void *arg)
 {
-	/* now we are in the first process */
+	/* now we are in the kernel process */
 
 	/* wake up the rest CPUs */
 	CPU::StartSMP();
@@ -216,8 +216,8 @@ static int
 SystemStartup(void *arg)
 {
 	/* processes management */
-	pm = NEWSINGLE(PM, StartupProc);
-	pm->RunKernelProc();
+	pm = NEWSINGLE(PM);
+	pm->AttachCPU(StartupProc);
 	/* NOT REACHED */
 }
 

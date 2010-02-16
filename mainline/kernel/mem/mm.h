@@ -68,11 +68,12 @@ phbSource("$Id$");
 #define NEW(className,...)			new((int)0, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
 #define NEWSINGLE(className,...)	new(1, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
 #endif /* DEBUG_MALLOC */
+#define DELETE(ptr)					delete (ptr)
 
 void *operator new(size_t size, int isSingle);
 void *operator new(size_t size, int isSingle, const char *className, const char *fileName, int line);
-
-#define DELETE(ptr)				delete (ptr)
+void operator delete(void *p);
+void operator delete[](void *p);
 
 class MM {
 public:

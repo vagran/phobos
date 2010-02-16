@@ -16,7 +16,7 @@ phbSource("$Id$");
 #define	BitIsSet(a, i)		(((const u8 *)(a))[(i) / NBBY] & (1 << ((i) % NBBY)))
 #define	BitIsClear(a,i)		(!BitIsSet(a, i))
 
-/* return -1 if not bits set */
+/* return -1 if no bits set */
 static inline int BitFirstSet(void *a, u32 numBits)
 {
 	u32 numWords = (numBits + sizeof(u32) * NBBY - 1) / (sizeof(u32) * NBBY);
@@ -34,7 +34,7 @@ static inline int BitFirstSet(void *a, u32 numBits)
 	return -1;
 }
 
-/* return -1 if not bits set */
+/* return -1 if no bits clear */
 static inline int BitFirstClear(void *a, u32 numBits)
 {
 	u32 numWords = (numBits + sizeof(u32) * NBBY - 1) / (sizeof(u32) * NBBY) ;

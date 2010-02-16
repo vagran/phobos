@@ -687,7 +687,8 @@ gethash(const char *s)
 	return hash;
 }
 
-u32 gethash(u8 *data, u32 size)
+u32
+gethash(u8 *data, u32 size)
 {
 	u32 hash = 0x5a5a5a5a;
 	while (size) {
@@ -700,7 +701,8 @@ u32 gethash(u8 *data, u32 size)
 	return hash;
 }
 
-u64 gethash64(const char *s)
+u64
+gethash64(const char *s)
 {
 	u64 hash = 0x5a5a5a5aa5a5a5a5ull;
 	while (*s) {
@@ -889,4 +891,3 @@ strtoul(const char *nptr, char **endptr, int base)
 		*((const char **)endptr) = any ? s - 1 : nptr;
 	return (acc);
 }
-

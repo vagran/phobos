@@ -57,14 +57,16 @@ __divdi3(i64 a, i64 b)
 	u64 ua, ub, uq;
 	int neg;
 
-	if (a < 0)
+	if (a < 0) {
 		ua = -(u64)a, neg = 1;
-	else
+	} else {
 		ua = a, neg = 0;
-	if (b < 0)
+	}
+	if (b < 0) {
 		ub = -(u64)b, neg ^= 1;
-	else
+	} else {
 		ub = b;
+	}
 	uq = __qdivrem(ua, ub, (u64 *)0);
 	return (neg ? -uq : uq);
 }
@@ -82,14 +84,16 @@ __moddi3(i64 a, i64 b)
 	u64 ua, ub, ur;
 	int neg;
 
-	if (a < 0)
+	if (a < 0) {
 		ua = -(u64)a, neg = 1;
-	else
+	} else {
 		ua = a, neg = 0;
-	if (b < 0)
+	}
+	if (b < 0) {
 		ub = -(u64)b;
-	else
+	} else {
 		ub = b;
+	}
 	(void)__qdivrem(ua, ub, &ur);
 	return (neg ? -ur : ur);
 }
@@ -157,8 +161,9 @@ __shl(register digit *p, register int len, register int sh)
 {
 	register int i;
 
-	for (i = 0; i < len; i++)
+	for (i = 0; i < len; i++) {
 		p[i] = LHALF(p[i] << sh) | (p[i + 1] >> (HALF_BITS - sh));
+	}
 	p[i] = LHALF(p[i] << sh);
 }
 
@@ -248,10 +253,12 @@ __qdivrem(u64 uq, u64 vq, u64 *arq)
 	 * there is a complete four-digit quotient at &qspace[1] when
 	 * we finally stop.
 	 */
-	for (m = 4 - n; u[1] == 0; u++)
+	for (m = 4 - n; u[1] == 0; u++) {
 		m--;
-	for (i = 4 - m; --i >= 0;)
+	}
+	for (i = 4 - m; --i >= 0;) {
 		q[i] = 0;
+	}
 	q += 4 - m;
 
 	/*
@@ -261,8 +268,9 @@ __qdivrem(u64 uq, u64 vq, u64 *arq)
 	 * D1: choose multiplier 1 << d to ensure v[1] >= B/2.
 	 */
 	d = 0;
-	for (t = v[1]; t < B / 2; t <<= 1)
+	for (t = v[1]; t < B / 2; t <<= 1) {
 		d++;
+	}
 	if (d > 0) {
 		__shl(&u[0], m + n, d); /* u <<= d */
 		__shl(&v[1], n - 1, d); /* v <<= d */
@@ -299,7 +307,9 @@ __qdivrem(u64 uq, u64 vq, u64 *arq)
 		while (v2 * qhat > COMBINE(rhat, uj2)) {
 qhat_too_big:
 			qhat--;
-			if ((rhat += v1) >= B) break;
+			if ((rhat += v1) >= B) {
+				break;
+			}
 		}
 		/*
 		 * D4: Multiply and subtract.
@@ -339,8 +349,9 @@ qhat_too_big:
 	 */
 	if (arq) {
 		if (d) {
-			for (i = m + n; i > m; --i)
+			for (i = m + n; i > m; --i) {
 				u[i] = (u[i] >> d) | LHALF(u[i - 1] << (HALF_BITS - d));
+			}
 			u[i] = 0;
 		}
 		tmp.ul[H] = COMBINE(uspace[1], uspace[2]);

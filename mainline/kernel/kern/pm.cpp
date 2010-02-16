@@ -11,7 +11,7 @@ phbSource("$Id$");
 
 PM *pm;
 
-PM::PM(Thread::ThreadEntry kernelProcEntry, void *arg)
+PM::PM()
 {
 	LIST_INIT(processes);
 	LIST_INIT(runQueues);
@@ -23,7 +23,6 @@ PM::PM(Thread::ThreadEntry kernelProcEntry, void *arg)
 	idleThread = 0;
 	kernInitThread = 0;
 	memset(pidMap, 0, sizeof(pidMap));
-	AttachCPU(kernelProcEntry, arg);
 }
 
 PM::pid_t
@@ -90,12 +89,11 @@ PM::Process *
 PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg,
 		int priority, int isKernelProc)
 {
-	int pidIdx = AllocatePID();
-	if (pidIdx == -1) {
+	pid_t pid = AllocatePID();
+	if (pid == INVALID_PID) {
 		klog(KLOG_WARNING, "No PIDs available for new process");
 		return 0;
 	}
-	pid_t pid = pidIdx;
 	Process *proc = NEW(Process);
 	if (!proc) {
 		ReleasePID(pid);
@@ -109,7 +107,9 @@ PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg,
 	}
 	procListLock.Lock();
 	LIST_ADD(list, proc, processes);
-	TREE_ADD(pidTree, proc, pids, pid);
+	proc->pid.isThread = 0;
+	proc->pid.proc = proc;
+	TREE_ADD(tree, &proc->pid, pids, pid);
 	numProcesses++;
 	procListLock.Unlock();
 	if (!isKernelProc) {
@@ -128,14 +128,6 @@ PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg,
 	return proc;
 }
 
-void
-PM::RunKernelProc()
-{
-	kernInitThread->SwitchTo();
-	/* NOT REACHED */
-	while (1);
-}
-
 PM::Process *
 PM::CreateProcess(Thread::ThreadEntry entry, void *arg, int priority)
 {
@@ -149,13 +141,14 @@ PM::DestroyProcess(Process *proc)
 	procListLock.Lock();
 	LIST_DELETE(list, proc, processes);
 	numProcesses--;
+	TREE_DELETE(tree, &proc->pid, pids);
 	procListLock.Unlock();
-	ReleasePID(TREE_KEY(pidTree, proc));
+	ReleasePID(TREE_KEY(tree, &proc->pid));
 	DELETE(proc);
 	return 0;
 }
 
-int
+void
 PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 {
 	CPU *cpu = CPU::GetCurrent();
@@ -176,7 +169,12 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 		Thread::DEF_KERNEL_STACK_SIZE, IDLE_PRIORITY);
 	ensure(idleThread);
 	idleThread->Run();
-	return 0;
+	if (kernInitThread) {
+		kernInitThread->SwitchTo();
+	} else {
+		idleThread->SwitchTo();
+	}
+	NotReached();
 }
 
 int
@@ -196,6 +194,7 @@ PM::Sleep(waitid_t channelID, const char *sleepString)
 	thrd->Sleep(se, sleepString);
 	tqLock.Unlock();
 	Thread *next = rq->SelectThread();
+	/* at least idle thread should be there */
 	assert(next);
 	next->SwitchTo();
 	return 0;
@@ -207,10 +206,26 @@ PM::Sleep(void *channelID, const char *sleepString)
 	return Sleep((waitid_t)channelID, sleepString);
 }
 
+/* return 0 if someone waken, 1 if nobody waits on this channel, -1 if error */
 int
 PM::Wakeup(waitid_t channelID)
 {
-	//notimpl
+	tqLock.Lock();
+	SleepEntry *se = GetSleepEntry(channelID);
+	if (!se) {
+		tqLock.Unlock();
+		return 1;
+	}
+	Thread *thrd;
+	while ((thrd = LIST_FIRST(Thread, sleepList, se->threads))) {
+		LIST_DELETE(sleepList, thrd, se->threads);
+		assert(se->numThreads);
+		se->numThreads--;
+		thrd->Unsleep();
+		thrd->Run(); /* XXX CPU should be selected */
+	}
+	FreeSleepEntry(se);
+	tqLock.Unlock();
 	return 0;
 }
 
@@ -417,10 +432,21 @@ PM::Process::~Process()
 PM::Thread *
 PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize, u32 priority)
 {
-	Thread *thrd = NEW(Thread, this);
-	if (!thrd) {
+	pid_t pid = pm->AllocatePID();
+	if (pid == INVALID_PID) {
+		klog(KLOG_WARNING, "No PIDs available for new thread");
 		return 0;
 	}
+	Thread *thrd = NEW(Thread, this);
+	if (!thrd) {
+		pm->ReleasePID(pid);
+		return 0;
+	}
+	thrd->pid.isThread = 1;
+	thrd->pid.thrd = thrd;
+	pm->procListLock.Lock();
+	TREE_ADD(tree, &thrd->pid, pm->pids, pid);
+	pm->procListLock.Unlock();
 	if (thrd->Initialize(entry, arg, stackSize, priority)) {
 		DELETE(thrd);
 		return 0;
@@ -495,7 +521,8 @@ extern "C" void _OnThreadExit();
 int
 PM::Thread::Exit(u32 exitCode)
 {
-
+	printf("Thread %d exited\n", GetID());//temp
+	//notimpl
 	return 0;
 }
 
@@ -593,6 +620,7 @@ PM::Thread::Unsleep()
 void
 PM::Thread::SwitchTo()
 {
+	assert(state == S_RUNNING);
 	assert(cpu == CPU::GetCurrent());
 	Thread *prev = GetCurrent();
 	/* switch address space if it is another process */

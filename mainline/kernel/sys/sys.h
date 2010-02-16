@@ -55,6 +55,7 @@ phbSource("$Id$");
 #endif /* DEBUG */
 #define ensure(x)	ASSERT(x)
 extern void __assert(const char *file, u32 line, const char *cond);
+#define NotReached()	panic("Unreachable code reached")
 
 #include <lock.h>
 #include <dev/chr/syscons.h>

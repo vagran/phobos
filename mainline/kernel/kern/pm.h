@@ -15,6 +15,9 @@ phbSource("$Id$");
 
 class PM {
 public:
+	typedef u16 pid_t;
+	typedef u32 waitid_t;
+
 	enum {
 		MAX_PROCESSES =		65536,
 		NUM_PRIORITIES =	128,
@@ -23,13 +26,22 @@ public:
 		IDLE_PRIORITY =		NUM_PRIORITIES - 1,
 		MAX_SLICE =			100, /* maximal time slice for a thread in ms */
 		MIN_SLICE =			10, /* minimal time slice for a thread in ms */
+		INVALID_PID =		(pid_t)~0,
 	};
-	typedef u16 pid_t;
-	typedef u32 waitid_t;
 
 public:
+	class Thread;
 	class Process;
 	class Runqueue;
+
+	typedef struct {
+		Tree<pid_t>::TreeEntry tree; /* key is PID */
+		u32	isThread:1;
+		union {
+			Thread *thrd;
+			Process *proc;
+		};
+	} PIDEntry;
 
 	class Thread {
 	public:
@@ -58,6 +70,7 @@ public:
 		ListEntry list; /* list of threads in process */
 		ListEntry rqList; /* entry in run-queue */
 		ListEntry sleepList;
+		PIDEntry pid;
 		u32 rqFlags;
 		Process *proc;
 		u32 stackSize;
@@ -88,6 +101,8 @@ public:
 		int Sleep(void *waitEntry, const char *waitString);
 		int Unsleep();
 		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
+		inline Process *GetProcess() { return proc; }
+		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 	};
 
 	class Process {
@@ -95,7 +110,7 @@ public:
 		friend class PM;
 
 		ListEntry list; /* list of all processes in PM */
-		Tree<pid_t>::TreeEntry pidTree; /* key is PID */
+		PIDEntry pid;
 		ListHead threads;
 		u32 numThreads;
 		SpinLock thrdListLock;
@@ -109,6 +124,7 @@ public:
 
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
+		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 	};
 
 	class Runqueue {
@@ -170,11 +186,11 @@ private:
 	SleepEntry *CreateSleepEntry(waitid_t id); /* must be called with tqLock */
 	void FreeSleepEntry(SleepEntry *p); /* must be called with tqLock */
 public:
-	PM(Thread::ThreadEntry kernelProcEntry, void *arg = 0);
-	void RunKernelProc() __noreturn;
+	PM();
+	static inline Thread *GetCurrentThread() { return Thread::GetCurrent(); }
 	Process *CreateProcess(Thread::ThreadEntry entry, void *arg = 0, int priority = DEF_PRIORITY);
 	int DestroyProcess(Process *proc);
-	int AttachCPU(Thread::ThreadEntry kernelProcEntry = 0, void *arg = 0);
+	void AttachCPU(Thread::ThreadEntry kernelProcEntry = 0, void *arg = 0) __noreturn;
 	inline Process *GetKernelProc() { return kernelProc; }
 	int Sleep(waitid_t channelID, const char *sleepString);
 	int Sleep(void *channelID, const char *sleepString);

@@ -664,8 +664,8 @@ IM::SetPL(int priority)
 int
 IM::RestorePL(u64 saved)
 {
-	irqmask_t hwMask = (irqmask_t)saved;
-	irqmask_t swMask = (irqmask_t)(saved >> 32);
+	irqmask_t hwMask = (irqmask_t)saved & hwValid;
+	irqmask_t swMask = (irqmask_t)(saved >> 32) & swValid;
 	int stiEnabled = GetEflags() & EFLAGS_IF;
 	for (u32 idx = 0; idx < NUM_SWIRQ; idx++) {
 		irqmask_t mask = GetMask(idx);

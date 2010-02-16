@@ -281,23 +281,12 @@ CPU::InstallTrampoline()
 int
 APStartup(vaddr_t entryAddr)
 {
-	CPU *cpu = CPU::GetCurrent();
 	/* open gate for a next CPU */
 	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + entryAddr);
 	AtomicOp::And(lock, 0);
 	/* involve the CPU to the processes management */
 	pm->AttachCPU();
-
-	if (CPU::GetCpuCount() == 4) {
-		//RunDebugger("4 cpus started");//temp
-	}
-	printf("CPU started %lu\n", cpu->GetUnit());
-	sti();
-	while (1) {
-		hlt();
-		printf("CPU waken: %lu\n", cpu->GetUnit());
-	}
-	return 0;
+	/* NOT REACHED */
 }
 
 /* every AP enters here after protected mode and paging is enabled */

@@ -46,6 +46,9 @@ UNIT_SRCS_DIRS= $(dir $(UNIT_SRCS_LOCAL))
 UNIT_OBJS_ROOT= $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(UNIT_SRCS))))
 UNIT_OBJS= $(foreach obj,$(UNIT_OBJS_ROOT),$(UNIT_OBJ_DIR)/$(notdir $(obj)))
 
+.PHONY: all clean
+
+all: $(PROG)
 
 $(OBJ_DIR):
 	if [ ! -d $@ ]; then mkdir $@; fi
@@ -81,11 +84,6 @@ $(UNIT_OBJ_DIR)/%.o: %.S
 
 $(PROG): $(OBJ_DIR) $(UNIT_OBJ_DIR) $(OBJS) $(UNIT_OBJS)
 	$(NAT_LD) $(LINK_FLAGS) $(LIBS) -o $@ $(OBJS) $(UNIT_OBJS)
-
-
-.PHONY: all clean
-
-all: $(PROG)
 	
 clean:
 	rm -Rf $(OBJ_DIR) $(UNIT_OBJ_DIR)

@@ -38,8 +38,9 @@ _panic(const char *fileName, int line, const char *fmt,...)
 			sysDebugger->Break();
 		}
 	}
-	hlt();
-	while (1);
+	while (1) {
+		hlt();
+	}
 }
 
 /*************************************************************/
@@ -842,7 +843,7 @@ Debugger::Query()
 				}
 			}
 		} else {
-			/* no SMP yet, return default thread */
+			/* SMP not initialized yet, return default thread */
 			buf[pos++] = '1';
 		}
 		buf[pos] = 0;
@@ -870,7 +871,7 @@ Debugger::Query()
 			}
 			sprintf(buf, "CPU %lu (ID %lu)", t->cpu->GetUnit(), t->cpu->GetID());
 		} else {
-			/* no SMP yet */
+			/* SMP not initialized yet */
 			strcpy(buf, "Bootstrap processor");
 		}
 		char _buf[256];

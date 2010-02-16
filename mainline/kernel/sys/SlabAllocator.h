@@ -54,9 +54,10 @@ private:
 	} Slab;
 
 	typedef enum {
-		BT_INITIAL,
-		BT_DIRECT,
+		BT_INITIAL, /* allocated in initial pool */
+		BT_DIRECT, /* allocated by malloc from client */
 	} BlockType;
+
 	typedef struct {
 		union {
 			Slab *slab;

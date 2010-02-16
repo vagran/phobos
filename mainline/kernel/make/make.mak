@@ -63,6 +63,8 @@ endif
 
 .PHONY: all clean $(SUBDIRS_TARGET)
 
+all: $(OBJ_DIR) $(OBJS) $(IMAGE) $(SUBDIRS_TARGET) $(LIB_FILE)
+
 $(SUBDIRS_TARGET):
 	$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)
 
@@ -86,8 +88,6 @@ ifdef MAKELIB
 $(LIB_FILE): $(OBJS)
 	$(AR) $(AR_FLAGS) $@ $< 
 endif
-
-all: $(OBJ_DIR) $(OBJS) $(IMAGE) $(SUBDIRS_TARGET) $(LIB_FILE)
 
 clean: $(SUBDIRS_TARGET)
 	$(RMBUILD)
