@@ -485,10 +485,7 @@ IM::MaskIrq(IrqType type, u32 idx)
 	} else {
 		panic("Invalid IRQ type %d", type);
 	}
-	maskLock.Lock();
-	/* locked by maskLock so doesn't need to be atomic */
-	(*masked)++;
-	maskLock.Unlock();
+	AtomicOp::Inc(masked);
 	return 0;
 }
 
@@ -516,10 +513,8 @@ IM::UnMaskIrq(IrqType type, u32 idx, int stiEnabled)
 		panic("Invalid IRQ type %d", type);
 	}
 
-	maskLock.Lock();
-	ensure(*masked);
-	u8 isMasked = --(*masked);
-	maskLock.Unlock();
+	assert(*masked);
+	u8 isMasked = AtomicOp::Dec(masked);
 	if (!isMasked && (mask & *pendingMask) && !(mask & *activeMask)
 		&& pollNesting < MAX_POLL_NESTING) {
 		Poll(stiEnabled);

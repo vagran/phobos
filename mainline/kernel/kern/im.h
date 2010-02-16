@@ -115,7 +115,7 @@ private:
 	 */
 	u8 hwMasked[NUM_HWIRQ], swMasked[NUM_SWIRQ];
 	irqmask_t hwActive, swActive;
-	SpinLock activeLock, maskLock;
+	SpinLock activeLock;
 	u32 pollNesting; /* not true nesting since it accounts all processors */
 	u32 roundIdx; /* incremented at each round */
 	SpinLock selectLock, pollLock;

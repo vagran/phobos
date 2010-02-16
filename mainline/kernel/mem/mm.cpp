@@ -62,6 +62,7 @@ MM::MM()
 	}
 	LIST_INIT(pagesActive);
 	LIST_INIT(pagesInactive);
+	LIST_INIT(maps);
 	numPgFree = 0;
 	numPgCache = 0;
 	numPgActive = 0;
@@ -226,6 +227,7 @@ MM::InitMM()
 	initState = IS_INITIALIZING; /* malloc/mfree calls are not permitted at this level */
 	kmemMap->SetRange(0, KERN_MEM_END,
 		KMEM_MIN_BLOCK, KMEM_MAX_BLOCK);
+	LIST_ADD(list, kmemMap, maps);
 	kmemObj->SetSize(KERN_DYN_MEM_END - firstAddr);
 
 	kmemEntry = kmemMap->InsertObjectAt(kmemObj, firstAddr);
@@ -623,8 +625,31 @@ MM::CreateMap()
 		klog(KLOG_WARNING, "Cannot create map (no memory)");
 		return 0;
 	}
+	mapsLock.Lock();
+	LIST_ADD(list, m, maps);
+	mapsLock.Unlock();
 	ensure(!m->SetRange(0, ALTPTMAP_ADDRESS));
 	return m;
+}
+
+int
+MM::UpdatePDE(Map *originator, vaddr_t va, PTE::PDEntry *pde)
+{
+	if (va < KERNEL_ADDRESS) {
+		return 0;
+	}
+	u32 x = IM::DisableIntr();
+	mapsLock.Lock();
+	Map *m;
+	LIST_FOREACH(Map, list, m, maps) {
+		if (m == originator) {
+			continue;
+		}
+		m->AddPDE(va, pde);
+	}
+	mapsLock.Unlock();
+	IM::RestoreIntr(x);
+	return 0;
 }
 
 MM::Page *
@@ -1166,6 +1191,9 @@ MM::Map::CreateSubmap(vaddr_t base, vsize_t size)
 	u16 minOrder, maxOrder;
 	alloc.GetOrders(&minOrder, &maxOrder);
 	ensure(!submap->SetRange(base, size, minOrder, maxOrder));
+	smListLock.Lock();
+	LIST_ADD(smList, submap, submaps);
+	smListLock.Unlock();
 	return submap;
 }
 
@@ -1176,10 +1204,12 @@ MM::Map::FreeSubmaps(ListHead *submaps)
 		return 0;
 	}
 	Map *m;
-	while ((m = LIST_FIRST(Map, list, *submaps))) {
-		LIST_DELETE(list, m, *submaps);
+	smListLock.Lock();
+	while ((m = LIST_FIRST(Map, smList, *submaps))) {
+		LIST_DELETE(smList, m, *submaps);
 		DELETE(m);
 	}
+	smListLock.Unlock();
 	return 0;
 }
 
@@ -1413,6 +1443,20 @@ MM::Map::AddPT(vaddr_t va)
 	pg->Wire();
 	ZeroPage(pg->pa);
 	pde->raw = pg->pa | PTE::F_P | PTE::F_S | PTE::F_W;
+	mm->UpdatePDE(this, va, pde);
+	return 0;
+}
+
+int
+MM::Map::AddPDE(vaddr_t va, PTE::PDEntry *pde)
+{
+	PTE::PDEntry *locPde = GetPDE(va);
+	assert(!locPde->fields.present);
+	locPde->raw = pde->raw;
+	paddr_t ptpa = pde->raw & PG_FRAME;
+	Page *pg = mm->GetPage(ptpa);
+	assert(pg);
+	pg->Wire();
 	return 0;
 }
 
@@ -1436,12 +1480,6 @@ MM::Map::Pagein(vaddr_t va)
 	}
 	ensure(!e->MapPage(rounddown2(va, PAGE_SIZE), pg));
 	return 0;
-}
-
-void
-MM::Map::SwitchTo()
-{
-	wcr3(cr3);
 }
 
 /*************************************************************/

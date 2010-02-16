@@ -224,6 +224,7 @@ public:
 
 	class Map {
 	public:
+		ListEntry	list; /* global maps list */
 		vaddr_t		base;
 		vsize_t		size;
 		BuddyAllocator<vaddr_t> alloc; /* kernel virtual address space allocator */
@@ -234,7 +235,8 @@ public:
 		PTE::PDEntry *pdpt; /* PDPT map in kernel KVAS */
 		PTE::PDEntry *ptd; /* PTD map in kernel KVAS */
 		SpinLock	tablesLock;
-		ListEntry	list; /* submaps list */
+		SpinLock	smListLock;
+		ListEntry	smList; /* submaps list */
 		ListHead	submaps;
 		Map			*parentMap, *rootMap;
 		u32			cr3;
@@ -344,7 +346,8 @@ public:
 		void SetAlt(); /* set this map as current alternative AS */
 		int AddPT(vaddr_t va); /* must be called with locked tables */
 		int Pagein(vaddr_t va); /* make this page resident */
-		void SwitchTo();
+		inline u32 GetCR3() { return cr3; }
+		int AddPDE(vaddr_t va, PTE::PDEntry *pde);
 	};
 
 	Map *kmemMap; /* kernel process virtual address space */
@@ -435,6 +438,8 @@ private:
 	Map::Entry *kmemEntry, *devEntry;
 	MemAllocator *kmemAlloc, *devAlloc;
 	BuddyAllocator<paddr_t> *devMemAlloc;
+	SpinLock mapsLock;
+	ListHead maps;
 
 	static inline void FlushTLB() {wcr3(rcr3());}
 	static void GrowMem(vaddr_t addr);
@@ -476,6 +481,7 @@ public:
 	int MapPhys(vaddr_t va, paddr_t pa);
 	int UnmapPhys(vaddr_t va);
 	Map *CreateMap();
+	int UpdatePDE(Map *originator, vaddr_t va, PTE::PDEntry *pde);
 };
 
 extern MM *mm;

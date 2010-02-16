@@ -94,7 +94,7 @@ public:
 			u32 stackSize = DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
 		int Exit(u32 exitCode);
 		int SaveContext(Context *ctx); /* return 0 for caller, 1 for restored thread */
-		void RestoreContext(Context *ctx); /* jump to SaveContext */
+		void RestoreContext(Context *ctx, u32 asRoot = 0); /* jump to SaveContext */
 		void SwitchTo(); /* thread must be in same CPU runqueue with the current thread */
 		static Thread *GetCurrent();
 		int Run(CPU *cpu = 0);

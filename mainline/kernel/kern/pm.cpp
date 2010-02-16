@@ -20,8 +20,9 @@ PM::PM()
 	numProcesses = 0;
 	pidFirstSet = -1;
 	pidLastUsed = -1;
-	idleThread = 0;
+	kernelProc = 0;
 	kernInitThread = 0;
+	idleThread = 0;
 	memset(pidMap, 0, sizeof(pidMap));
 }
 
@@ -159,6 +160,8 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 	rqLock.Lock();
 	LIST_ADD(list, ((Runqueue *)cpu->pcpu.runQueue), runQueues);
 	rqLock.Unlock();
+	/* The first caller should create kernel process */
+	assert((!kernelProc && kernelProcEntry) || (kernelProc && !kernelProcEntry));
 	if (kernelProcEntry) {
 		/* create kernel process */
 		kernelProc = IntCreateProcess(kernelProcEntry, arg, KERNEL_PRIORITY, 1);
@@ -559,7 +562,7 @@ PM::Thread::SaveContext(Context *ctx)
 
 /* this method actually returns in SaveContext() */
 void
-PM::Thread::RestoreContext(Context *ctx)
+PM::Thread::RestoreContext(Context *ctx, u32 asRoot)
 {
 	__asm__ __volatile__ (
 		/* preload values in registers because they can be addressed by %ebp/%esp */
@@ -567,12 +570,19 @@ PM::Thread::RestoreContext(Context *ctx)
 		"movl	%1, %%ebx\n"
 		"movl	%%eax, %%ebp\n"
 		"movl	%%ebx, %%esp\n"
+		/* switch address space if required */
+		"testl	%3, %3\n"
+		"jz		1f\n"
+		"movl	%3, %%cr3\n"
+		"1:\n"
+
 		/* and jump to saved %eip */
 		"movl	%2, %%eax\n"
 		"pushl	%%eax\n"
 		"ret\n"
 		:
-		: "m"(ctx->ebp), "m"(ctx->esp), "m"(ctx->eip)
+		: "m"(ctx->ebp), "m"(ctx->esp), "m"(ctx->eip), "r"(asRoot)
+		: "eax", "ebx"
 	);
 }
 
@@ -624,8 +634,11 @@ PM::Thread::SwitchTo()
 	assert(cpu == CPU::GetCurrent());
 	Thread *prev = GetCurrent();
 	/* switch address space if it is another process */
+	u32 asRoot;
 	if (!prev || prev->proc != proc) {
-		proc->map->SwitchTo();
+		asRoot = proc->map->GetCR3();
+	} else {
+		asRoot = 0;
 	}
 	if (prev) {
 		if (prev->SaveContext(&prev->ctx)) {
@@ -635,7 +648,7 @@ PM::Thread::SwitchTo()
 	}
 	Runqueue *rq = GetRunqueue();
 	rq->curThread = this;
-	RestoreContext(&ctx);
+	RestoreContext(&ctx, asRoot);
 }
 
 int

@@ -42,7 +42,7 @@ public:
 		__asm__ __volatile__ (
 			"xorl	%%eax, %%eax\n"
 			"lock decl	%1\n"
-			"setnz	%%al"
+			"setnzb	%%al"
 			: "=&a"(rc)
 			: "m"(*value)
 			: "cc"
@@ -144,7 +144,7 @@ public:
 		__asm__ __volatile__ (
 			"xorl	%%eax, %%eax\n"
 			"lock decw	%1\n"
-			"setnz	%%al"
+			"setnzb	%%al"
 			: "=&a"(rc)
 			: "m"(*value)
 			: "cc"
@@ -228,6 +228,28 @@ public:
 			: "=&a"(rc)
 			: "r"(src), "m"(*dst)
 			: "cx", "cc"
+		);
+		return rc;
+	}
+
+	static inline void Inc(u8 *value) {
+		__asm__ __volatile__ (
+			"lock incb %0"
+			:
+			: "m"(*value)
+			: "cc"
+		);
+	}
+
+	static inline int Dec(u8 *value) { /* return zero if value is zero after decrement */
+		int rc;
+		__asm__ __volatile__ (
+			"xorl	%%eax, %%eax\n"
+			"lock decb	%1\n"
+			"setnzb	%%al"
+			: "=&a"(rc)
+			: "m"(*value)
+			: "cc"
 		);
 		return rc;
 	}
