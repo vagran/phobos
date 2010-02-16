@@ -17,6 +17,10 @@ class CPU;
 
 class CPU : public Device {
 public:
+	enum {
+		DEF_KERNEL_STACK_SIZE = 128 * 1024,
+	};
+
 	typedef int (*StartupFunc)(void *arg);
 
 	ListEntry list;
@@ -29,9 +33,6 @@ public:
 	} pcpu;
 
 private:
-	enum {
-		DEF_KERNEL_STACK_SIZE = 128 * 1024,
-	};
 
 	static u32 numCpus;
 	static SpinLock startupLock;

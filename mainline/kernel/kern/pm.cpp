@@ -665,18 +665,19 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority
 		return -1;
 	}
 	ctx.eip = (u32)entry;
-	u32 *esp = (u32 *)(stackEntry->base + stackEntry->size - sizeof(u32));
+	u32 *esp = (u32 *)(stackEntry->base + stackEntry->size);
 	/*
-	 * Prefault stack page because the thread is not yet current and
-	 * it cannot be handled by page fault processing.
+	 * Prefault required amount of kernel stack space.
 	 */
-	ensure(!proc->userMap->Pagein((vaddr_t)esp));
+	ensure(!MapKernelStack((vaddr_t)esp));
 	/*
 	 * Create initial content in stack. Since it is mapped only in
 	 * another address space we need to use temporal mappings
 	 * for the stack physical pages.
 	 */
+	esp--;
 	paddr_t pa = proc->userMap->Extract((vaddr_t)esp);
+	assert(pa);
 	u32 *_esp = (u32 *)mm->QuickMapEnter(pa);
 	*(_esp--) = (u32)this; /* argument for exit function */
 	esp--;
@@ -685,6 +686,24 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority
 	*(_esp) = (u32)_OnThreadExit; /* return address */
 	mm->QuickMapRemove((vaddr_t)_esp);
 	ctx.esp = ctx.ebp = (u32)esp;
+	return 0;
+}
+
+/* assure the kernel will have required amount of stack space */
+int
+PM::Thread::MapKernelStack(vaddr_t esp)
+{
+	assert(esp > stackEntry->base && esp <= stackEntry->base + stackEntry->size);
+	vaddr_t startVa = rounddown2(esp - CPU::DEF_KERNEL_STACK_SIZE, PAGE_SIZE);
+	ensure(startVa >= stackEntry->base);
+	vaddr_t endVa = rounddown2(esp, PAGE_SIZE);
+	for (vaddr_t va = startVa; va < endVa; va += PAGE_SIZE) {
+		if (proc->userMap->IsMapped(va)) {
+			/* assume that stack is continuously mapped from the bottom */
+			break;
+		}
+		ensure(!proc->userMap->Pagein(va));
+	}
 	return 0;
 }
 

@@ -1418,6 +1418,16 @@ MM::Map::Extract(vaddr_t va)
 }
 
 int
+MM::Map::IsMapped(vaddr_t va)
+{
+	PTE::PTEntry *pte = GetPTE(va);
+	if (!pte) {
+		return 0;
+	}
+	return pte->fields.present;
+}
+
+int
 MM::Map::Free(vaddr_t base)
 {
 	return alloc.Free(base);

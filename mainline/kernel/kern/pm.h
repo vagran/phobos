@@ -103,6 +103,7 @@ public:
 		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
 		inline Process *GetProcess() { return proc; }
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
+		int MapKernelStack(vaddr_t esp);
 	};
 
 	class Process {

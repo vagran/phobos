@@ -340,6 +340,7 @@ public:
 			vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
 		PTE::PDEntry *GetPDE(vaddr_t va);
 		PTE::PTEntry *GetPTE(vaddr_t va);
+		int IsMapped(vaddr_t va);
 		paddr_t Extract(vaddr_t va);
 		int IsCurrent();
 		int IsAlt();
