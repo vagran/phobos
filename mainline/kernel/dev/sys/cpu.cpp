@@ -285,10 +285,8 @@ APStartup(vaddr_t entryAddr)
 	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + entryAddr);
 	AtomicOp::And(lock, 0);
 	/* involve the CPU to the processes management */
-	//pm->AttachCPU();
-	while(1) hlt();//temp
-	return 0;
-	/* NOT REACHED */
+	pm->AttachCPU();
+	NotReached();
 }
 
 /* every AP enters here after protected mode and paging is enabled */

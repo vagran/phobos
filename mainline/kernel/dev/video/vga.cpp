@@ -285,7 +285,6 @@ VgaTerminal::Putc(u8 c)
 		fb[curPos] = c | ((u16)curAttr << 8);
 		curPos++;
 	}
-	u32 prevTop = curTop;
 	if (curPos >= maxIdx) {
 		curPos -= maxIdx;
 		for (u32 i = 0; i < screenSize; i++) {
@@ -294,6 +293,7 @@ VgaTerminal::Putc(u8 c)
 		curPos += screenSize;
 		curTop = 0;
 	}
+	u32 prevTop = curTop;
 	if (curPos >= curTop + screenSize) {
 		curTop = roundup(curPos - screenSize + 1, cx);
 	}

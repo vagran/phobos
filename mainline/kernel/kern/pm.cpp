@@ -172,7 +172,7 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 		Thread::DEF_KERNEL_STACK_SIZE, IDLE_PRIORITY);
 	ensure(idleThread);
 	idleThread->Run();
-	if (kernInitThread) {
+	if (kernelProcEntry) {
 		kernInitThread->SwitchTo();
 	} else {
 		idleThread->SwitchTo();
