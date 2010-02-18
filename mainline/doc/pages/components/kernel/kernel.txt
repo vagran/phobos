@@ -10,3 +10,8 @@
  
  ====== Multiprocessors support ======
 PhobOS supports unlimited number of CPUs.
+
+====== Stack ======
+Unlike the most other operating systems PhobOS doesn't have private kernel stack for each process. Kernel uses the user space stack. Such approach allows passing unlimited number of arguments to the kernel system calls through the stack. This feature is also required for the concept of PhobOS [[components:kernel:syscalls|system calls interface]]. 
+
+However, x86 processors require separate stack when entering privileged ring from user mode. For this purpose each CPU has its own preallocated stack space which is used on early stage of system calls. After the call the kernel verifies that user %esp points to a valid stack location, map some amount of pages on top of this stack to assure the kernel will have enough amount of stack space and switches to it. Also these per CPU stacks used when servicing interrupts while in user mode. Since the private stacks are required for each CPU only (not for each process) so they can have large enough size to use them freely assuming they have almost unlimited size.
