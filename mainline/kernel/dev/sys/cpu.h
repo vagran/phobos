@@ -29,7 +29,7 @@ public:
 	/* any per CPU handles could be stored here */
 	struct PerCpuData {
 		void *runQueue; /* PM::Runqueue * */
-
+		void *idleThread; /* PM::Thread * */
 	} pcpu;
 
 private:

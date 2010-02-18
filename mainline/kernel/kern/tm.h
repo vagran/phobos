@@ -57,6 +57,7 @@ private:
 		TimerFunc func;
 		void *funcArg;
 		ListHead *head; /* in which list we are */
+		Timers *timers;
 	};
 
 	PIT *pit;
@@ -92,6 +93,7 @@ public:
 	u64 GetTicks();
 	inline u64 MS(u64 ms) {return ms * timerFreq / 1000 / tickDivisor;}
 	Handle SetTimer(TimerFunc func, u64 timeToRun, void *arg = 0, u64 period = 0);
+	int RemoveTimer(Handle h);
 };
 
 extern TM *tm;

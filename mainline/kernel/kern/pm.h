@@ -83,6 +83,7 @@ public:
 		u32 sliceTicks; /* ticks of time slice left */
 		void *waitEntry; /* zero if not waiting */
 		const char *waitString;
+		Handle waitTimeout;
 		void *rqQueue; /* active or expired queue */
 		State state;
 
@@ -98,7 +99,7 @@ public:
 		void SwitchTo(); /* thread must be in same CPU runqueue with the current thread */
 		static Thread *GetCurrent();
 		int Run(CPU *cpu = 0);
-		int Sleep(void *waitEntry, const char *waitString);
+		int Sleep(void *waitEntry, const char *waitString, Handle waitTimeout = 0);
 		int Unsleep();
 		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
 		inline Process *GetProcess() { return proc; }
@@ -175,7 +176,7 @@ private:
 	SpinLock tqLock;
 	Tree<waitid_t>::TreeRoot tqSleep; /* sleeping threads keyed by waiting channel ID */
 	Process *kernelProc;
-	Thread *idleThread, *kernInitThread;
+	Thread *kernInitThread;
 
 	pid_t AllocatePID();
 	int ReleasePID(pid_t pid);
@@ -186,6 +187,10 @@ private:
 	SleepEntry *GetSleepEntry(waitid_t id); /* must be called with tqLock */
 	SleepEntry *CreateSleepEntry(waitid_t id); /* must be called with tqLock */
 	void FreeSleepEntry(SleepEntry *p); /* must be called with tqLock */
+	static int SleepTimeout(Handle h, u64 ticks, void *arg);
+	void SleepTimeout(Thread *thrd);
+	int Wakeup(SleepEntry *se);
+	int Wakeup(Thread *thrd);
 public:
 	PM();
 	static inline Thread *GetCurrentThread() { return Thread::GetCurrent(); }
@@ -193,8 +198,8 @@ public:
 	int DestroyProcess(Process *proc);
 	void AttachCPU(Thread::ThreadEntry kernelProcEntry = 0, void *arg = 0) __noreturn;
 	inline Process *GetKernelProc() { return kernelProc; }
-	int Sleep(waitid_t channelID, const char *sleepString);
-	int Sleep(void *channelID, const char *sleepString);
+	int Sleep(waitid_t channelID, const char *sleepString, u64 timeout = 0);
+	int Sleep(void *channelID, const char *sleepString, u64 timeout = 0);
 	int Wakeup(waitid_t channelID);
 	int Wakeup(void *channelID);
 

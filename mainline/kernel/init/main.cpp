@@ -181,8 +181,8 @@ int MyProcess(void *arg)//temp
 {
 	printf("Process: %s\n", (char *)arg);
 	while (1) {
-		pm->Wakeup(&proc1);
-		pm->Sleep(&proc2, "proc2");
+		//pm->Wakeup(&proc1);
+		pm->Sleep(&proc2, "proc2", tm->MS(1000));
 		printf("process 1 waken\n");
 	}
 	return 0;
@@ -205,8 +205,8 @@ StartupProc(void *arg)
 	pm->CreateProcess(MyProcess, (void *)"process 1");
 
 	while (1) {
-		pm->Wakeup(&proc2);
-		pm->Sleep(&proc1, "proc1");
+		//pm->Wakeup(&proc2);
+		pm->Sleep(&proc1, "proc1", tm->MS(2000));
 		printf("init proc waken\n");
 	}
 	return 0;

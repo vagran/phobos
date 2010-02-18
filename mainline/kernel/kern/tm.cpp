@@ -136,6 +136,20 @@ TM::GetTime(Time *t)
 	return 0;
 }
 
+int
+TM::RemoveTimer(Handle h)
+{
+	Timer *t = (Timer *)h;
+	Timers *timers = t->timers;
+	u64 x = im->SetPL(IM::IP_TIMER);
+	timers->lock.Lock();
+	LIST_DELETE(list, t, *t->head);
+	timers->lock.Unlock();
+	im->RestorePL(x);
+	DELETE(t);
+	return 0;
+}
+
 Handle
 TM::SetTimer(TimerFunc func, u64 timeToRun, void *arg, u64 period)
 {
@@ -180,6 +194,7 @@ TM::AddTimer(Timers *timers, Timer *t)
 {
 	u64 x = im->SetPL(IM::IP_TIMER);
 	timers->lock.Lock();
+	t->timers = timers;
 	u64 delta = t->nextRun - timers->nextRun;
 	if (delta > 0xffffffffull) {
 		klog(KLOG_WARNING, "Too big timeout specified, reducing to maximal allowed: %llu",
