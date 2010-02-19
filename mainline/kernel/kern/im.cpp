@@ -472,8 +472,8 @@ int
 IM::MaskIrq(IrqType type, u32 idx)
 {
 	u8 *masked;
-
 	irqmask_t mask = GetMask(idx);
+	USED(mask);
 	if (type == IT_HW) {
 		assert(mask & hwValid);
 		assert(idx <= NUM_HWIRQ);

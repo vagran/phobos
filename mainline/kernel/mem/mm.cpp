@@ -1483,7 +1483,7 @@ MM::Map::Pagein(vaddr_t va)
 	}
 	ensure(e->object);
 	Page *pg;
-	vaddr_t offset;
+	vaddr_t offset = 0;
 	ensure(!e->GetOffset(va, &offset));
 	if (e->object->Pagein(offset, &pg)) {
 		return -1;

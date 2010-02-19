@@ -1,9 +1,10 @@
-# /kernel/dev/Makefile
+# /bin/init/Makefile
 # $Id$
 #
 # This file is a part of PhobOS operating system.
 # Copyright ©AST 2009. Written by Artemy Lebedev.
 
-SUBDIRS = chr sys video
+APP = init
+INSTALL_DIR = /bin
 
-include ${KERNROOT}/make/make.mak
+include $(PHOBOS_ROOT)/make/make.mak

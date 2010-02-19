@@ -4,47 +4,47 @@
 # This file is a part of PhobOS operating system.
 # Copyright ©AST 2009. Written by Artemy Lebedev.
 
-export NAT_CC= gcc
-export NAT_LD= gcc
+export NAT_CC = gcc
+export NAT_LD = gcc
 
-EXECUTABLE= utrun
+EXECUTABLE = utrun
 
-INCLUDE_DIRS= $(KERNROOT) $(KERNROOT)/sys
-INCLUDE_FLAGS= $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
+INCLUDE_DIRS = $(KERNROOT) $(KERNROOT)/sys
+INCLUDE_FLAGS = $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
-NAT_INCLUDE_DIRS= /usr/include
-NAT_INCLUDE_FLAGS= $(foreach dir,$(NAT_INCLUDE_DIRS),-I$(dir))
+NAT_INCLUDE_DIRS = /usr/include
+NAT_INCLUDE_FLAGS = $(foreach dir,$(NAT_INCLUDE_DIRS),-I$(dir))
 
-COMPILE_FLAGS= -Werror -Wall -pipe -fno-default-inline
+COMPILE_FLAGS = -Werror -Wall -pipe -fno-default-inline
 
 ifeq ($(TARGET),RELEASE)
-COMPILE_FLAGS+= -O2
+COMPILE_FLAGS += -O2
 else ifeq ($(TARGET),DEBUG)
-COMPILE_FLAGS+= -ggdb3 -DDEBUG -O0 -DENABLE_TRACING
+COMPILE_FLAGS += -ggdb3 -DDEBUG -O0 -DENABLE_TRACING
 else
 $(error Target not supported: $(TARGET))
 endif
 
 LIBS= -lstdc++
 
-COMPILE_FLAGS_CXX= -fno-rtti -fno-exceptions
-COMPILE_FLAGS_C=
-COMPILE_FLAGS_ASM= -DASSEMBLER
+COMPILE_FLAGS_CXX = -fno-rtti -fno-exceptions
+COMPILE_FLAGS_C =
+COMPILE_FLAGS_ASM = -DASSEMBLER
 
-LINK_FLAGS=
+LINK_FLAGS =
 
-OBJ_DIR= $(KERNROOT)/unit_test/obj
-PROG= $(OBJ_DIR)/$(EXECUTABLE)
-UNIT_OBJ_DIR= $(KERNROOT)/unit_test/unit_obj
+OBJ_DIR = $(KERNROOT)/unit_test/obj
+PROG = $(OBJ_DIR)/$(EXECUTABLE)
+UNIT_OBJ_DIR = $(KERNROOT)/unit_test/unit_obj
 
-SRCS= $(wildcard *.S *.c *.cpp)
-OBJS_LOCAL= $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(SRCS))))
-OBJS= $(foreach obj,$(OBJS_LOCAL),$(OBJ_DIR)/$(obj))
+SRCS = $(wildcard *.S *.c *.cpp)
+OBJS_LOCAL = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(SRCS))))
+OBJS = $(foreach obj,$(OBJS_LOCAL),$(OBJ_DIR)/$(obj))
 
-UNIT_SRCS_LOCAL= $(foreach src,$(UNIT_SRCS),../$(src))
-UNIT_SRCS_DIRS= $(dir $(UNIT_SRCS_LOCAL))
-UNIT_OBJS_ROOT= $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(UNIT_SRCS))))
-UNIT_OBJS= $(foreach obj,$(UNIT_OBJS_ROOT),$(UNIT_OBJ_DIR)/$(notdir $(obj)))
+UNIT_SRCS_LOCAL = $(foreach src,$(UNIT_SRCS),../$(src))
+UNIT_SRCS_DIRS = $(dir $(UNIT_SRCS_LOCAL))
+UNIT_OBJS_ROOT = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(UNIT_SRCS))))
+UNIT_OBJS = $(foreach obj,$(UNIT_OBJS_ROOT),$(UNIT_OBJ_DIR)/$(notdir $(obj)))
 
 .PHONY: all clean
 

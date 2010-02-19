@@ -1,33 +1,18 @@
 /*
- * /kernel/make/link.ld
+ * /make/link.app.ld
  * $Id$
  *
  * This file is a part of PhobOS operating system.
  * Copyright ©AST 2009. Written by Artemy Lebedev.
  */
-
-ENTRY(start)
-
-SECTIONS {
-	. = KERNEL_ADDRESS;
-	.boot_trampoline : AT(LOAD_ADDRESS) {
-		*/start.o(.text)
-	}
-	_eboot_tramp = ALIGN(0x1000);
-	
-	. = LOAD_ADDRESS + _eboot_tramp - KERNEL_ADDRESS;
-	.boot : AT (LOAD_ADDRESS + _eboot_tramp - KERNEL_ADDRESS) {
-		*/start.o(.data .rodata*)
-		*/init.o(.text .data .rodata*)
-		_bootbss = ABSOLUTE(.);
-		*/start.o(.bss)
-		*/init.o(.bss)
-	}
-	_eboot = ALIGN(0x1000);
-	
-	. = KERNEL_ADDRESS + _eboot - LOAD_ADDRESS;
-	.text : AT(_eboot) {
-		_btext = ABSOLUTE(.);
+ 
+ PAGE_SIZE = 4096;
+ 
+ ENTRY(start)
+ 
+ SECTIONS {
+	. = PAGE_SIZE;
+	.text . :{
 		*(.text)
 		*(.gnu.linkonce.t.*)
 	}
@@ -35,11 +20,7 @@ SECTIONS {
 	. = ALIGN(0x1000);
 	_etext = ABSOLUTE(.);
 	
-	/DISCARD/ : {
-		*/init.o(.ctors .dtors)
-	}
-	
-	.rodata : AT(_etext - _btext + _eboot) {
+	.rodata . : {
 		*(.rodata*)
 		*(.gnu.linkonce.r.*)
 		
@@ -60,24 +41,15 @@ SECTIONS {
 
 	. = ALIGN(0x1000);
 	_erodata = ABSOLUTE(.);
-	_ramdisk = _erodata;
 	
-	.ramdisk : AT(_erodata - _btext + _eboot) {
-		LONG(RAMDISK_SIZE)
-		*(.ramdisk)
-	}
-	
-	. = ALIGN(0x1000);
-	_eramdisk = ABSOLUTE(.);
-	
-	.data : AT(_eramdisk - _btext + _eboot) {
+	.data . : {
 		*(.data)
 	}
 	
 	. = ALIGN(0x1000);
 	_edata = ABSOLUTE(.);
 	
-	.bss : AT(_edata - _btext + _eboot) {
+	.bss . : {
 		*(.bss)
 	}
 	
@@ -91,13 +63,12 @@ SECTIONS {
 	. = ALIGN(0x1000);
 	_esym = ABSOLUTE(.);
 	
-	.stabstr : AT(_esym - _btext + _eboot) {
+	.stabstr . : {
 		*(.stabstr)
 	}
 	
 	. = ALIGN(0x1000);
 	_estabstr = ABSOLUTE(.);
-	_kernImageEnd = _estabstr;
 	
 	/DISCARD/ : {
 		*(.comment)
