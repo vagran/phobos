@@ -722,9 +722,9 @@ PM::Thread::SwitchTo()
 	assert(state == S_RUNNING);
 	assert(cpu == CPU::GetCurrent());
 	Thread *prev = GetCurrent();
-	/* switch address space if it is another process */
+	/* switch address space if it is another process and not kernel process */
 	u32 asRoot;
-	if (!prev || prev->proc != proc) {
+	if ((!prev || prev->proc != proc) && proc != pm->GetKernelProc()) {
 		asRoot = proc->map->GetCR3();
 	} else {
 		asRoot = 0;
