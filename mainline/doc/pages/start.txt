@@ -1,7 +1,7 @@
 ---//$Id$//
 ====== PhobOS ======
 
-PhobOS -- object-oriented operating system written in C++.
+PhobOS – object-oriented operating system completely written in C++. During its design author attempted to get the best ideas from Linux, FreeBSD and Windows design and implement them using object-oriented programming principles. Also many original ideas were used in the system concept development.
 
 ====== Components ======
 
