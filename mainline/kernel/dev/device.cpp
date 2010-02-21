@@ -16,6 +16,7 @@ Device::Device(Type type, u32 unit, u32 classID)
 	devType = type;
 	devUnit = unit;
 	devClassID = classID;
+	blockSize = 1;
 	devState = S_DOWN;
 }
 
@@ -35,6 +36,73 @@ Device::Release()
 {
 	assert(refCount);
 	return --refCount;
+}
+
+int
+Device::AcceptBuffer(IOBuf *buf, int queue)
+{
+	ensure(buf->size && buf->buf);
+	ensure(buf->blockSize == blockSize);
+	buf->flags &= IOBuf::F_COMPLETE;
+	buf->status = 0;
+	pm->ReserveSleepChannel(buf);
+
+	/* XXX queuing not implemented yet */
+	return 0;
+}
+
+int
+Device::ReleaseBuffer(IOBuf *buf)
+{
+	/* XXX queuing not implemented yet */
+	assert(buf->flags & IOBuf::F_COMPLETE);
+	pm->FreeSleepChannel(buf);
+	return 0;
+}
+
+int
+Device::CompleteBuffer(IOBuf *buf, int status)
+{
+	/* XXX queuing not implemented yet */
+	buf->flags = IOBuf::F_COMPLETE;
+	buf->status = status;
+	return 0;
+}
+
+Device::IOBuf *
+Device::AllocateBuffer()
+{
+	return IOBuf::AllocateBuffer();
+}
+
+/* Device::IOBuf class */
+
+Device::_IOBuf *
+Device::IOBuf::AllocateBuffer()
+{
+	IOBuf *buf = NEW(IOBuf);
+	memset(buf, 0, sizeof(buf));
+	return buf;
+}
+
+int
+Device::IOBuf::Free()
+{
+	DELETE(this);
+	return 0;
+}
+
+int
+Device::IOBuf::Wait(u64 timeout)
+{
+	int rc;
+	while (!(flags & F_COMPLETE)) {
+		rc = pm->Sleep(this, "IOBuf::Wait", timeout);
+		if (rc) {
+			break;
+		}
+	}
+	return rc;
 }
 
 /**************************************************************
@@ -117,18 +185,13 @@ ChrDevice::Write(u8 *buf, u32 size)
 BlkDevice::BlkDevice(Type type, u32 unit, u32 classID) :
 	Device(type, unit, classID)
 {
-
+	blockSize = DEF_BLOCK_SIZE;
+	size = 0;
 }
 
 BlkDevice::~BlkDevice()
 {
 
-}
-
-int
-BlkDevice::Strategy(IOBuf *buf)
-{
-	return 0;
 }
 
 /**************************************************************
@@ -139,9 +202,9 @@ BlkDevice::Strategy(IOBuf *buf)
 DeviceManager devMan;
 
 DeviceManager::DeviceRegistrator::DeviceRegistrator(const char *devClass, Device::Type type,
-	const char *desc, DeviceFactory factory, void *factoryArg)
+	const char *desc, DeviceFactory factory, DeviceProber prober, void *arg)
 {
-	devMan.RegisterClass(devClass, type, desc, factory, factoryArg);
+	devMan.RegisterClass(devClass, type, desc, factory, prober, arg);
 }
 
 DeviceManager::DeviceManager()
@@ -183,7 +246,7 @@ DeviceManager::CreateDevice(DevClass *p, u32 unit)
 		}
 		unitAllocated = 0;
 	}
-	Device *dev = p->factory(p->type, unit, TREE_KEY(node, p), p->factoryArg);
+	Device *dev = p->factory(p->type, unit, TREE_KEY(node, p), p->arg);
 	if (!dev) {
 		if (unitAllocated) {
 			ReleaseUnit(p, unit);
@@ -256,6 +319,28 @@ DeviceManager::GetDevice(u32 devClassID, u32 unit)
 	return dev->device;
 }
 
+int
+DeviceManager::ProbeDevices()
+{
+	DevClass *p;
+	TREE_FOREACH(DevClass, node, p, devTree) {
+		if (!p->prober) {
+			continue;
+		}
+		int unit = -1;
+		while ((unit = p->prober(unit, p->arg)) != -1) {
+			if (FindDevice(p, unit)) {
+				continue;
+			}
+			Device *d = CreateDevice(p, unit);
+			if (!d) {
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
 DeviceManager::DevClass *
 DeviceManager::FindClass(u32 id)
 {
@@ -304,7 +389,7 @@ DeviceManager::DestroyDevice(Device *dev)
 /* returns registered device class ID, zero if error */
 u32
 DeviceManager::RegisterClass(const char *devClass, Device::Type type, const char *desc,
-	DeviceFactory factory, void *factoryArg)
+	DeviceFactory factory, DeviceProber prober, void *arg)
 {
 	/* our constructor can be called after DeviceRegistrator constructors */
 	if (isInitialized != INIT_MAGIC) {
@@ -330,7 +415,8 @@ DeviceManager::RegisterClass(const char *devClass, Device::Type type, const char
 	p->desc = desc ? strdup(desc) : 0;
 	p->type = type;
 	p->factory = factory;
-	p->factoryArg = factoryArg;
+	p->prober = prober;
+	p->arg = arg;
 	p->firstAvailUnit = 0;
 	p->numAvailUnits = ~0;
 	x = Lock();

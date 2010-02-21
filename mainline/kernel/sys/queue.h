@@ -202,10 +202,15 @@ public:
 
 #define TREE_DELETE(entry, var, root) Tree<typeof ((var)->entry.key)>::DeleteNode((root), &(var)->entry)
 
-#define TREE_FOREACH(type, entry, var, root) for ( \
-	(var) = TREE_DATA(type, entry, Tree<typeof ((var)->entry.key)>::GetNextNode(root, 0)); \
-	(var); \
-	(var) = TREE_DATA(type, entry, Tree<typeof ((var)->entry.key)>::GetNextNode(root, &(var)->entry)))
+#define TREE_FIRST(type, entry, root) TREE_DATA(type, entry, \
+	Tree<typeof (((type *)1)->entry.key)>::GetNextNode(root, 0))
 
+#define TREE_NEXT(type, entry, var, root) TREE_DATA(type, entry, \
+	Tree<typeof ((var)->entry.key)>::GetNextNode(root, &(var)->entry))
+
+#define TREE_FOREACH(type, entry, var, root) for ( \
+	(var) = TREE_FIRST(type, entry, root); \
+	(var); \
+	(var) = TREE_NEXT(type, entry, var, root))
 
 #endif /* QUEUE_H_ */

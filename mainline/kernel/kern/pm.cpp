@@ -11,25 +11,22 @@ phbSource("$Id$");
 
 PM *pm;
 
-PM::PM()
+PM::PM() : pidMap(MAX_PROCESSES)
 {
 	LIST_INIT(processes);
 	LIST_INIT(runQueues);
 	TREE_INIT(tqSleep);
 	TREE_INIT(pids);
 	numProcesses = 0;
-	pidFirstSet = -1;
-	pidLastUsed = -1;
 	kernelProc = 0;
 	kernInitThread = 0;
-	memset(pidMap, 0, sizeof(pidMap));
 }
 
 PM::pid_t
 PM::AllocatePID()
 {
 	pidMapLock.Lock();
-	pid_t pid = AllocateBit(pidMap, MAX_PROCESSES, &pidFirstSet, &pidLastUsed);
+	pid_t pid = pidMap.AllocateBit();
 	pidMapLock.Unlock();
 	return pid;
 }
@@ -38,7 +35,7 @@ int
 PM::ReleasePID(pid_t pid)
 {
 	pidMapLock.Lock();
-	ReleaseBit(pid, pidMap, MAX_PROCESSES, &pidFirstSet, &pidLastUsed);
+	pidMap.ReleaseBit(pid);
 	pidMapLock.Unlock();
 	return 0;
 }
@@ -79,9 +76,10 @@ PM::SleepEntry *
 PM::CreateSleepEntry(waitid_t id)
 {
 	SleepEntry *p = NEW(SleepEntry);
-	TREE_ADD(tree, p, tqSleep, id);
+	p->flags = 0;
 	LIST_INIT(p->threads);
 	p->numThreads = 0;
+	TREE_ADD(tree, p, tqSleep, id);
 	return p;
 }
 
@@ -199,6 +197,7 @@ PM::SleepTimeout(Handle h, u64 ticks, void *arg)
 void
 PM::SleepTimeout(Thread *thrd)
 {
+	u64 x = im->SetPL(IM::IP_MAX);
 	tqLock.Lock();
 	assert(thrd->waitTimeout);
 	thrd->waitTimeout = 0;
@@ -209,20 +208,29 @@ PM::SleepTimeout(Thread *thrd)
 		FreeSleepEntry(se);
 	}
 	tqLock.Unlock();
+	im->RestorePL(x);
 }
 
 int
 PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout)
 {
-	Thread *thrd = Thread::GetCurrent();
-	Runqueue *rq = thrd->GetRunqueue();
-	rq->RemoveThread(thrd);
+	u64 x = im->SetPL(IM::IP_MAX);
 	tqLock.Lock();
 	SleepEntry *se = GetSleepEntry(channelID);
 	if (!se) {
 		se = CreateSleepEntry(channelID);
+	} else {
+		if (se->flags & SleepEntry::F_WAKEN) {
+			FreeSleepEntry(se);
+			tqLock.Unlock();
+			im->RestorePL(x);
+			return 0;
+		}
 	}
 	assert(se);
+	Thread *thrd = Thread::GetCurrent();
+	Runqueue *rq = thrd->GetRunqueue();
+	rq->RemoveThread(thrd);
 	LIST_ADD(sleepList, thrd, se->threads);
 	se->numThreads++;
 	Handle hTimeout;
@@ -234,10 +242,52 @@ PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout)
 	}
 	thrd->Sleep(se, sleepString, hTimeout);
 	tqLock.Unlock();
+	im->RestorePL(x);
 	Thread *next = rq->SelectThread();
 	/* at least idle thread should be there */
 	assert(next);
 	next->SwitchTo();
+	return 0;
+}
+
+int
+PM::ReserveSleepChannel(void *channelID)
+{
+	return ReserveSleepChannel((waitid_t)channelID);
+}
+
+int
+PM::ReserveSleepChannel(waitid_t channelID)
+{
+	u64 x = im->SetPL(IM::IP_MAX);
+	tqLock.Lock();
+	SleepEntry *se = GetSleepEntry(channelID);
+	if (!se) {
+		se = CreateSleepEntry(channelID);
+		assert(se);
+	}
+	tqLock.Unlock();
+	im->RestorePL(x);
+	return 0;
+}
+
+int
+PM::FreeSleepChannel(void *channelID)
+{
+	return FreeSleepChannel((waitid_t)channelID);
+}
+
+int
+PM::FreeSleepChannel(waitid_t channelID)
+{
+	u64 x = im->SetPL(IM::IP_MAX);
+	tqLock.Lock();
+	SleepEntry *se = GetSleepEntry(channelID);
+	if (se && !se->numThreads) {
+		FreeSleepEntry(se);
+	}
+	tqLock.Unlock();
+	im->RestorePL(x);
 	return 0;
 }
 
@@ -251,8 +301,8 @@ PM::Sleep(void *channelID, const char *sleepString, u64 timeout)
 int
 PM::Wakeup(waitid_t channelID)
 {
-	/* prevent from wakening threads by timeout */
-	u64 x = im->SetPL(IM::IP_TIMER);
+	/* prevent from deadlock in interrupts */
+	u64 x = im->SetPL(IM::IP_MAX);
 	tqLock.Lock();
 	SleepEntry *se = GetSleepEntry(channelID);
 	if (!se) {
@@ -270,6 +320,11 @@ PM::Wakeup(waitid_t channelID)
 int
 PM::Wakeup(SleepEntry *se)
 {
+	if (!se->numThreads) {
+		/* it is reserved channel */
+		se->flags |= SleepEntry::F_WAKEN;
+		return 0;
+	}
 	Thread *thrd;
 	while ((thrd = LIST_FIRST(Thread, sleepList, se->threads))) {
 		Wakeup(thrd);
@@ -301,81 +356,6 @@ int
 PM::Wakeup(void *channelID)
 {
 	return Wakeup((waitid_t)channelID);
-}
-
-int
-PM::AllocateBit(u8 *bits, int numBits, int *firstSet, int *lastUsed)
-{
-	int newIdx = (*lastUsed) + 1;
-	if (newIdx >= numBits) {
-		newIdx = 0;
-	}
-	if (*firstSet == -1) {
-		*firstSet = newIdx;
-		*lastUsed = newIdx;
-		BitSet(bits, newIdx);
-		return newIdx;
-	}
-	if (newIdx != *firstSet) {
-		*lastUsed = newIdx;
-		BitSet(bits, newIdx);
-		return newIdx;
-	}
-	int nextIdx = newIdx + 1;
-	do {
-		if (nextIdx >= numBits) {
-			nextIdx = 0;
-		}
-		if (BitIsClear(bits, nextIdx)) {
-			newIdx = nextIdx;
-			*lastUsed = newIdx;
-			BitSet(bits, newIdx);
-			nextIdx++;
-			if (nextIdx >= numBits) {
-				nextIdx = 0;
-			}
-			/* advance firstSet pointer */
-			while (BitIsClear(bits, nextIdx)) {
-				nextIdx++;
-				if (nextIdx >= numBits) {
-					nextIdx = 0;
-				}
-			}
-			*firstSet = nextIdx;
-			return newIdx;
-		}
-	} while (nextIdx != newIdx);
-	/* nothing found */
-	return -1;
-}
-
-int
-PM::ReleaseBit(int bitIdx, u8 *bits, int numBits, int *firstSet, int *lastUsed)
-{
-	assert(BitIsSet(bits, bitIdx));
-	BitClear(bits, bitIdx);
-	if (bitIdx == *lastUsed) {
-		(*lastUsed)--;
-		if (*lastUsed < 0) {
-			*lastUsed = numBits - 1;
-		}
-	}
-	if (bitIdx == *firstSet) {
-		/* find next set */
-		int nextIdx = bitIdx + 1;
-		do {
-			if (nextIdx >= numBits) {
-				nextIdx = 0;
-			}
-			if (BitIsSet(bits, nextIdx)) {
-				*firstSet = nextIdx;
-				return 0;
-			}
-		} while (nextIdx != bitIdx);
-		/* no set bits found */
-		*firstSet = -1;
-	}
-	return 0;
 }
 
 /***********************************************/
@@ -724,7 +704,7 @@ PM::Thread::SwitchTo()
 	Thread *prev = GetCurrent();
 	/* switch address space if it is another process and not kernel process */
 	u32 asRoot;
-	if ((!prev || prev->proc != proc) && proc != pm->GetKernelProc()) {
+	if (!prev || prev->proc != proc) {
 		asRoot = proc->map->GetCR3();
 	} else {
 		asRoot = 0;

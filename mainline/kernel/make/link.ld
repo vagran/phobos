@@ -60,10 +60,9 @@ SECTIONS {
 
 	. = ALIGN(0x1000);
 	_erodata = ABSOLUTE(.);
-	_ramdisk = _erodata;
 	
+	_ramdisk = _erodata;
 	.ramdisk : AT(_erodata - _btext + _eboot) {
-		LONG(RAMDISK_SIZE)
 		*(.ramdisk)
 	}
 	
@@ -72,6 +71,8 @@ SECTIONS {
 	
 	.data : AT(_eramdisk - _btext + _eboot) {
 		*(.data)
+		_ramdiskSize = ABSOLUTE(.);
+		LONG(SIZEOF(.ramdisk))
 	}
 	
 	. = ALIGN(0x1000);

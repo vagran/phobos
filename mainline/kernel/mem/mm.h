@@ -470,7 +470,7 @@ public:
 	static void QuickMapRemove(vaddr_t va);
 	static void ZeroPage(paddr_t pa);
 
-	MM();
+	MM(); /* XXX destructor required */
 	Page *AllocatePage(int flags = 0, PageZone zone = ZONE_REST);
 	Page *GetPage(paddr_t pa);
 	int FreePage(Page *pg);

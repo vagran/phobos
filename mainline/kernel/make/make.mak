@@ -42,9 +42,10 @@ ifdef MAKELIB
 LIB_FILE = $(OBJ_DIR)/lib$(MAKELIB).a
 endif
 
-ifdef DO_RAMDISK
+ifeq ($(DO_RAMDISK),1)
 RAMDISK_SIZE = $(shell expr $(MFS_IMAGE_SIZE) '*' $(MFS_BLOCK_SIZE))
 LINK_FILES += $(MFS_IMAGE)
+RAMDISK_FILE = $(MFS_IMAGE)
 else
 RAMDISK_SIZE = 0
 endif
@@ -52,11 +53,6 @@ endif
 ifeq ($(MAKEIMAGE),1)
 IMAGE = $(OBJ_DIR)/kernel
 RMBUILD = rm -Rf $(COMPILE_DIR)
-$(IMAGE): $(OBJ_DIR) $(SUBDIRS_TARGET) $(LINK_SCRIPT)
-	$(LD) $(LINK_FLAGS) --defsym LOAD_ADDRESS=$(LOAD_ADDRESS) \
-		--defsym KERNEL_ADDRESS=$(KERNEL_ADDRESS) \
-		--defsym RAMDISK_SIZE=$(RAMDISK_SIZE) \
-		-T $(LINK_SCRIPT) -o $@ $(wildcard $(OBJ_DIR)/*.o) $(LINK_FILES)
 else
 SRCS = $(wildcard *.S *.c *.cpp)
 OBJS_LOCAL = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(SRCS))))
@@ -66,6 +62,18 @@ endif
 .PHONY: all clean FORCE $(SUBDIRS_TARGET)
 
 all: $(OBJ_DIR) $(OBJS) $(IMAGE) $(SUBDIRS_TARGET) $(LIB_FILE)
+
+ifeq ($(MAKEIMAGE),1)
+$(IMAGE): $(OBJ_DIR) $(SUBDIRS_TARGET) $(LINK_SCRIPT) $(RAMDISK_FILE)
+	$(LD) $(LINK_FLAGS) --defsym LOAD_ADDRESS=$(LOAD_ADDRESS) \
+		--defsym KERNEL_ADDRESS=$(KERNEL_ADDRESS) \
+		-T $(LINK_SCRIPT) -o $@ $(wildcard $(OBJ_DIR)/*.o) $(LINK_FILES)
+endif
+
+ifeq ($(DO_RAMDISK),1)
+$(RAMDISK_FILE):
+	$(MAKE) -C $(PHOBOS_ROOT)/mfs all
+endif
 
 $(SUBDIRS_TARGET):
 	$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)
@@ -88,7 +96,7 @@ $(OBJ_DIR)/%.o: %.S
 
 ifdef MAKELIB
 $(LIB_FILE): $(OBJS)
-	$(AR) $(AR_FLAGS) $@ $< 
+	$(AR) $(AR_FLAGS) $@ $^
 endif
 
 clean: $(SUBDIRS_TARGET)

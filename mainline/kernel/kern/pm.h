@@ -159,7 +159,12 @@ public:
 
 private:
 	typedef struct {
+		enum Flags {
+			F_WAKEN =		0x1,
+		};
+
 		Tree<waitid_t>::TreeEntry tree;
+		u32 flags;
 		ListHead threads;
 		u32 numThreads;
 	} SleepEntry;
@@ -170,8 +175,7 @@ private:
 	u32 numProcesses;
 	Tree<pid_t>::TreeRoot pids;
 	SpinLock procListLock;
-	u8 pidMap[MAX_PROCESSES / NBBY];
-	int pidFirstSet, pidLastUsed;
+	Bitmap pidMap;
 	SpinLock pidMapLock;
 	SpinLock tqLock;
 	Tree<waitid_t>::TreeRoot tqSleep; /* sleeping threads keyed by waiting channel ID */
@@ -200,12 +204,12 @@ public:
 	inline Process *GetKernelProc() { return kernelProc; }
 	int Sleep(waitid_t channelID, const char *sleepString, u64 timeout = 0);
 	int Sleep(void *channelID, const char *sleepString, u64 timeout = 0);
+	int ReserveSleepChannel(void *channelID);
+	int ReserveSleepChannel(waitid_t channelID);
+	int FreeSleepChannel(void *channelID); /* do not need to be called if Sleep() was called */
+	int FreeSleepChannel(waitid_t channelID); /* do not need to be called if Sleep() was called */
 	int Wakeup(waitid_t channelID);
 	int Wakeup(void *channelID);
-
-	/* returns index or -1 if no bits available */
-	static int AllocateBit(u8 *bits, int numBits, int *firstSet, int *lastUsed);
-	static int ReleaseBit(int bitIdx, u8 *bits, int numBits, int *firstSet, int *lastUsed);
 };
 
 extern PM *pm;

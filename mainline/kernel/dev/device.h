@@ -15,11 +15,39 @@ class DeviceManager;
 
 class Device {
 public:
-	typedef struct {
-		u64 addr;
-		u32 size;
+	struct _IOBuf;
+	typedef struct _IOBuf IOBuf;
+	struct _IOBuf {
+		enum Flags {
+			F_DIR =			0x1,
+			F_DIR_IN = 		0x0,
+			F_DIR_OUT =		0x1,
+			F_COMPLETE =	0x2,
+			F_QUEUED =		0x4, /* queued by device driver */
+		};
+
+		enum Status {
+			S_ABORTED =		-32767,
+			S_OUT_OF_RANGE,			/* buffer addressed inaccessible location */
+			S_CUSTOM_ERROR,			/* custom device error codes can start from this value */
+
+			S_OK =			0,
+			S_CUSTOM_STATUS,		/* custom device status codes can start from this value */
+		};
+
+		ListEntry list; /* for device queue */
+		u16 flags;
+		i16 status; /* zero if successfully completed */
+		u64 addr; /* in blocks */
+		u32 size; /* in blocks */
+		u32 blockSize;
 		u8 *buf;
-	} IOBuf;
+
+		static _IOBuf *AllocateBuffer();
+		int Free();
+		int Wait(u64 timeout = 0);
+		inline int GetDirection() { return flags & F_DIR; }
+	};
 
 	typedef enum {
 		T_CHAR,
@@ -47,7 +75,11 @@ protected:
 	u32 devClassID;
 	State devState;
 	u32 refCount;
+	u32 blockSize;
 
+	int AcceptBuffer(IOBuf *buf, int queue = 0);
+	int ReleaseBuffer(IOBuf *buf);
+	int CompleteBuffer(IOBuf *buf, int status = IOBuf::S_OK);
 public:
 	Device(Type type, u32 unit, u32 classID);
 	virtual ~Device();
@@ -59,6 +91,10 @@ public:
 
 	virtual int AddRef();
 	virtual int Release();
+
+	inline u32 GetBlockSize() { return blockSize; }
+
+	static IOBuf *AllocateBuffer();
 };
 
 class ChrDevice : public Device {
@@ -75,26 +111,30 @@ public:
 
 class BlkDevice : public Device {
 public:
-	typedef struct {
-		u64 blkIdx;
-		u32 blkCount;
-		u8 *data;
-	} BlkIOBuf;
+	enum {
+		DEF_BLOCK_SIZE =	512,
+	};
+protected:
+	u64 size; /* in blocks */
 public:
 	BlkDevice(Type type, u32 unit, u32 classID);
-	~BlkDevice();
+	virtual ~BlkDevice();
 
-	virtual int Strategy(IOBuf *buf);
+	inline u64 GetSize() { return size; }
+
+	virtual int Push(IOBuf *buf) = 0;
+	virtual int Pull(IOBuf *buf) = 0;
 };
 
 class DeviceManager {
 public:
 	typedef Device *(*DeviceFactory)(Device::Type type, u32 unit, u32 classID, void *arg);
+	typedef int (*DeviceProber)(int lastUnit, void *arg); /* return next found unit, -1 if none */
 
 	class DeviceRegistrator {
 	public:
 		DeviceRegistrator(const char *devClass, Device::Type type, const char *desc,
-			DeviceFactory factory, void *factoryArg = 0);
+			DeviceFactory factory, DeviceProber prober = 0, void *arg = 0);
 	};
 private:
 
@@ -110,7 +150,8 @@ private:
 		char *desc;
 		Device::Type type;
 		DeviceFactory factory;
-		void *factoryArg;
+		DeviceProber prober;
+		void *arg;
 		Tree<u32>::TreeRoot devTree;
 		ListHead devList;
 		u32 numDevs;
@@ -145,9 +186,10 @@ public:
 	int DestroyDevice(Device *dev);
 	Device *GetDevice(const char *devClass, u32 unit);
 	Device *GetDevice(u32 devClassID, u32 unit);
+	int ProbeDevices();
 
 	u32 RegisterClass(const char *devClass, Device::Type type, const char *desc,
-		DeviceFactory factory, void *factoryArg = 0);
+		DeviceFactory factory, DeviceProber prober = 0, void *arg = 0);
 	u32 AllocateUnit(u32 devClassID);
 };
 
@@ -161,10 +203,15 @@ extern DeviceManager devMan;
 	return NEWSINGLE(className, type, unit, classID); \
 }
 
-#define _RegDevClass(devClass, type, desc, factory, factoryArg) static DeviceManager::DeviceRegistrator \
-	__UID(DeviceRegistrator)(devClass, type, desc, factory, factoryArg)
+#define DeclareDevProber() static int _DeviceProber(int lastUnit = -1, void *arg = 0)
 
-#define RegDevClass(className, devClass, type, desc) \
-	_RegDevClass(devClass, type, desc, className::_DeviceFactory, 0)
+#define DefineDevProber(className) int className::_DeviceProber(int lastUnit, void *arg)
+
+#define RegDevClass(className, devClass, type, desc,...) static DeviceManager::DeviceRegistrator \
+	__UID(DeviceRegistrator)(devClass, type, desc, className::_DeviceFactory, 0, ## __VA_ARGS__)
+
+#define RegProbeDevClass(className, devClass, type, desc,...) static DeviceManager::DeviceRegistrator \
+	__UID(DeviceRegistrator)(devClass, type, desc, className::_DeviceFactory, \
+		className::_DeviceProber, ## __VA_ARGS__)
 
 #endif /* DEVICE_H_ */

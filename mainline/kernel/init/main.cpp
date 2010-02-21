@@ -26,6 +26,8 @@ static char copyright[]	=
 	"Written by Artemy Lebedev\n"
 	"Copyright (c)AST 2009\n";
 
+static char *vfsRoot;
+
 static int
 InitTables()
 {
@@ -37,8 +39,9 @@ InitTables()
 }
 
 typedef enum {
-	OPT_DEBUGGER,
-	OPT_GDB,
+	OPT_DEBUGGER,		/* Stop in debugger on boot */
+	OPT_GDB,			/* Turn on remote GDB mode in debugger */
+	OPT_ROOT,			/* Block device to mount on VFS root */
 } OptID;
 
 typedef struct {
@@ -50,6 +53,7 @@ typedef struct {
 static Option opts[] = {
 	{"debugger", 0, OPT_DEBUGGER},
 	{"gdb", 0, OPT_GDB},
+	{"root", 1, OPT_ROOT},
 };
 
 static int
@@ -61,6 +65,9 @@ ProcessOption(OptID opt, char *arg)
 		break;
 	case OPT_GDB:
 		sysDebugger->SetGDBMode(1);
+		break;
+	case OPT_ROOT:
+		vfsRoot = arg;
 		break;
 	}
 	return 0;
@@ -130,7 +137,7 @@ ParseArguments()
 				found = 1;
 				char *arg;
 				if (opts[j].hasArg) {
-					if (i <= argc - 1) {
+					if (i >= argc - 1) {
 						panic("Missing argument for '%s' option", o);
 					}
 					arg = argv[i + 1];
@@ -193,9 +200,13 @@ static int
 StartupProc(void *arg)
 {
 	/* now we are in the kernel process */
+	devMan.ProbeDevices();
 
 	/* wake up the rest CPUs */
 	CPU::StartSMP();
+
+	/* create VFS object */
+	vfs = NEWSINGLE(VFS);
 
 	sti();//temp
 	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));

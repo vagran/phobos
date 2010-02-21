@@ -37,6 +37,7 @@ phbSource("$Id$");
 #ifndef ASSEMBLER
 #include <types.h>
 #include <queue.h>
+#include <Bitmap.h>
 #include <specialreg.h>
 #include <frame.h>
 #include <stdlib.h>
@@ -67,6 +68,8 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #include <log.h>
 #include <kdb/debugger.h>
 #include <kern/pm.h>
+#include <fs/fs.h>
+#include <vfs/vfs.h>
 
 #ifdef KERNEL
 

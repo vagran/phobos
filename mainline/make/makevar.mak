@@ -17,7 +17,7 @@ export DD = dd
 export CP = cp
 export MOUNT = mount
 export UMOUNT = umount
-export SUDO_ASKPASS = /usr/bin/gksudo
+export SUDO_ASKPASS = /usr/bin/ssh-askpass
 export SUDO = sudo
 export MKE2FS = mke2fs
 
