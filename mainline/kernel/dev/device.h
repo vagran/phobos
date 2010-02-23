@@ -38,10 +38,10 @@ public:
 		ListEntry list; /* for device queue */
 		u16 flags;
 		i16 status; /* zero if successfully completed */
-		u64 addr; /* in blocks */
-		u32 size; /* in blocks */
-		u32 blockSize;
-		u8 *buf;
+		u64 addr;
+		u32 size;
+		void *buf;
+		Device *dev;
 
 		static _IOBuf *AllocateBuffer();
 		int Free();
@@ -120,10 +120,12 @@ public:
 	BlkDevice(Type type, u32 unit, u32 classID);
 	virtual ~BlkDevice();
 
-	inline u64 GetSize() { return size; }
+	inline u64 GetSize() { return size * blockSize; }
 
 	virtual int Push(IOBuf *buf) = 0;
 	virtual int Pull(IOBuf *buf) = 0;
+
+	int Read(u64 addr, void *buf, u32 size);
 };
 
 class DeviceManager {

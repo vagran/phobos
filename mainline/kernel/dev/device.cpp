@@ -42,9 +42,10 @@ int
 Device::AcceptBuffer(IOBuf *buf, int queue)
 {
 	ensure(buf->size && buf->buf);
-	ensure(buf->blockSize == blockSize);
+	assert(!((buf->size | buf->addr) & (blockSize - 1)));
 	buf->flags &= IOBuf::F_COMPLETE;
 	buf->status = 0;
+	buf->dev = this;
 	pm->ReserveSleepChannel(buf);
 
 	/* XXX queuing not implemented yet */
@@ -56,6 +57,7 @@ Device::ReleaseBuffer(IOBuf *buf)
 {
 	/* XXX queuing not implemented yet */
 	assert(buf->flags & IOBuf::F_COMPLETE);
+	buf->dev = 0;
 	pm->FreeSleepChannel(buf);
 	return 0;
 }
@@ -192,6 +194,29 @@ BlkDevice::BlkDevice(Type type, u32 unit, u32 classID) :
 BlkDevice::~BlkDevice()
 {
 
+}
+
+int
+BlkDevice::Read(u64 addr, void *buf, u32 size)
+{
+	assert(!((addr | size) & (blockSize - 1)));
+	IOBuf *iob = AllocateBuffer();
+	if (!iob) {
+		return -1;
+	}
+	iob->addr = addr;
+	iob->size = size;
+	iob->buf = buf;
+	iob->flags = IOBuf::F_DIR_IN;
+	if (Push(iob)) {
+		iob->Free();
+		return -1;
+	}
+	iob->Wait();
+	Pull(iob);
+	int rc = iob->status == IOBuf::S_OK ? 0 : -1;
+	iob->Free();
+	return rc;
 }
 
 /**************************************************************

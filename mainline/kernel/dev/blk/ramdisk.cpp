@@ -32,9 +32,10 @@ Ramdisk::Ramdisk(Type type, u32 unit, u32 classID) :
 {
 	assert(unit == 0 && _ramdiskSize);
 	blockSize = BLOCK_SIZE;
-	devState = S_UP;
 	size = _ramdiskSize / BLOCK_SIZE;
 	data = _ramdisk;
+
+	devState = S_UP;
 }
 
 int
@@ -43,15 +44,15 @@ Ramdisk::Push(IOBuf *buf)
 	if (AcceptBuffer(buf)) {
 		return -1;
 	}
-	if (buf->addr + buf->size >= size) {
+	if (buf->addr + buf->size >= GetSize()) {
 		CompleteBuffer(buf, IOBuf::S_OUT_OF_RANGE);
 		return 0;
 	}
-	u8 *loc = data + buf->addr * blockSize;
+	u8 *loc = data + buf->addr;
 	if (buf->GetDirection() == IOBuf::F_DIR_IN) {
-		memcpy(buf->buf, loc, buf->size * blockSize);
+		memcpy(buf->buf, loc, buf->size);
 	} else {
-		memcpy(loc, buf->buf, buf->size * blockSize);
+		memcpy(loc, buf->buf, buf->size);
 	}
 	CompleteBuffer(buf);
 	return 0;
