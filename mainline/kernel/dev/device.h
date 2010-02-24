@@ -188,6 +188,7 @@ public:
 	int DestroyDevice(Device *dev);
 	Device *GetDevice(const char *devClass, u32 unit);
 	Device *GetDevice(u32 devClassID, u32 unit);
+	Device *GetDevice(const char *devName);
 	int ProbeDevices();
 
 	u32 RegisterClass(const char *devClass, Device::Type type, const char *desc,

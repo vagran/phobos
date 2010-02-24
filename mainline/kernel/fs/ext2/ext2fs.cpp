@@ -27,12 +27,12 @@ Ext2FS::~Ext2FS()
 
 DefineFSProber(Ext2FS)
 {
-	u8 sb[sizeof(Superblock)];
+	Superblock sb;
 
-	if (dev->Read(SUPERBLOCK_OFFSET, sb, sizeof(sb))) {
+	if (dev->Read(SUPERBLOCK_OFFSET, &sb, sizeof(sb))) {
 		klog(KLOG_WARNING, "Device read error: %s%lu",
 			devMan.GetClass(dev->GetClassID()), dev->GetUnit());
 		return -1;
 	}
-	return ((Superblock *)sb)->magic == MAGIC ? 0 : -1;
+	return sb.magic == MAGIC ? 0 : -1;
 }

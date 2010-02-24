@@ -331,6 +331,23 @@ DeviceManager::GetDevice(const char *devClass, u32 unit)
 }
 
 Device *
+DeviceManager::GetDevice(const char *devName)
+{
+	/* find unit number */
+	u32 unitPos = strlen(devName) - 1;
+	if (!isdigit(devName[unitPos])) {
+		return 0;
+	}
+	while (unitPos && isdigit(devName[unitPos - 1])) {
+		unitPos--;
+	}
+	char devClass[256];
+	strncpy(devClass, devName, min(unitPos, sizeof(devClass) - 1));
+	u32 unit = strtoul(&devName[unitPos], 0, 10);
+	return GetDevice(devClass, unit);
+}
+
+Device *
 DeviceManager::GetDevice(u32 devClassID, u32 unit)
 {
 	DevClass *p = FindClass(devClassID);

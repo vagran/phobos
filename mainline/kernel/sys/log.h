@@ -18,6 +18,7 @@ public:
 		LOG_INFO,
 		LOG_WARNING,
 		LOG_ERROR,
+		LOG_MAX
 	} Level;
 private:
 	Level curLevel;

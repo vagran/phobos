@@ -22,6 +22,7 @@ int
 Log::Write(const char *funcName, int line, Level level, const char *fmt,...)
 {
 	if (level >= curLevel) {
+		assert(level < LOG_MAX);
 		va_list va;
 		va_start(va, fmt);
 		printf("[%s] %s@%d: ", levelStr[level], funcName, line);

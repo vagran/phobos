@@ -208,6 +208,22 @@ StartupProc(void *arg)
 	/* create VFS object */
 	vfs = NEWSINGLE(VFS);
 
+	/* mount root */
+	if (!vfsRoot) {
+		vfsRoot = (char *)"ramdisk0";
+		klog(KLOG_INFO, "No root device specified, using default ('%s')", vfsRoot);
+	}
+	Device *rootDev = devMan.GetDevice(vfsRoot);
+	if (!rootDev) {
+		panic("Root device not found: %s", vfsRoot);
+	}
+	if (rootDev->GetType() != Device::T_BLOCK) {
+		panic("Root device is not block device: %s", vfsRoot);
+	}
+	if (vfs->Mount((BlkDevice *)rootDev, "/")) {
+		panic("Failed to mount root device: %s", vfsRoot);
+	}
+
 	sti();//temp
 	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));
 	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));

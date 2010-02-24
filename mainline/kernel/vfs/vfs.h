@@ -15,6 +15,8 @@ class VFS {
 public:
 	typedef u64 nodeid_t;
 
+	class Mount;
+
 	class Node {
 	public:
 		enum Type {
@@ -38,12 +40,22 @@ public:
 		u32 numChilds;
 		Type type;
 		char *name;
+		Mount *mount;
+		Node *prevMount; /* the mode which was replaced if mounted on this node */
 
 	public:
 		Node(Type type, Node *parent, const char *name);
 		~Node();
 
 		inline nodeid_t GetID() { return TREE_KEY(tree, this); }
+	};
+
+	class Mount {
+	private:
+
+	public:
+		Mount();
+		~Mount();
 	};
 
 private:
@@ -55,6 +67,8 @@ private:
 	int DeallocateNode(Node *node);
 public:
 	VFS();
+
+	int Mount(BlkDevice *dev, const char *mountPoint);
 };
 
 extern VFS *vfs;

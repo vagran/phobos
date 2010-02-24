@@ -43,6 +43,14 @@ VFS::DeallocateNode(Node *node)
 	return 0;
 }
 
+int
+VFS::Mount(BlkDevice *dev, const char *mountPoint)
+{
+	assert(dev->GetType() == Device::T_BLOCK);
+	//notimpl
+	return 0;
+}
+
 /******************************************************/
 /* VFS::Node class */
 
@@ -52,6 +60,12 @@ VFS::Node::Node(Type type, Node *parent, const char *name)
 	this->type = type;
 	this->parent = parent;
 	this->name = strdup(name);
+	if (parent) {
+		mount = parent->mount;
+	} else {
+		mount = 0;
+	}
+	prevMount = 0;
 }
 
 VFS::Node::~Node()
@@ -59,4 +73,17 @@ VFS::Node::~Node()
 	if (name) {
 		MM::mfree(name);
 	}
+}
+
+/******************************************************/
+/* VFS::Mount class */
+
+VFS::Mount::Mount()
+{
+
+}
+
+VFS::Mount::~Mount()
+{
+
 }

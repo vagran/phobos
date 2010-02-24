@@ -852,32 +852,37 @@ strtoul(const char *nptr, char **endptr, int base)
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
-	} else if (c == '+')
+	} else if (c == '+') {
 		c = *s++;
+	}
 	if ((base == 0 || base == 16) &&
 	    c == '0' && (*s == 'x' || *s == 'X')) {
 		c = s[1];
 		s += 2;
 		base = 16;
 	}
-	if (base == 0)
+	if (base == 0) {
 		base = c == '0' ? 8 : 10;
+	}
 	cutoff = (unsigned long)0xffffffff / (unsigned long)base;
 	cutlim = (unsigned long)0xffffffff % (unsigned long)base;
 	for (acc = 0, any = 0;; c = *s++) {
-		if (!isascii(c))
+		if (!isascii(c)) {
 			break;
-		if (isdigit(c))
+		}
+		if (isdigit(c)) {
 			c -= '0';
-		else if (isalpha(c))
+		} else if (isalpha(c)) {
 			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
-		else
+		} else {
 			break;
-		if (c >= base)
+		}
+		if (c >= base) {
 			break;
-		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
+		}
+		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim)) {
 			any = -1;
-		else {
+		} else {
 			any = 1;
 			acc *= base;
 			acc += c;
@@ -885,9 +890,11 @@ strtoul(const char *nptr, char **endptr, int base)
 	}
 	if (any < 0) {
 		acc = 0xffffffff;
-	} else if (neg)
+	} else if (neg) {
 		acc = -acc;
-	if (endptr != 0)
+	}
+	if (endptr != 0) {
 		*((const char **)endptr) = any ? s - 1 : nptr;
+	}
 	return (acc);
 }
