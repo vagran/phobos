@@ -199,23 +199,71 @@ BlkDevice::~BlkDevice()
 int
 BlkDevice::Read(u64 addr, void *buf, u32 size)
 {
-	assert(!((addr | size) & (blockSize - 1)));
-	IOBuf *iob = AllocateBuffer();
-	if (!iob) {
+	u8 buf1[blockSize];
+
+	assert(!(addr & (blockSize - 1)));
+	IOBuf *iob1 = AllocateBuffer(), *iob2 = 0;
+	if (!iob1) {
 		return -1;
 	}
-	iob->addr = addr;
-	iob->size = size;
-	iob->buf = buf;
-	iob->flags = IOBuf::F_DIR_IN;
-	if (Push(iob)) {
-		iob->Free();
+	iob1->addr = addr;
+	iob1->flags = IOBuf::F_DIR_IN;
+	if (size < blockSize) {
+		iob1->size = blockSize;
+		iob1->buf = buf1;
+	} else {
+		iob1->size = rounddown(size, blockSize);
+		iob1->buf = buf;
+		if (iob1->size != size) {
+			iob2 = AllocateBuffer();
+			if (!iob2) {
+				iob1->Free();
+				return -1;
+			}
+			iob2->addr = addr + iob1->size;
+			iob2->size = blockSize;
+			iob2->flags = IOBuf::F_DIR_IN;
+			iob2->buf = buf1;
+		}
+	}
+	if (Push(iob1)) {
+		iob1->Free();
+		if (iob2) {
+			iob2->Free();
+		}
 		return -1;
 	}
-	iob->Wait();
-	Pull(iob);
-	int rc = iob->status == IOBuf::S_OK ? 0 : -1;
-	iob->Free();
+	if (iob2) {
+		if (Push(iob2)) {
+			iob2->Free();
+			iob1->Wait();
+			Pull(iob1);
+			iob1->Free();
+			return -1;
+		}
+	}
+
+	iob1->Wait();
+	Pull(iob1);
+	if (iob2) {
+		iob2->Wait();
+		Pull(iob2);
+	}
+	int rc = iob1->status == IOBuf::S_OK ? 0 : -1;
+	if (iob2) {
+		rc |= iob2->status == IOBuf::S_OK ? 0 : -1;
+	}
+	if (!rc) {
+		if (size < blockSize) {
+			memcpy(buf, buf1, size);
+		} else if (iob2) {
+			memcpy((u8 *)buf + iob1->size, buf1, size - iob1->size);
+		}
+	}
+	iob1->Free();
+	if (iob2) {
+		iob2->Free();
+	}
 	return rc;
 }
 

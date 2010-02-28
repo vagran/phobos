@@ -23,6 +23,7 @@ DeviceFS::DeviceFS(BlkDevice *dev)
 {
 	dev->AddRef();
 	this->dev = dev;
+	status = -1;
 }
 
 DeviceFS::~DeviceFS()

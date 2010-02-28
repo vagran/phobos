@@ -18,6 +18,7 @@ private:
 	enum {
 		MAGIC =					0xEF53,
 		SUPERBLOCK_OFFSET =		1024,
+		DIRECT_BLOCKS =			12,
 	};
 
 	typedef struct {
@@ -72,6 +73,75 @@ private:
 		u32 mkfs_time;
 		u32 jnl_blocks[17];
 	} Superblock;
+
+	typedef struct {
+		u32 block_id;
+		u32 inode_id;
+		u32 inode_table_id;
+		u16 free_blocks;
+		u16 free_inodes;
+		u16 used_dirs;
+		u16 pad;
+		u32 reserved[3];
+	} BlocksGroup;
+
+	typedef struct
+	{
+		u16 mode;
+		u16 uid;
+		u32 size;
+		u32 atime;
+		u32 ctime;
+		u32 mtime;
+		u32 dtime;
+		u16 gid;
+		u16 nlinks;
+		u32 blockcnt; /* Blocks of 512 bytes!! */
+		u32 flags;
+		u32 osd1;
+		union
+		{
+			struct {
+				u32 dir_blocks[DIRECT_BLOCKS];
+				u32 indir_block;
+				u32 double_indir_block;
+				u32 triple_indir_block;
+			} blocks;
+			char symlink[60];
+		};
+		u32 version;
+		u32 acl;
+		u32 dir_acl;
+		u32 fragment_addr;
+		u32 osd2[3];
+	} Inode;
+
+	typedef struct {
+		u32 inode;
+		u16 direntlen;
+		u8 namelen;
+		u8 filetype;
+	} DirEntry;
+
+	struct _Node;
+	typedef struct _Node Node;
+	struct _Node {
+		ListEntry list;
+		ListHead childs;
+		u32 childNum;
+		Node *parent;
+		u32 id; /* inode number */
+		Inode inode;
+	};
+
+	Superblock sb;
+	int sbDirty:1;
+	Node *root;
+	u32 blockSize;
+	u32 numGroups;
+	BlocksGroup *blocksGroups;
+	u8 *bgDirtyMap;
+
 public:
 	DeclareFSFactory();
 	DeclareFSProber();

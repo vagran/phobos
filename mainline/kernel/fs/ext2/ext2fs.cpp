@@ -13,28 +13,51 @@ phbSource("$Id$");
 
 DefineFSFactory(Ext2FS);
 
-RegisterFS(Ext2FS, "ext2", "Second extended filesystem");
+RegisterFS(Ext2FS, "ext2", "Second extended file system");
 
 Ext2FS::Ext2FS(BlkDevice *dev) : DeviceFS(dev)
 {
-
+	if (dev->Read(SUPERBLOCK_OFFSET, &sb, sizeof(sb))) {
+		klog(KLOG_WARNING, "Cannot read superblock: Device read error: %s%lu",
+				dev->GetClass(), dev->GetUnit());
+		return;
+	}
+	sbDirty = 1;
+	blockSize = 1 << (sb.log2_block_size + 10);
+	bgDirtyMap = 0;
+	numGroups = (sb.total_inodes + sb.inodes_per_group - 1) / sb.inodes_per_group;
+	blocksGroups = (BlocksGroup *)MM::malloc(sizeof(*blocksGroups) * numGroups);
+	memset(blocksGroups, 0, sizeof(*blocksGroups) * numGroups);
+	if (dev->Read((sb.first_data_block + 1) * blockSize, blocksGroups,
+		sizeof(BlocksGroup) * numGroups)) {
+		klog(KLOG_WARNING, "Cannot read blocks groups descriptors: Device read error: %s%lu",
+				dev->GetClass(), dev->GetUnit());
+		return;
+	}
+	bgDirtyMap = (u8 *)MM::malloc((numGroups + NBBY - 1) / NBBY);
+	memset(bgDirtyMap, 0, (numGroups + NBBY - 1) / NBBY);
+	status = 0;
 }
 
 Ext2FS::~Ext2FS()
 {
-
+	if (blocksGroups) {
+		/* XXX should clean groups */
+		MM::mfree(bgDirtyMap);
+		MM::mfree(blocksGroups);
+	}
 }
 
 DefineFSProber(Ext2FS)
 {
-	u8 sb[roundup(sizeof(Superblock), dev->GetBlockSize())];
+	Superblock sb;
 
 	if (dev->Read(SUPERBLOCK_OFFSET, &sb, sizeof(sb))) {
 		klog(KLOG_WARNING, "Device read error: %s%lu",
 			dev->GetClass(), dev->GetUnit());
 		return -1;
 	}
-	return ((Superblock *)(void *)sb)->magic == MAGIC ? 0 : -1;
+	return sb.magic == MAGIC ? 0 : -1;
 }
 
 Handle

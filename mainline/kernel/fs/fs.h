@@ -42,13 +42,14 @@ private:
 	static FSEntry *GetFS(const char *name);
 protected:
 	BlkDevice *dev;
+	int status;
 
 public:
 	DeviceFS(BlkDevice *dev);
 	virtual ~DeviceFS();
 
 	static DeviceFS *Create(BlkDevice *dev, const char *name);
-
+	inline int GetStatus() { return status; }
 	/*
 	 * 'parent' is zero for entries in root directory, 'parent' and 'name'
 	 * are zero for root directory.
@@ -62,7 +63,15 @@ public:
 #define DefineFSFactory(className) DeviceFS * \
 className::_FSFactory(BlkDevice *dev, void *arg) \
 { \
-	return NEWSINGLE(className, dev); \
+	DeviceFS *fs = NEWSINGLE(className, dev); \
+	if (!fs) { \
+		return 0; \
+	} \
+	if (fs->GetStatus()) { \
+		DELETE(fs); \
+		return 0; \
+	} \
+	return fs; \
 }
 
 #define DeclareFSProber() static int _FSProber(BlkDevice *dev, void *arg)
