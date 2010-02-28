@@ -199,6 +199,7 @@ public:
 	PM();
 	static inline Thread *GetCurrentThread() { return Thread::GetCurrent(); }
 	Process *CreateProcess(Thread::ThreadEntry entry, void *arg = 0, int priority = DEF_PRIORITY);
+	Process *CreateProcess(const char *path, int priority = DEF_PRIORITY);
 	int DestroyProcess(Process *proc);
 	void AttachCPU(Thread::ThreadEntry kernelProcEntry = 0, void *arg = 0) __noreturn;
 	inline Process *GetKernelProc() { return kernelProc; }

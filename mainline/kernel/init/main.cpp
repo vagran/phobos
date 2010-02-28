@@ -28,6 +28,9 @@ static char copyright[]	=
 
 static char *vfsRoot;
 
+#define INIT_PATH	"/bin/init"
+PM::Process *initProc;
+
 static int
 InitTables()
 {
@@ -220,8 +223,14 @@ StartupProc(void *arg)
 	if (rootDev->GetType() != Device::T_BLOCK) {
 		panic("Root device is not block device: %s", vfsRoot);
 	}
-	if (vfs->Mount((BlkDevice *)rootDev, "/")) {
+	if (vfs->MountDevice((BlkDevice *)rootDev, "/")) {
 		panic("Failed to mount root device: %s", vfsRoot);
+	}
+
+	/* launch 'init' application */
+	initProc = pm->CreateProcess(INIT_PATH);
+	if (!initProc) {
+		klog(KLOG_WARNING, "Cannot launch 'init' application");
 	}
 
 	sti();//temp

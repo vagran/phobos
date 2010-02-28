@@ -13,6 +13,8 @@ phbSource("$Id$");
 
 class DeviceManager;
 
+extern DeviceManager devMan;
+
 class Device {
 public:
 	struct _IOBuf;
@@ -88,6 +90,7 @@ public:
 	inline u32 GetClassID() {return devClassID;}
 	inline u32 GetUnit() {return devUnit;}
 	inline State GetState() {return devState;}
+	inline char *GetClass();
 
 	virtual int AddRef();
 	virtual int Release();
@@ -181,7 +184,7 @@ private:
 	void inline Unlock(u32 x);
 public:
 	DeviceManager();
-	static inline u32 GetClassID(const char *classID)	{return gethash(classID);}
+	static inline u32 GetClassID(const char *classID)	{ return gethash(classID); }
 	char *GetClass(u32 devClassID);
 	Device *CreateDevice(const char *devClass, u32 unit = DEF_UNIT);
 	Device *CreateDevice(u32 devClassID, u32 unit = DEF_UNIT);
@@ -196,7 +199,7 @@ public:
 	u32 AllocateUnit(u32 devClassID);
 };
 
-extern DeviceManager devMan;
+char *Device::GetClass() { return devMan.GetClass(GetClassID()); }
 
 #define DeclareDevFactory() static Device *_DeviceFactory(Device::Type type, \
 	u32 unit, u32 classID, void *arg)

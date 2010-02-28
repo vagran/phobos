@@ -931,7 +931,6 @@ MM::Pager::CreatePager(Type type, vsize_t size, Handle handle)
 
 MM::Pager::Pager(Type type, vsize_t size, Handle handle)
 {
-	refCount = 1;
 	this->type = type;
 	assert(size);
 	this->size = size;
@@ -956,7 +955,6 @@ MM::VMObject::VMObject(vsize_t size, u32 flags)
 	copyOffset = 0;
 	LIST_INIT(shadowObj);
 	this->flags = flags;
-	refCount = 1;
 }
 
 MM::VMObject::~VMObject()
@@ -1556,7 +1554,6 @@ MM::Map::MapEntryClient::UnReserve(vaddr_t base, vaddr_t size, void *arg)
 MM::Map::MapEntryAllocator::MapEntryAllocator(Entry *e) :
 	alloc(&e->map->mapEntryClient)
 {
-	refCount = 1;
 	alloc.Initialize(e->base, e->size, MIN_BLOCK, MAX_BLOCK);
 	this->e = e;
 	assert(!e->alloc);

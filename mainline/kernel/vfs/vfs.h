@@ -13,8 +13,6 @@ phbSource("$Id$");
 
 class VFS {
 public:
-	typedef u64 nodeid_t;
-
 	class Mount;
 
 	class Node {
@@ -33,42 +31,69 @@ public:
 	private:
 		friend class VFS;
 
-		Tree<nodeid_t>::TreeEntry tree;
 		ListEntry list; /* list in parent node */
 		ListHead childs;
+		Tree<u32>::TreeRoot hashTree;
+		Tree<u32>::TreeEntry hashTreeEntry;
+		ListHead hashList;
+		ListEntry hashListEntry;
+		u32 hash;
+		int hashHead;
 		Node *parent;
 		u32 numChilds;
 		Type type;
 		char *name;
 		Mount *mount;
-		Node *prevMount; /* the mode which was replaced if mounted on this node */
+		Node *prevMount; /* the node which was replaced if mounted on this node */
+		Handle fsNode;
+		AtomicInt<u32> refCount;
 
 	public:
-		Node(Type type, Node *parent, const char *name);
+		Node(Type type, Node *parent, const char *name, int nameLen = -1);
 		~Node();
-
-		inline nodeid_t GetID() { return TREE_KEY(tree, this); }
+		void AddRef();
+		int Release();
 	};
 
 	class Mount {
 	private:
-
+		RefCount refCount;
+		DeviceFS *fs;
+		BlkDevice *dev;
 	public:
-		Mount();
+		Mount(BlkDevice *dev, const char *fsType = 0);
 		~Mount();
+		OBJ_ADDREF(refCount);
+		OBJ_RELEASE(refCount);
+		inline DeviceFS *GetFS() { return fs; }
+	};
+
+	class File {
+	private:
+		RefCount refCount;
+	public:
+		File();
+		~File();
+		OBJ_ADDREF(refCount);
+		OBJ_RELEASE(refCount);
+
 	};
 
 private:
 	Node *root;
-	Tree<nodeid_t>::TreeRoot nodes;
 	SpinLock treeLock;
 
-	Node *AllocateNode(Node *parent, nodeid_t id, Node::Type type, const char *name);
+	Node *AllocateNode(Node *parent, Node::Type type, const char *name, int nameLen = -1);
 	int DeallocateNode(Node *node);
+	Mount *CreateMount(BlkDevice *dev, const char *fsType = 0);
+	Node *LookupNode(const char *path);
+	Node *GetSubNode(Node *parent, const char *name, int nameLen = -1);
+	Node *GetNode(Node *parent, const char *name, int nameLen = -1);
 public:
 	VFS();
 
-	int Mount(BlkDevice *dev, const char *mountPoint);
+	int MountDevice(BlkDevice *dev, const char *mountPoint, const char *type = 0);
+	File *CreateFile(const char *path);
 };
 
 extern VFS *vfs;

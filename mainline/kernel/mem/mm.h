@@ -120,7 +120,7 @@ public:
 			T_DEFAULT = T_SWAP
 		};
 	protected:
-		u32			refCount;
+		RefCount	refCount;
 		Type		type;
 		u32			size;
 		Handle		handle;
@@ -161,7 +161,7 @@ public:
 		ListEntry	shadowList;
 		VMObject	*copyObj; /* object to copy changed pages from */
 		vaddr_t		copyOffset; /* offset in copy object */
-		u32			refCount;
+		RefCount	refCount;
 		SpinLock	lock;
 		Pager		*pager; /* backing storage */
 
@@ -301,7 +301,7 @@ public:
 				MIN_BLOCK =		4,
 				MAX_BLOCK =		30,
 			};
-			u32 refCount;
+			RefCount refCount;
 			Entry *e;
 			BuddyAllocator<vaddr_t> alloc;
 
@@ -387,13 +387,13 @@ private:
 
 	class KmemSlabClient : public SlabAllocator::SlabClient {
 	private:
-		Mutex mtx;
+		SpinLock lock;
 	public:
 		virtual void *malloc(u32 size) { return MM::malloc(size); }
 		virtual void mfree(void *p) { return MM::mfree(p); }
 		virtual void FreeInitialPool(void *p, u32 size) {}
-		virtual void Lock() { mtx.Lock(); }
-		virtual void Unlock() { mtx.Unlock(); }
+		virtual void Lock() { lock.Lock(); }
+		virtual void Unlock() { lock.Unlock(); }
 	};
 
 	class KmemMapClient : public BuddyAllocator<vaddr_t>::BuddyClient {

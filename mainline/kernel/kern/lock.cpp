@@ -71,9 +71,13 @@ Mutex::Mutex(int flag) : lock(flag)
 void
 Mutex::Lock()
 {
+	if (pm) {
+		pm->ReserveSleepChannel(this);
+	}
 	while (lock.TryLock()) {
-		/* switch context */
-		//notimpl
+		if (pm) {
+			pm->Sleep(this, "Mutex::Lock");
+		}
 	}
 }
 
@@ -81,6 +85,9 @@ void
 Mutex::Unlock()
 {
 	lock.Unlock();
+	if (pm) {
+		pm->Wakeup(this);
+	}
 }
 
 /*********************************************/

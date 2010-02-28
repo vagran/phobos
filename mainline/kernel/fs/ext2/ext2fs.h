@@ -20,8 +20,7 @@ private:
 		SUPERBLOCK_OFFSET =		1024,
 	};
 
-	typedef struct
-	{
+	typedef struct {
 		u32 total_inodes; /* Number of inodes in file system */
 		u32 total_blocks; /* Number of blocks in file system */
 		u32 reserved_blocks; /* Number of blocks reserved to prevent file system from filling up */
@@ -79,6 +78,9 @@ public:
 
 	Ext2FS(BlkDevice *dev);
 	virtual ~Ext2FS();
+
+	virtual Handle GetNode(Handle parent, const char *name, int nameLen = -1);
+	VFS::Node::Type GetNodeType(Handle node);
 };
 
 #endif /* EXT2FS_H_ */

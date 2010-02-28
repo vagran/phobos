@@ -342,7 +342,9 @@ DeviceManager::GetDevice(const char *devName)
 		unitPos--;
 	}
 	char devClass[256];
-	strncpy(devClass, devName, min(unitPos, sizeof(devClass) - 1));
+	int n = min(unitPos, sizeof(devClass) - 1);
+	memcpy(devClass, devName, n);
+	devClass[n] = 0;
 	u32 unit = strtoul(&devName[unitPos], 0, 10);
 	return GetDevice(devClass, unit);
 }

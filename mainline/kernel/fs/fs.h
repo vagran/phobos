@@ -13,6 +13,10 @@ phbSource("$Id$");
 
 /* Device filesystem */
 
+class DeviceFS;
+
+#include <vfs/vfs.h>
+
 class DeviceFS {
 public:
 	typedef DeviceFS *(*Factory)(BlkDevice *dev, void *arg);
@@ -34,12 +38,23 @@ private:
 	} FSEntry;
 	static ListHead fsReg;
 	static u32 numFsReg;
+
+	static FSEntry *GetFS(const char *name);
 protected:
 	BlkDevice *dev;
 
 public:
 	DeviceFS(BlkDevice *dev);
 	virtual ~DeviceFS();
+
+	static DeviceFS *Create(BlkDevice *dev, const char *name);
+
+	/*
+	 * 'parent' is zero for entries in root directory, 'parent' and 'name'
+	 * are zero for root directory.
+	 */
+	virtual Handle GetNode(Handle parent, const char *name, int nameLen = -1) = 0;
+	virtual VFS::Node::Type GetNodeType(Handle node) = 0;
 };
 
 #define DeclareFSFactory() static DeviceFS *_FSFactory(BlkDevice *dev, void *arg)

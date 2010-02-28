@@ -20,20 +20,6 @@ phbSource("$Id$");
 #define tracec(c) __asm __volatile ("movl $0x3f8, %%edx; outb %%al, %%dx;" \
 	: : "a"(c) : "edx")
 
-/* standard methods declarations for kernel objects */
-#define OBJ_ADDREF(refCount)	inline void AddRef() { \
-	AtomicOp::Inc(&(refCount)); \
-}
-
-/* return zero if object was actually freed */
-#define OBJ_RELEASE(refCount)		inline int Release() { \
-	int rc = AtomicOp::Dec(&(refCount)); \
-	if (!rc) { \
-		DELETE(this); \
-	} \
-	return rc; \
-}
-
 #ifndef ASSEMBLER
 #include <types.h>
 #include <queue.h>
@@ -60,6 +46,8 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #define USED(x)		(void)(x)
 
 #include <lock.h>
+#include <object.h>
+#include <dev/device.h>
 #include <dev/chr/syscons.h>
 #include <mem.h>
 #include <kern/im.h>

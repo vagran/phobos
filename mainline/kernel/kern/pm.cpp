@@ -141,6 +141,17 @@ PM::CreateProcess(Thread::ThreadEntry entry, void *arg, int priority)
 	return IntCreateProcess(entry, arg, priority);
 }
 
+PM::Process *
+PM::CreateProcess(const char *path, int priority)
+{
+	VFS::File *file = vfs->CreateFile(path);
+	if (!file) {
+		return 0;
+	}
+	//notimpl
+	return 0;
+}
+
 int
 PM::DestroyProcess(Process *proc)
 {

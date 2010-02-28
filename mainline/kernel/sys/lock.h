@@ -28,6 +28,36 @@ public:
 
 class AtomicOp {
 public:
+	static inline u32 Set(u32 *value, u32 newValue) { /* return previous value */
+		u32 rc;
+		__asm__ __volatile__ (
+			"lock xchgl %1, %0"
+			: "=m"(*value), "=r"(rc)
+			: "1"(newValue)
+		);
+		return rc;
+	}
+
+	static inline u16 Set(u16 *value, u16 newValue) { /* return previous value */
+		u16 rc;
+		__asm__ __volatile__ (
+			"lock xchgw %1, %0"
+			: "=m"(*value), "=r"(rc)
+			: "1"(newValue)
+		);
+		return rc;
+	}
+
+	static inline u8 Set(u8 *value, u8 newValue) { /* return previous value */
+		u8 rc;
+		__asm__ __volatile__ (
+			"lock xchgb %1, %0"
+			: "=m"(*value), "=r"(rc)
+			: "1"(newValue)
+		);
+		return rc;
+	}
+
 	static inline void Inc(u32 *value) {
 		__asm__ __volatile__ (
 			"lock incl %0"
@@ -253,6 +283,18 @@ public:
 		);
 		return rc;
 	}
+};
+
+template <typename value_t>
+class AtomicInt {
+private:
+	value_t value;
+public:
+	inline AtomicInt() { value = 0; }
+	inline value_t operator =(value_t x) { AtomicOp::Set(&value, x); return x; }
+	inline void operator ++() { AtomicOp::Inc(&value); }
+	inline int operator --() { return AtomicOp::Dec(&value); }
+	inline operator value_t() { return value; }
 };
 
 /* Mutually exclusive access between threads */
