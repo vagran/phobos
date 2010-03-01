@@ -273,7 +273,7 @@ VFS::Node::AddRef()
 int
 VFS::Node::Release()
 {
-	int rc;
+	int rc = 0;
 	for (Node *node = this; node; node = node->parent) {
 		assert(node->refCount);
 		if (node == this) {

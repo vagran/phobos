@@ -77,6 +77,8 @@ Mutex::Lock()
 	while (lock.TryLock()) {
 		if (pm) {
 			pm->Sleep(this, "Mutex::Lock");
+		} else {
+			pause();
 		}
 	}
 }

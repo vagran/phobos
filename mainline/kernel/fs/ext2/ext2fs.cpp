@@ -17,12 +17,17 @@ RegisterFS(Ext2FS, "ext2", "Second extended file system");
 
 Ext2FS::Ext2FS(BlkDevice *dev) : DeviceFS(dev)
 {
+	root = 0;
+	blocksGroups = 0;
+	bgDirtyMap = 0;
+
 	if (dev->Read(SUPERBLOCK_OFFSET, &sb, sizeof(sb))) {
 		klog(KLOG_WARNING, "Cannot read superblock: Device read error: %s%lu",
 				dev->GetClass(), dev->GetUnit());
 		return;
 	}
 	sbDirty = 1;
+
 	blockSize = 1 << (sb.log2_block_size + 10);
 	bgDirtyMap = 0;
 	numGroups = (sb.total_inodes + sb.inodes_per_group - 1) / sb.inodes_per_group;
@@ -36,11 +41,21 @@ Ext2FS::Ext2FS(BlkDevice *dev) : DeviceFS(dev)
 	}
 	bgDirtyMap = (u8 *)MM::malloc((numGroups + NBBY - 1) / NBBY);
 	memset(bgDirtyMap, 0, (numGroups + NBBY - 1) / NBBY);
+
+	/* read root directory */
+	root = CreateNode(0, ROOT_DIR_ID);
+	if (!root) {
+		klog(KLOG_WARNING, "Cannot create root directory: %s%lu",
+			dev->GetClass(), dev->GetUnit());
+	}
 	status = 0;
 }
 
 Ext2FS::~Ext2FS()
 {
+	if (root) {
+		FreeNode(root);
+	}
 	if (blocksGroups) {
 		/* XXX should clean groups */
 		MM::mfree(bgDirtyMap);
@@ -58,6 +73,49 @@ DefineFSProber(Ext2FS)
 		return -1;
 	}
 	return sb.magic == MAGIC ? 0 : -1;
+}
+
+void
+Ext2FS::FreeNode(Node *node)
+{
+	Node *childNode;
+	while ((childNode = LIST_FIRST(Node, list, node->childs))) {
+		FreeNode(childNode);
+	}
+	/* XXX should clean node */
+	if (node->parent) {
+		LIST_DELETE(list, node, node->parent->childs);
+		node->parent->childNum--;
+	}
+	DELETE(node);
+}
+
+Ext2FS::Node *
+Ext2FS::AllocateNode(Node *parent)
+{
+	Node *node = NEW(Node);
+	if (!node) {
+		return 0;
+	}
+	memset(node, 0, sizeof(*node));
+	node->parent = parent;
+	LIST_INIT(node->childs);
+	if (parent) {
+		LIST_ADD(list, node, parent->childs);
+		parent->childNum++;
+	}
+	return node;
+}
+
+Ext2FS::Node *
+Ext2FS::CreateNode(Node *parent, u32 id)
+{
+	Node *node = AllocateNode(parent);
+	if (!node) {
+		return 0;
+	}
+	/* XXX */
+	return node;
 }
 
 Handle

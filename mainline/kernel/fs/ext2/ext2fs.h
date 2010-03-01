@@ -19,6 +19,7 @@ private:
 		MAGIC =					0xEF53,
 		SUPERBLOCK_OFFSET =		1024,
 		DIRECT_BLOCKS =			12,
+		ROOT_DIR_ID =			2,
 	};
 
 	typedef struct {
@@ -142,6 +143,9 @@ private:
 	BlocksGroup *blocksGroups;
 	u8 *bgDirtyMap;
 
+	Node *AllocateNode(Node *parent);
+	Node *CreateNode(Node *parent, u32 id);
+	void FreeNode(Node *node);
 public:
 	DeclareFSFactory();
 	DeclareFSProber();
