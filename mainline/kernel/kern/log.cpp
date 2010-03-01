@@ -19,14 +19,13 @@ Log::Log()
 }
 
 int
-Log::Write(const char *funcName, int line, Level level, const char *fmt,...)
+Log::WriteV(const char *funcName, int line, Level level, const char *fmt,
+	va_list args)
 {
 	if (level >= curLevel) {
 		assert(level < LOG_MAX);
-		va_list va;
-		va_start(va, fmt);
 		printf("[%s] %s@%d: ", levelStr[level], funcName, line);
-		vprintf(fmt, va);
+		vprintf(fmt, args);
 		printf("\n");
 		lock.Lock();
 		/* update log */
@@ -34,4 +33,12 @@ Log::Write(const char *funcName, int line, Level level, const char *fmt,...)
 		lock.Unlock();
 	}
 	return 0;
+}
+
+int
+Log::Write(const char *funcName, int line, Level level, const char *fmt,...)
+{
+	va_list va;
+	va_start(va, fmt);
+	return WriteV(funcName, line, level, fmt, va);
 }

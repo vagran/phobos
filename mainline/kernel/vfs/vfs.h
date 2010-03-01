@@ -61,7 +61,7 @@ public:
 		DeviceFS *fs;
 		BlkDevice *dev;
 	public:
-		Mount(BlkDevice *dev, const char *fsType = 0);
+		Mount(BlkDevice *dev, int flags, const char *fsType = 0);
 		~Mount();
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
@@ -85,14 +85,15 @@ private:
 
 	Node *AllocateNode(Node *parent, Node::Type type, const char *name, int nameLen = -1);
 	int DeallocateNode(Node *node);
-	Mount *CreateMount(BlkDevice *dev, const char *fsType = 0);
+	Mount *CreateMount(BlkDevice *dev, int flags, const char *fsType = 0);
 	Node *LookupNode(const char *path);
 	Node *GetSubNode(Node *parent, const char *name, int nameLen = -1);
 	Node *GetNode(Node *parent, const char *name, int nameLen = -1);
 public:
 	VFS();
 
-	int MountDevice(BlkDevice *dev, const char *mountPoint, const char *type = 0);
+	int MountDevice(BlkDevice *dev, const char *mountPoint, int flags = 0,
+		const char *type = 0);
 	File *CreateFile(const char *path);
 };
 

@@ -19,7 +19,10 @@ class DeviceFS;
 
 class DeviceFS {
 public:
-	typedef DeviceFS *(*Factory)(BlkDevice *dev, void *arg);
+	enum Flags {
+		F_READONLY =		0x1,
+	};
+	typedef DeviceFS *(*Factory)(BlkDevice *dev, int flags, void *arg);
 	typedef int (*Prober)(BlkDevice *dev, void *arg); /* must return 0 if filesystem recognized */
 
 	class FSRegistrator {
@@ -43,12 +46,13 @@ private:
 protected:
 	BlkDevice *dev;
 	int status;
+	int flags;
 
 public:
-	DeviceFS(BlkDevice *dev);
+	DeviceFS(BlkDevice *dev, int flags);
 	virtual ~DeviceFS();
 
-	static DeviceFS *Create(BlkDevice *dev, const char *name);
+	static DeviceFS *Create(BlkDevice *dev, int flags, const char *name);
 	inline int GetStatus() { return status; }
 	/*
 	 * 'parent' is zero for entries in root directory, 'parent' and 'name'
@@ -58,12 +62,12 @@ public:
 	virtual VFS::Node::Type GetNodeType(Handle node) = 0;
 };
 
-#define DeclareFSFactory() static DeviceFS *_FSFactory(BlkDevice *dev, void *arg)
+#define DeclareFSFactory() static DeviceFS *_FSFactory(BlkDevice *dev, int flags, void *arg)
 
 #define DefineFSFactory(className) DeviceFS * \
-className::_FSFactory(BlkDevice *dev, void *arg) \
+className::_FSFactory(BlkDevice *dev, int flags, void *arg) \
 { \
-	DeviceFS *fs = NEWSINGLE(className, dev); \
+	DeviceFS *fs = NEWSINGLE(className, dev, flags); \
 	if (!fs) { \
 		return 0; \
 	} \

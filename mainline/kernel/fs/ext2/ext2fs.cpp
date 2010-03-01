@@ -15,18 +15,29 @@ DefineFSFactory(Ext2FS);
 
 RegisterFS(Ext2FS, "ext2", "Second extended file system");
 
-Ext2FS::Ext2FS(BlkDevice *dev) : DeviceFS(dev)
+Ext2FS::Ext2FS(BlkDevice *dev, int flags) : DeviceFS(dev, flags)
 {
 	root = 0;
 	blocksGroups = 0;
 	bgDirtyMap = 0;
+	inodeTable = 0;
 
 	if (dev->Read(SUPERBLOCK_OFFSET, &sb, sizeof(sb))) {
 		klog(KLOG_WARNING, "Cannot read superblock: Device read error: %s%lu",
 				dev->GetClass(), dev->GetUnit());
 		return;
 	}
-	sbDirty = 1;
+	if (flags & F_READONLY) {
+		sbDirty = 0;
+	} else {
+		sb.fs_state &= ~FSS_CLEAN;
+		sbDirty = 1;
+	}
+	if (sb.revision_level == OLD_REVISION) {
+		inodeSize = OLD_INODE_SIZE;
+	} else {
+		inodeSize = sb.inode_size;
+	}
 
 	blockSize = 1 << (sb.log2_block_size + 10);
 	bgDirtyMap = 0;
@@ -39,14 +50,29 @@ Ext2FS::Ext2FS(BlkDevice *dev) : DeviceFS(dev)
 				dev->GetClass(), dev->GetUnit());
 		return;
 	}
+	bitmaps = (u8 **)MM::malloc(numGroups * sizeof(u8 *));
+	memset(bitmaps, 0, numGroups * sizeof(u8 *));
+
 	bgDirtyMap = (u8 *)MM::malloc((numGroups + NBBY - 1) / NBBY);
 	memset(bgDirtyMap, 0, (numGroups + NBBY - 1) / NBBY);
+
+	inodeTableSize = (sb.total_inodes * inodeSize + blockSize - 1) / blockSize;
+	inodeTable = (Inode **)MM::malloc(inodeTableSize * sizeof (Inode *));
+	memset(inodeTable, 0, inodeTableSize * sizeof (Inode *));
+	inodeDirtyMap = (u8 *)MM::malloc((sb.total_inodes + NBBY - 1) / NBBY);
+	memset(inodeDirtyMap, 0, (sb.total_inodes + NBBY - 1) / NBBY);
 
 	/* read root directory */
 	root = CreateNode(0, ROOT_DIR_ID);
 	if (!root) {
 		klog(KLOG_WARNING, "Cannot create root directory: %s%lu",
 			dev->GetClass(), dev->GetUnit());
+		return;
+	}
+	if ((root->inode->mode & IFT_MASK) != IFT_DIRECTORY) {
+		klog(KLOG_WARNING, "Root directory inode has non-directory type: %s%lu",
+			dev->GetClass(), dev->GetUnit());
+		return;
 	}
 	status = 0;
 }
@@ -54,12 +80,35 @@ Ext2FS::Ext2FS(BlkDevice *dev) : DeviceFS(dev)
 Ext2FS::~Ext2FS()
 {
 	if (root) {
+		treeLock.Lock();
 		FreeNode(root);
+		root = 0;
+		treeLock.Unlock();
+	}
+	if (inodeTable) {
+		/* XXX should clean inodes descriptors */
+		for (u32 i = 0; i < inodeTableSize; i++) {
+			if (inodeTable[i]) {
+				MM::mfree(inodeTable[i]);
+			}
+		}
+		MM::mfree(inodeTable);
+	}
+	if (inodeDirtyMap) {
+		MM::mfree(inodeDirtyMap);
 	}
 	if (blocksGroups) {
 		/* XXX should clean groups */
 		MM::mfree(bgDirtyMap);
 		MM::mfree(blocksGroups);
+	}
+	if (bitmaps) {
+		for (u32 i = 0; i < numGroups; i++) {
+			if (bitmaps[i]) {
+				MM::mfree(bitmaps[i]);
+			}
+		}
+		MM::mfree(bitmaps);
 	}
 }
 
@@ -75,6 +124,7 @@ DefineFSProber(Ext2FS)
 	return sb.magic == MAGIC ? 0 : -1;
 }
 
+/* must be called with treeLock */
 void
 Ext2FS::FreeNode(Node *node)
 {
@@ -101,21 +151,150 @@ Ext2FS::AllocateNode(Node *parent)
 	node->parent = parent;
 	LIST_INIT(node->childs);
 	if (parent) {
+		treeLock.Lock();
 		LIST_ADD(list, node, parent->childs);
 		parent->childNum++;
+		treeLock.Unlock();
 	}
 	return node;
+}
+
+u8 *
+Ext2FS::GetBitmaps(u32 groupIdx)
+{
+	u8 **bitmap = &bitmaps[groupIdx];
+	if (*bitmap) {
+		return *bitmap;
+	}
+	*bitmap = (u8 *)MM::malloc(2 * blockSize);
+	if (!*bitmap) {
+		return 0;
+	}
+	BlocksGroup *group = &blocksGroups[groupIdx];
+	if (dev->Read(((u64)group->block_id) * blockSize, *bitmap, blockSize)) {
+		MM::mfree(*bitmap);
+		*bitmap = 0;
+		return 0;
+	}
+	if (dev->Read(((u64)group->inode_id) * blockSize,
+		(*bitmap) + blockSize, blockSize)) {
+		MM::mfree(*bitmap);
+		*bitmap = 0;
+		return 0;
+	}
+	return *bitmap;
+}
+
+u8 *
+Ext2FS::GetBlocksBitmap(u32 groupIdx)
+{
+	return GetBitmaps(groupIdx);
+}
+
+u8 *
+Ext2FS::GetInodesBitmap(u32 groupIdx)
+{
+	u8 *b = GetBitmaps(groupIdx);
+	if (!b) {
+		return 0;
+	}
+	return b + blockSize;
+}
+
+Ext2FS::BlocksGroup *
+Ext2FS::GetGroup(u32 id)
+{
+	return &blocksGroups[(id - 1) / sb.inodes_per_group];
+}
+
+Ext2FS::Inode *
+Ext2FS::GetInode(u32 id)
+{
+	BlocksGroup *group = GetGroup(id);
+	id--;
+	u32 inodesPerBlock = blockSize / inodeSize;
+	Inode **inodeBlock = &inodeTable[id / inodesPerBlock];
+	if (!*inodeBlock) {
+		*inodeBlock = (Inode *)MM::malloc(blockSize);
+		if (!*inodeBlock) {
+			return 0;
+		}
+		u32 blockIdx = (id % sb.inodes_per_group) / inodesPerBlock;
+		if (dev->Read(((u64)(group->inode_table_id + blockIdx)) * blockSize,
+			*inodeBlock, blockSize)) {
+			MM::mfree(*inodeBlock);
+			*inodeBlock = 0;
+			return 0;
+		}
+	}
+	return &(*inodeBlock)[id % inodesPerBlock];
+}
+
+int
+Ext2FS::IsInodeAllocated(u32 id)
+{
+	id--;
+	u32 groupIdx = id / sb.inodes_per_group;
+	u8 *bitmap = GetInodesBitmap(groupIdx);
+	return BitIsSet(bitmap, id % sb.inodes_per_group);
+}
+
+void
+Ext2FS::SetInodeAllocated(u32 id, int set)
+{
+	id--;
+	u32 groupIdx = id / sb.inodes_per_group;
+	u8 *bitmap = GetInodesBitmap(groupIdx);
+	if (set) {
+		BitSet(bitmap, id % sb.inodes_per_group);
+	} else {
+		BitClear(bitmap, id % sb.inodes_per_group);
+	}
 }
 
 Ext2FS::Node *
 Ext2FS::CreateNode(Node *parent, u32 id)
 {
+	if (id > sb.total_inodes) {
+		return 0;
+	}
+	int isNew = !IsInodeAllocated(id);
+	Inode *inode = GetInode(id);
+	if (!inode) {
+		return 0;
+	}
 	Node *node = AllocateNode(parent);
 	if (!node) {
 		return 0;
 	}
-	/* XXX */
+	node->id = id;
+	node->group = GetGroup(id);
+	node->inode = inode;
+	if (isNew) {
+		memset(inode, 0, sizeof(Inode));
+		SetInodeAllocated(id);
+		if (!node->group->free_inodes) {
+			node->group->free_inodes--;
+		} else {
+			SetFSError("Inconsistent free inodes counter in group");
+		}
+		if (!sb.free_inodes) {
+			sb.free_inodes--;
+		} else {
+			SetFSError("Inconsistent free inodes counter in superblock");
+		}
+	}
 	return node;
+}
+
+void
+Ext2FS::SetFSError(const char *fmt,...)
+{
+	sb.fs_state |= FSS_ERROR;
+	sbDirty = 1;
+	va_list va;
+	va_start(va, fmt);
+	klogv(KLOG_ERROR, fmt, va);
 }
 
 Handle

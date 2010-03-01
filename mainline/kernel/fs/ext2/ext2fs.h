@@ -20,6 +20,37 @@ private:
 		SUPERBLOCK_OFFSET =		1024,
 		DIRECT_BLOCKS =			12,
 		ROOT_DIR_ID =			2,
+		OLD_REVISION =			0,
+		OLD_INODE_SIZE =		128,
+	};
+
+	enum FSState {
+		FSS_CLEAN =				0x1,
+		FSS_ERROR =				0x2,
+	};
+
+	/* values in directory entry */
+	enum FileType {
+		FT_NONE,
+		FT_REGULAR,
+		FT_DIRECTORY,
+		FT_CHARDEV,
+		FT_BLOCKDEV,
+		FT_PIPE,
+		FT_SOCKET,
+		FT_LINK,
+		FT_MAX
+	};
+
+	enum InodeFileType {
+		IFT_MASK =		0xf000,
+		IFT_FIFO =		0x1000,
+		IFT_CHARDEV =	0x2000,
+		IFT_DIRECTORY =	0x4000,
+		IFT_BLOCKDEV =	0x6000,
+		IFT_REGULAR =	0x8000,
+		IFT_LINK =		0xa000,
+		IFT_SOCKET =	0xc000,
 	};
 
 	typedef struct {
@@ -132,25 +163,44 @@ private:
 		u32 childNum;
 		Node *parent;
 		u32 id; /* inode number */
-		Inode inode;
+		Inode *inode;
+		BlocksGroup *group;
 	};
 
 	Superblock sb;
 	int sbDirty:1;
 	Node *root;
+	SpinLock treeLock;
 	u32 blockSize;
 	u32 numGroups;
 	BlocksGroup *blocksGroups;
-	u8 *bgDirtyMap;
+	/*
+	 * Each element is pointer to two blocks, the first is blocks bitmap,
+	 * the second - inodes bitmap.
+	 */
+	u8 **bitmaps;
+	u8 *bgDirtyMap; /* block descriptor and bitmaps */
+	Inode **inodeTable; /* element is pointer to inodes descriptors in one block of the table */
+	u32 inodeTableSize;
+	u32 inodeSize;
+	u8 *inodeDirtyMap;
 
 	Node *AllocateNode(Node *parent);
 	Node *CreateNode(Node *parent, u32 id);
 	void FreeNode(Node *node);
+	Inode *GetInode(u32 id);
+	u8 *GetBitmaps(u32 groupIdx);
+	u8 *GetBlocksBitmap(u32 groupIdx);
+	u8 *GetInodesBitmap(u32 groupIdx);
+	int IsInodeAllocated(u32 id);
+	void SetInodeAllocated(u32 id, int set = 1);
+	inline BlocksGroup *GetGroup(u32 id);
+	void SetFSError(const char *fmt,...);
 public:
 	DeclareFSFactory();
 	DeclareFSProber();
 
-	Ext2FS(BlkDevice *dev);
+	Ext2FS(BlkDevice *dev, int flags);
 	virtual ~Ext2FS();
 
 	virtual Handle GetNode(Handle parent, const char *name, int nameLen = -1);

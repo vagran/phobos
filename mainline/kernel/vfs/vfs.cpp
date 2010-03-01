@@ -170,9 +170,9 @@ VFS::LookupNode(const char *path)
 }
 
 VFS::Mount *
-VFS::CreateMount(BlkDevice *dev, const char *fsType)
+VFS::CreateMount(BlkDevice *dev, int flags, const char *fsType)
 {
-	Mount *p = NEW(Mount, dev, fsType);
+	Mount *p = NEW(Mount, dev, flags, fsType);
 	if (!p) {
 		return 0;
 	}
@@ -184,10 +184,10 @@ VFS::CreateMount(BlkDevice *dev, const char *fsType)
 }
 
 int
-VFS::MountDevice(BlkDevice *dev, const char *mountPoint, const char *type)
+VFS::MountDevice(BlkDevice *dev, const char *mountPoint, int flags, const char *type)
 {
 	assert(dev->GetType() == Device::T_BLOCK);
-	Mount *m = CreateMount(dev, type);
+	Mount *m = CreateMount(dev, flags, type);
 	if (!m) {
 		return -1;
 	}
@@ -288,11 +288,11 @@ VFS::Node::Release()
 /******************************************************/
 /* VFS::Mount class */
 
-VFS::Mount::Mount(BlkDevice *dev, const char *fsType)
+VFS::Mount::Mount(BlkDevice *dev, int flags, const char *fsType)
 {
 	dev->AddRef();
 	this->dev = dev;
-	fs = DeviceFS::Create(dev, fsType);
+	fs = DeviceFS::Create(dev, flags, fsType);
 }
 
 VFS::Mount::~Mount()

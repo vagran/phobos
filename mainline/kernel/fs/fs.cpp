@@ -19,10 +19,11 @@ ListHead DeviceFS::fsReg;
 
 u32 DeviceFS::numFsReg;
 
-DeviceFS::DeviceFS(BlkDevice *dev)
+DeviceFS::DeviceFS(BlkDevice *dev, int flags)
 {
 	dev->AddRef();
 	this->dev = dev;
+	this->flags = flags;
 	status = -1;
 }
 
@@ -61,7 +62,7 @@ DeviceFS::GetFS(const char *name)
 }
 
 DeviceFS *
-DeviceFS::Create(BlkDevice *dev, const char *name)
+DeviceFS::Create(BlkDevice *dev, int flags, const char *name)
 {
 	FSEntry *fse;
 	if (name) {
@@ -88,5 +89,5 @@ DeviceFS::Create(BlkDevice *dev, const char *name)
 			}
 		}
 	}
-	return fse->factory(dev, fse->arg);
+	return fse->factory(dev, flags, fse->arg);
 }
