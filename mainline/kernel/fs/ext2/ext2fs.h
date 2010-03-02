@@ -44,7 +44,7 @@ private:
 
 	enum InodeFileType {
 		IFT_MASK =		0xf000,
-		IFT_FIFO =		0x1000,
+		IFT_PIPE =		0x1000,
 		IFT_CHARDEV =	0x2000,
 		IFT_DIRECTORY =	0x4000,
 		IFT_BLOCKDEV =	0x6000,
@@ -162,9 +162,22 @@ private:
 		ListHead childs;
 		u32 childNum;
 		Node *parent;
+		char *name; /* name in parent directory */
 		u32 id; /* inode number */
 		Inode *inode;
 		BlocksGroup *group;
+		u32 *indirBlock, *doubleIndirBlock, *tripleIndirBlock;
+		u32 *lastBlockMap;
+		u32 lastBlockMapOffset; /* block index */
+		void *lastBlock;
+		u32 lastBlockOffset;
+		u32 indirBlockDirty:1,
+			doubleIndirBlockDirty:1,
+			tripleIndirBlockDirty:1,
+			lastBlockMapDirty:1,
+			lastBlockDirty:1,
+			dirRead:1, /* directory is read and childs created */
+			dirDirty:1;
 	};
 
 	Superblock sb;
@@ -196,6 +209,9 @@ private:
 	void SetInodeAllocated(u32 id, int set = 1);
 	inline BlocksGroup *GetGroup(u32 id);
 	void SetFSError(const char *fmt,...);
+	i32 ReadFile(Node *node, u32 offset, u32 len, void *buf);
+	u32 GetBlockID(Node *node, u32 offset);
+	int ReadDirectory(Node *node);
 public:
 	DeclareFSFactory();
 	DeclareFSProber();
@@ -204,7 +220,10 @@ public:
 	virtual ~Ext2FS();
 
 	virtual Handle GetNode(Handle parent, const char *name, int nameLen = -1);
-	VFS::Node::Type GetNodeType(Handle node);
+	virtual VFS::Node::Type GetNodeType(Handle node);
+	virtual u64 GetNodeSize(Handle node);
+	virtual i64 ReadNode(Handle node, u64 offset, u32 len, void *buf);
+	virtual u32 ReadLink(Handle node, void *buf, u32 bufLen);
 };
 
 #endif /* EXT2FS_H_ */

@@ -148,6 +148,11 @@ PM::CreateProcess(const char *path, int priority)
 	if (!file) {
 		return 0;
 	}
+	//temp
+	ElfHeader elfHdr;
+	if (file->Read(0, sizeof(elfHdr), &elfHdr) != sizeof(elfHdr)) {
+		klog(KLOG_WARNING, "Cannot read executable header");
+	}
 	//notimpl
 	return 0;
 }

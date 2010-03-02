@@ -29,6 +29,24 @@ public:
 		INVALID_PID =		(pid_t)~0,
 	};
 
+	/* XXX temporally here */
+	typedef struct {
+		u8			ident[16];	/* Magic number and other info */
+		u16			type;		/* Object file type */
+		u16			machine;	/* Architecture */
+		u32			version;	/* Object file version */
+		u32			entry;		/* Entry point virtual address */
+		u32			phoff;		/* Program header table file offset */
+		u32			shoff;		/* Section header table file offset */
+		u32			flags;		/* Processor-specific flags */
+		u16			ehsize;		/* ELF header size in bytes */
+		u16			phentsize;	/* Program header table entry size */
+		u16			phnum;		/* Program header table entry count */
+		u16			shentsize;	/* Section header table entry size */
+		u16			shnum;		/* Section header table entry count */
+		u16			shstrndx;	/* Section header string table index */
+	} ElfHeader;
+
 public:
 	class Thread;
 	class Process;

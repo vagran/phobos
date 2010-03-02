@@ -133,9 +133,27 @@ Ext2FS::FreeNode(Node *node)
 		FreeNode(childNode);
 	}
 	/* XXX should clean node */
+	if (node->lastBlock) {
+		MM::mfree(node->lastBlock);
+	}
+	if (node->indirBlock) {
+		MM::mfree(node->indirBlock);
+	}
+	if (node->doubleIndirBlock) {
+		MM::mfree(node->doubleIndirBlock);
+	}
+	if (node->tripleIndirBlock) {
+		MM::mfree(node->tripleIndirBlock);
+	}
+	if (node->lastBlockMap) {
+		MM::mfree(node->lastBlockMap);
+	}
 	if (node->parent) {
 		LIST_DELETE(list, node, node->parent->childs);
 		node->parent->childNum--;
+	}
+	if (node->name) {
+		MM::mfree(node->name);
 	}
 	DELETE(node);
 }
@@ -287,6 +305,271 @@ Ext2FS::CreateNode(Node *parent, u32 id)
 	return node;
 }
 
+u32
+Ext2FS::GetBlockID(Node *node, u32 offset)
+{
+	if (offset >= roundup2(node->inode->size, blockSize)) {
+		return 0;
+	}
+	u32 blockIndex = offset / blockSize;
+	if (blockIndex < DIRECT_BLOCKS) {
+		/* use direct blocks */
+		return node->inode->blocks.dir_blocks[blockIndex];
+	}
+
+	u32 idsPerBlock = blockSize / sizeof(u32);
+	if (blockIndex < DIRECT_BLOCKS + idsPerBlock) {
+		/* use indirect blocks */
+		if (!node->indirBlock) {
+			if (!node->inode->blocks.indir_block) {
+				return 0;
+			}
+			node->indirBlock = (u32 *)MM::malloc(blockSize);
+			if (!node->indirBlock) {
+				return 0;
+			}
+			if (dev->Read(node->inode->blocks.indir_block * blockSize,
+				node->indirBlock, blockSize)) {
+				MM::mfree(node->indirBlock);
+				node->indirBlock = 0;
+				return 0;
+			}
+		}
+		return node->indirBlock[blockIndex - DIRECT_BLOCKS];
+	}
+	/* check blocks map cache */
+	if (node->lastBlockMap && (blockIndex >= node->lastBlockMapOffset &&
+		blockIndex < node->lastBlockMapOffset + idsPerBlock)) {
+		return node->lastBlockMap[blockIndex - node->lastBlockMapOffset];
+	}
+	if (blockIndex < DIRECT_BLOCKS + idsPerBlock * (1 + idsPerBlock)) {
+		/* use double indirect blocks */
+		if (!node->doubleIndirBlock) {
+			if (!node->inode->blocks.double_indir_block) {
+				return 0;
+			}
+			node->doubleIndirBlock = (u32 *)MM::malloc(blockSize);
+			if (!node->doubleIndirBlock) {
+				return 0;
+			}
+			if (dev->Read(node->inode->blocks.double_indir_block * blockSize,
+				node->doubleIndirBlock, blockSize)) {
+				MM::mfree(node->doubleIndirBlock);
+				node->doubleIndirBlock = 0;
+				return 0;
+			}
+		}
+		if (node->lastBlockMap) {
+			/* XXX should clean */
+		} else {
+			node->lastBlockMap = (u32 *)MM::malloc(blockSize);
+			if (!node->lastBlockMap) {
+				return 0;
+			}
+		}
+		u32 doubleIdx = (blockIndex - DIRECT_BLOCKS - idsPerBlock) / idsPerBlock;
+		if (dev->Read(node->doubleIndirBlock[doubleIdx] * blockSize,
+			node->lastBlockMap, blockSize)) {
+			MM::mfree(node->lastBlockMap);
+			node->lastBlockMap = 0;
+			return 0;
+		}
+		node->lastBlockMapOffset = DIRECT_BLOCKS + idsPerBlock +
+			doubleIdx * idsPerBlock;
+	} else if (blockIndex < DIRECT_BLOCKS + idsPerBlock * (1 +
+		idsPerBlock * (1 + idsPerBlock))) {
+		u32 prevOffset = DIRECT_BLOCKS + idsPerBlock * (1 + idsPerBlock);
+		/* use triple indirect blocks */
+		if (!node->tripleIndirBlock) {
+			if (!node->inode->blocks.triple_indir_block) {
+				return 0;
+			}
+			node->tripleIndirBlock = (u32 *)MM::malloc(blockSize);
+			if (!node->tripleIndirBlock) {
+				return 0;
+			}
+			if (dev->Read(node->inode->blocks.triple_indir_block * blockSize,
+				node->tripleIndirBlock, blockSize)) {
+				MM::mfree(node->tripleIndirBlock);
+				node->tripleIndirBlock = 0;
+				return 0;
+			}
+		}
+		u32 tripleIdx = (blockIndex - prevOffset) / (idsPerBlock * idsPerBlock);
+		u32 doubleMap[blockSize];
+		if (dev->Read(node->tripleIndirBlock[tripleIdx] * blockSize,
+			doubleMap, blockSize)) {
+			return 0;
+		}
+		if (node->lastBlockMap) {
+			/* XXX should clean */
+		} else {
+			node->lastBlockMap = (u32 *)MM::malloc(blockSize);
+			if (!node->lastBlockMap) {
+				return 0;
+			}
+		}
+		u32 doubleOffset = prevOffset + tripleIdx * idsPerBlock * idsPerBlock;
+		u32 doubleIdx = (blockIndex - doubleOffset) / idsPerBlock;
+		if (dev->Read(doubleMap[doubleIdx] * blockSize,
+			node->lastBlockMap, blockSize)) {
+			MM::mfree(node->lastBlockMap);
+			node->lastBlockMap = 0;
+			return 0;
+		}
+		node->lastBlockMapOffset = doubleOffset + doubleIdx * idsPerBlock;
+	} else {
+		return 0;
+	}
+	/* get from cached map */
+	assert(node->lastBlockMap);
+	return node->lastBlockMap[blockIndex - node->lastBlockMapOffset];
+}
+
+u64
+Ext2FS::GetNodeSize(Handle node)
+{
+	return ((Node *)node)->inode->size;
+}
+
+u32
+Ext2FS::ReadLink(Handle node, void *buf, u32 bufLen)
+{
+	u32 size = ((Node *)node)->inode->size;
+	u32 count = min(size, bufLen);
+	if (size <= FIELDSIZE(Inode, symlink)) {
+		memcpy(buf, ((Node *)node)->inode->symlink, count);
+	} else {
+		u32 numRead = ReadFile((Node *)node, 0, count, buf);
+		if (numRead != count) {
+			return 0;
+		}
+	}
+	if (count < bufLen) {
+		((char *)buf)[count] = 0;
+		count++;
+	}
+	return count;
+}
+
+i64
+Ext2FS::ReadNode(Handle node, u64 offset, u32 len, void *buf)
+{
+	return ReadFile((Node *)node, offset, len, buf);
+}
+
+i32
+Ext2FS::ReadFile(Node *node, u32 offset, u32 len, void *buf)
+{
+	u32 count = 0;
+	u32 size = node->inode->size;
+	if (offset >= size) {
+		return 0;
+	}
+	if (!node->lastBlock) {
+		node->lastBlock = MM::malloc(blockSize);
+		if (!node->lastBlock) {
+			return 0;
+		}
+		node->lastBlockOffset = ~0ul;
+	}
+	while (len && offset < size) {
+		void *pBuf;
+		u32 readOffset;
+		u32 inOffset, inLen;
+		if (offset & (blockSize - 1)) {
+			pBuf = node->lastBlock;
+			readOffset = rounddown2(offset, blockSize);
+			inOffset = offset - readOffset;
+			inLen = min(blockSize - inOffset, len);
+		} else {
+			readOffset = offset;
+			inOffset = 0;
+			if (len >= blockSize) {
+				pBuf = buf;
+				inLen = blockSize;
+			} else {
+				pBuf = node->lastBlock;
+				inLen = len;
+			}
+		}
+		inLen = min(inLen, size - offset);
+		u32 blockId = GetBlockID(node, readOffset);
+		if (!blockId) {
+			/* hole in the file, read zeros */
+			memset(buf, 0, inLen);
+		} else {
+			if (pBuf != node->lastBlock || readOffset != node->lastBlockOffset) {
+				if (dev->Read((u64)blockId * blockSize, pBuf, blockSize)) {
+					if (pBuf == node->lastBlock) {
+						MM::mfree(node->lastBlock);
+						node->lastBlock = 0;
+					}
+					if (node->lastBlockOffset == ~0ul) {
+						MM::mfree(node->lastBlock);
+						node->lastBlock = 0;
+					}
+					return count;
+				}
+				if (pBuf == node->lastBlock) {
+					node->lastBlockOffset = readOffset;
+				}
+			}
+			if (pBuf != buf) {
+				memcpy(buf, ((u8 *)pBuf) + inOffset, inLen);
+			}
+		}
+		buf = ((u8 *)buf) + inLen;
+		count += inLen;
+		offset += inLen;
+		len -= inLen;
+	}
+	if (node->lastBlockOffset == ~0ul) {
+		MM::mfree(node->lastBlock);
+		node->lastBlock = 0;
+	}
+	return count;
+}
+
+int
+Ext2FS::ReadDirectory(Node *node)
+{
+	if (node->dirRead) {
+		return 0;
+	}
+	u32 pos = 0;
+	while (pos < node->inode->size) {
+		DirEntry dirEnt;
+		if (ReadFile(node, pos, sizeof(dirEnt), &dirEnt) != sizeof(dirEnt)) {
+			break;
+		}
+		if (dirEnt.inode) {
+			if (!dirEnt.direntlen) {
+				break;
+			}
+			if (dirEnt.namelen) {
+				char filename[dirEnt.namelen + 1];
+				if (ReadFile(node, pos, dirEnt.namelen, filename) !=
+					dirEnt.namelen) {
+					break;
+				}
+				filename[dirEnt.namelen] = 0;
+				Node *child = CreateNode(node, dirEnt.inode);
+				if (!child) {
+					break;
+				}
+				child->name = strdup(filename);
+			}
+		}
+		if (!dirEnt.direntlen) {
+			break;
+		}
+		pos += dirEnt.direntlen;
+	}
+	node->dirRead = 1;
+	return 0;
+}
+
 void
 Ext2FS::SetFSError(const char *fmt,...)
 {
@@ -300,13 +583,59 @@ Ext2FS::SetFSError(const char *fmt,...)
 Handle
 Ext2FS::GetNode(Handle parent, const char *name, int nameLen)
 {
-	//notimpl
+	Node *node;
+	if (!parent) {
+		if (!name) {
+			return root;
+		}
+		node = root;
+	} else {
+		node = (Node *)parent;
+	}
+	if ((node->inode->mode & IFT_MASK) != IFT_DIRECTORY) {
+		klog(KLOG_WARNING, "Not a directory node specified as parent");
+		return 0;
+	}
+	if (ReadDirectory(node)) {
+		klog(KLOG_WARNING, "Cannot read directory");
+		return 0;
+	}
+	Node *p;
+	LIST_FOREACH(Node, list, p, node->childs) {
+		if (!p->name) {
+			continue;
+		}
+		if (nameLen == -1) {
+			if (!strcmp(name, p->name)) {
+				return p;
+			}
+		} else {
+			if (!strncmp(name, p->name, nameLen) && !p->name[nameLen]) {
+				return p;
+			}
+		}
+	}
 	return 0;
 }
 
 VFS::Node::Type
 Ext2FS::GetNodeType(Handle node)
 {
-	//notimpl
-	return VFS::Node::T_REGULAR;
+	switch (((Node *)node)->inode->mode & IFT_MASK) {
+	case IFT_REGULAR:
+		return VFS::Node::T_REGULAR;
+	case IFT_DIRECTORY:
+		return VFS::Node::T_DIRECTORY;
+	case IFT_SOCKET:
+		return VFS::Node::T_SOCKET;
+	case IFT_PIPE:
+		return VFS::Node::T_PIPE;
+	case IFT_CHARDEV:
+		return VFS::Node::T_CHARDEV;
+	case IFT_BLOCKDEV:
+		return VFS::Node::T_BLOCKDEV;
+	case IFT_LINK:
+		return VFS::Node::T_LINK;
+	}
+	return VFS::Node::T_NONE;
 }

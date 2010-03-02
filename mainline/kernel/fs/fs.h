@@ -60,6 +60,9 @@ public:
 	 */
 	virtual Handle GetNode(Handle parent, const char *name, int nameLen = -1) = 0;
 	virtual VFS::Node::Type GetNodeType(Handle node) = 0;
+	virtual u64 GetNodeSize(Handle node) = 0;
+	virtual i64 ReadNode(Handle node, u64 offset, u32 len, void *buf) = 0;
+	virtual u32 ReadLink(Handle node, void *buf, u32 bufLen) = 0;
 };
 
 #define DeclareFSFactory() static DeviceFS *_FSFactory(BlkDevice *dev, int flags, void *arg)

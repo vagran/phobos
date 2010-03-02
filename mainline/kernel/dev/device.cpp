@@ -201,6 +201,7 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 {
 	u8 buf1[blockSize];
 
+	/* XXX should be able to read from unaligned location */
 	assert(!(addr & (blockSize - 1)));
 	IOBuf *iob1 = AllocateBuffer(), *iob2 = 0;
 	if (!iob1) {

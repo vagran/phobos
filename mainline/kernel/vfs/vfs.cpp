@@ -81,23 +81,29 @@ VFS::GetNode(Node *parent, const char *name, int nameLen)
 	u32 hash = nameLen == -1 ? gethash(name) : gethash((u8 *)name, nameLen);
 	Node *node;
 	if (parent->numChilds < 32) {
+		treeLock.Lock();
 		LIST_FOREACH(Node, list, node, parent->childs) {
 			if (node->hash != hash) {
 				continue;
 			}
 			if (nameLen == -1) {
 				if (!strncmp(name, node->name, nameLen) && !node->name[nameLen]) {
+					treeLock.Unlock();
 					return node;
 				}
 			} else {
 				if (!strcmp(name, node->name)) {
+					treeLock.Unlock();
 					return node;
 				}
 			}
 		}
+		treeLock.Unlock();
 		return 0;
 	}
+	treeLock.Lock();
 	node = TREE_FIND(hash, Node, hashTreeEntry, parent->hashTree);
+	treeLock.Unlock();
 	if (!node) {
 		return 0;
 	}
@@ -111,17 +117,21 @@ VFS::GetNode(Node *parent, const char *name, int nameLen)
 		}
 	}
 	Node *hashHead = node;
+	treeLock.Lock();
 	LIST_FOREACH(Node, hashListEntry, node, hashHead->hashList) {
 		if (nameLen == -1) {
 			if (!strncmp(name, node->name, nameLen) && !node->name[nameLen]) {
+				treeLock.Unlock();
 				return node;
 			}
 		} else {
 			if (!strcmp(name, node->name)) {
+				treeLock.Unlock();
 				return node;
 			}
 		}
 	}
+	treeLock.Unlock();
 	return 0;
 }
 
@@ -156,7 +166,6 @@ VFS::LookupNode(const char *path)
 {
 	const char *cp, *next = path;
 	Node *node = root;
-	treeLock.Lock();
 	while (*next && node) {
 		for (cp = next; *cp && *cp == '/'; cp++);
 		if (!*cp) {
@@ -165,7 +174,6 @@ VFS::LookupNode(const char *path)
 		for (next = cp; *next && *next != '/'; next++);
 		node = GetSubNode(node, cp, next - cp);
 	}
-	treeLock.Unlock();
 	return node;
 }
 
@@ -220,8 +228,21 @@ VFS::CreateFile(const char *path)
 	if (!node) {
 		return 0;
 	}
-	//notimpl
-	return 0;
+	File *file;
+	switch (node->type) {
+	case Node::T_REGULAR:
+		file = NEW(File, node);
+		break;
+	case Node::T_DIRECTORY:
+		file = NEW(Directory, node);
+		break;
+	default:
+		return 0;
+	}
+	if (!file) {
+		return 0;
+	}
+	return file;
 }
 
 /******************************************************/
@@ -303,11 +324,51 @@ VFS::Mount::~Mount()
 /******************************************************/
 /* VFS::File class */
 
-VFS::File::File()
+VFS::File::File(Node *node)
 {
+	node->AddRef();
+	this->node = node;
 }
 
 VFS::File::~File()
 {
+	node->Release();
+}
 
+u32
+VFS::File::Read(u64 offset, u32 len, void *buf)
+{
+	if (!node->mount) {
+		return 0;
+	}
+	DeviceFS *fs = node->mount->GetFS();
+	return fs->ReadNode(node->fsNode, offset, len, buf);
+}
+
+u32
+VFS::File::GetSize()
+{
+	if (!node->mount) {
+		return 0;
+	}
+	DeviceFS *fs = node->mount->GetFS();
+	return fs->GetNodeSize(node->fsNode);
+}
+
+/******************************************************/
+/* VFS::Directory class */
+
+VFS::Directory::Directory(Node *node) : File(node)
+{
+
+}
+
+VFS::Directory::~Directory()
+{
+}
+
+u32
+VFS::Directory::Read(u64 offset, u32 len, void *buf)
+{
+	return 0;
 }

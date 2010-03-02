@@ -27,6 +27,8 @@
 
 #define FIELDTYPE(struc_name, field_name) typeof(((struc_name *)1)->field_name)
 
+#define FIELDSIZE(struc_name, field_name) sizeof(((struc_name *)1)->field_name)
+
 #define BIN(x) ((x & 0x1) | ((x & 0x10) ? 0x2 : 0) | \
 	((x & 0x100) ? 0x4 : 0) | ((x & 0x1000) ? 0x8 : 0) | \
 	((x & 0x10000) ? 0x10 : 0) | ((x & 0x100000) ? 0x20 : 0) | \

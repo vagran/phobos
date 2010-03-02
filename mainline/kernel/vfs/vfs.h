@@ -69,14 +69,28 @@ public:
 	};
 
 	class File {
-	private:
+	protected:
 		RefCount refCount;
+		Node *node;
 	public:
-		File();
-		~File();
+		File(Node *node);
+		virtual ~File();
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
 
+		inline Node::Type GetType() { return node->type; }
+
+		virtual u32 Read(u64 offset, u32 len, void *buf);
+		virtual u32 GetSize();
+	};
+
+	class Directory : public File {
+	private:
+	public:
+		Directory(Node *node);
+		virtual ~Directory();
+
+		virtual u32 Read(u64 offset, u32 len, void *buf);
 	};
 
 private:
