@@ -18,7 +18,7 @@ $(MFS_IMAGE): system_install
 	$(DD) if=/dev/zero of=$(MFS_IMAGE) bs=$(MFS_BLOCK_SIZE) count=$(MFS_IMAGE_SIZE)
 	$(MKE2FS) -F -m 0 -b $(MFS_BLOCK_SIZE) -L $(MFS_IMAGE_LABEL) $(MFS_IMAGE) $(MFS_IMAGE_SIZE)
 	$(SUDO) $(MOUNT) -t ext2 -o loop $(MFS_IMAGE) $(MFS_MOUNT)
-	$(CP) -R $(INSTALL_ROOT)/* $(MFS_MOUNT); $(SUDO) $(UMOUNT) $(MFS_MOUNT)
+	$(CP) -R $(INSTALL_ROOT)/$(TARGET)/* $(MFS_MOUNT); $(SUDO) $(UMOUNT) $(MFS_MOUNT)
 	$(OBJCOPY) -S -I binary -O elf32-i386 -B i386 --rename-section .data=.ramdisk $(MFS_IMAGE)
 
 system_install:

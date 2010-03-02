@@ -549,16 +549,19 @@ Ext2FS::ReadDirectory(Node *node)
 			}
 			if (dirEnt.namelen) {
 				char filename[dirEnt.namelen + 1];
-				if (ReadFile(node, pos, dirEnt.namelen, filename) !=
+				if (ReadFile(node, pos + sizeof(dirEnt), dirEnt.namelen, filename) !=
 					dirEnt.namelen) {
 					break;
 				}
 				filename[dirEnt.namelen] = 0;
-				Node *child = CreateNode(node, dirEnt.inode);
-				if (!child) {
-					break;
+				/* do not create entries for current and parent directories */
+				if (strcmp(filename, ".") && strcmp(filename, "..")) {
+					Node *child = CreateNode(node, dirEnt.inode);
+					if (!child) {
+						break;
+					}
+					child->name = strdup(filename);
 				}
-				child->name = strdup(filename);
 			}
 		}
 		if (!dirEnt.direntlen) {

@@ -218,6 +218,9 @@ VFS::MountDevice(BlkDevice *dev, const char *mountPoint, int flags, const char *
 	mNode->fsNode = m->GetFS()->GetNode(0, 0);
 	ensure(mNode->fsNode);
 	treeLock.Unlock();
+	if (node == root) {
+		root = mNode;
+	}
 	return 0;
 }
 
