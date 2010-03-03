@@ -15,11 +15,23 @@ PM::PM() : pidMap(MAX_PROCESSES)
 {
 	LIST_INIT(processes);
 	LIST_INIT(runQueues);
+	LIST_INIT(imageLoaders);
 	TREE_INIT(tqSleep);
 	TREE_INIT(pids);
 	numProcesses = 0;
 	kernelProc = 0;
 	kernInitThread = 0;
+}
+
+int
+PM::RegisterIL(const char *desc, ILFactory factory, ILProber prober)
+{
+	ILEntry *ile = NEWSINGLE(ILEntry);
+	ile->desc = desc;
+	ile->factory = factory;
+	ile->prober = prober;
+	LIST_ADD(list, ile, imageLoaders);
+	return 0;
 }
 
 PM::pid_t
@@ -94,7 +106,7 @@ PM::FreeSleepEntry(SleepEntry *p)
 
 PM::Process *
 PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg,
-		int priority, int isKernelProc)
+		int priority, int isKernelProc, int runIt)
 {
 	pid_t pid = AllocatePID();
 	if (pid == INVALID_PID) {
@@ -125,12 +137,16 @@ PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg,
 			DestroyProcess(proc);
 			return 0;
 		}
-		thrd->Run();/* XXX should select CPU */
+		if (runIt) {
+			thrd->Run();/* XXX should select CPU */
+		}
 	} else {
 		kernInitThread = proc->CreateThread(entry, arg,
 			Thread::DEF_KERNEL_STACK_SIZE, KERNEL_PRIORITY);
 		ensure(kernInitThread);
-		kernInitThread->Run();
+		if (runIt) {
+			kernInitThread->Run();
+		}
 	}
 	return proc;
 }
@@ -147,11 +163,6 @@ PM::CreateProcess(const char *path, int priority)
 	VFS::File *file = vfs->CreateFile(path);
 	if (!file) {
 		return 0;
-	}
-	//temp
-	ElfHeader elfHdr;
-	if (file->Read(0, sizeof(elfHdr), &elfHdr) != sizeof(elfHdr)) {
-		klog(KLOG_WARNING, "Cannot read executable header");
 	}
 	//notimpl
 	return 0;
@@ -569,6 +580,28 @@ PM::Process::Initialize(u32 priority, int isKernelProc)
 }
 
 /***********************************************/
+/* ImageLoader class */
+
+PM::ImageLoader::ImageLoader(VFS::File *file)
+{
+	file->AddRef();
+	this->file = 0;
+}
+
+PM::ImageLoader::~ImageLoader()
+{
+	file->Release();
+}
+
+/***********************************************/
+/* ILRegistrator class */
+
+PM::ILRegistrator::ILRegistrator(const char *desc, ILFactory factory, ILProber prober)
+{
+
+}
+
+/***********************************************/
 /* Thread class */
 
 PM::Thread::Thread(Process *proc)
@@ -687,6 +720,18 @@ PM::Thread::Run(CPU *cpu)
 	}
 	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
 	return rq->AddThread(this);
+}
+
+int
+PM::Thread::Stop()
+{
+	if (state != S_RUNNING) {
+		return -1;
+	}
+	Runqueue *rq = GetRunqueue();
+	assert(rq);
+	rq->RemoveThread(this);
+	return 0;
 }
 
 int

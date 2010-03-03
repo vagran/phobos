@@ -29,24 +29,24 @@ public:
 		INVALID_PID =		(pid_t)~0,
 	};
 
-	/* XXX temporally here */
-	typedef struct {
-		u8			ident[16];	/* Magic number and other info */
-		u16			type;		/* Object file type */
-		u16			machine;	/* Architecture */
-		u32			version;	/* Object file version */
-		u32			entry;		/* Entry point virtual address */
-		u32			phoff;		/* Program header table file offset */
-		u32			shoff;		/* Section header table file offset */
-		u32			flags;		/* Processor-specific flags */
-		u16			ehsize;		/* ELF header size in bytes */
-		u16			phentsize;	/* Program header table entry size */
-		u16			phnum;		/* Program header table entry count */
-		u16			shentsize;	/* Section header table entry size */
-		u16			shnum;		/* Section header table entry count */
-		u16			shstrndx;	/* Section header string table index */
-	} ElfHeader;
+	class ImageLoader {
+	protected:
+		VFS::File *file;
+	public:
+		ImageLoader(VFS::File *file);
+		virtual ~ImageLoader();
 
+		virtual int Load(MM::Map *map) = 0;
+		virtual vaddr_t GetEntryPoint() = 0;
+	};
+
+	typedef ImageLoader *(*ILFactory)(VFS::File *file);
+	typedef int (*ILProber)(VFS::File *file);
+
+	class ILRegistrator {
+	public:
+		ILRegistrator(const char *desc, ILFactory factory, ILProber prober);
+	};
 public:
 	class Thread;
 	class Process;
@@ -117,6 +117,7 @@ public:
 		void SwitchTo(); /* thread must be in same CPU runqueue with the current thread */
 		static Thread *GetCurrent();
 		int Run(CPU *cpu = 0);
+		int Stop();
 		int Sleep(void *waitEntry, const char *waitString, Handle waitTimeout = 0);
 		int Unsleep();
 		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
@@ -175,7 +176,15 @@ public:
 		inline Thread *GetCurrentThread() { return curThread; }
 	};
 
+	int RegisterIL(const char *desc, ILFactory factory, ILProber prober);
 private:
+	typedef struct {
+		ListEntry list;
+		const char *desc;
+		ILFactory factory;
+		ILProber prober;
+	} ILEntry;
+
 	typedef struct {
 		enum Flags {
 			F_WAKEN =		0x1,
@@ -187,6 +196,7 @@ private:
 		u32 numThreads;
 	} SleepEntry;
 
+	ListHead imageLoaders;
 	ListHead processes;
 	SpinLock rqLock;
 	ListHead runQueues;
@@ -205,7 +215,7 @@ private:
 	static int IdleThread(void *arg);
 	void IdleThread() __noreturn;
 	Process *IntCreateProcess(Thread::ThreadEntry entry, void *arg = 0,
-		int priority = DEF_PRIORITY, int isKernelProc = 0);
+		int priority = DEF_PRIORITY, int isKernelProc = 0, int runIt = 1);
 	SleepEntry *GetSleepEntry(waitid_t id); /* must be called with tqLock */
 	SleepEntry *CreateSleepEntry(waitid_t id); /* must be called with tqLock */
 	void FreeSleepEntry(SleepEntry *p); /* must be called with tqLock */
@@ -232,5 +242,24 @@ public:
 };
 
 extern PM *pm;
+
+#define DeclareILFactory() static PM::ImageLoader *_ILFactory(VFS::File *file)
+
+#define DefineILFactory(className) PM::ImageLoader * \
+className::_ILFactory(VFS::File *file) \
+{ \
+	PM::ImageLoader *il = NEWSINGLE(className, file); \
+	if (!il) { \
+		return 0; \
+	} \
+	return il; \
+}
+
+#define DeclareILProber() static int _ILProber(VFS::File *file)
+
+#define DefineILProber(className) int className::_ILProber(VFS::File *file)
+
+#define RegisterImageLoader(className, desc) static PM::ILRegistrator \
+	__UID(ILRegistrator)(desc, className::_ILFactory, className::_ILProber)
 
 #endif /* PM_H_ */

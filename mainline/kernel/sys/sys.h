@@ -55,9 +55,9 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #include <dev/sys/cpu.h>
 #include <log.h>
 #include <kdb/debugger.h>
-#include <kern/pm.h>
 #include <fs/fs.h>
 #include <vfs/vfs.h>
+#include <kern/pm.h>
 
 #ifdef KERNEL
 

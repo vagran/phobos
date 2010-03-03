@@ -14,4 +14,18 @@ phbSource("$Id$");
 #include <elf_common.h>
 #include <elf32.h>
 
+class ElfImageLoader : public PM::ImageLoader {
+private:
+
+public:
+	ElfImageLoader(VFS::File *file);
+	virtual ~ElfImageLoader();
+
+	DeclareILFactory();
+	DeclareILProber();
+
+	virtual int Load(MM::Map *map);
+	virtual vaddr_t GetEntryPoint();
+};
+
 #endif /* ELF_H_ */
