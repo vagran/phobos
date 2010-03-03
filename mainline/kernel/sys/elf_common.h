@@ -23,7 +23,6 @@ phbSource("$Id$");
  * padded to a word boundary.  The values of n_namesz and n_descsz do
  * not include the padding.
  */
-
 typedef struct {
 	u32	n_namesz;	/* Length of name. */
 	u32	n_descsz;	/* Length of descriptor. */
@@ -33,7 +32,6 @@ typedef struct {
 /*
  * The header for GNU-style hash sections.
  */
-
 typedef struct {
 	u32	gh_nbuckets;	/* Number of hash buckets. */
 	u32	gh_symndx;	/* First visible symbol in .dynsym. */
@@ -109,8 +107,6 @@ enum ElfCommonConstants {
 
 	ELFOSABI_SYSV =	ELFOSABI_NONE,		/* symbol used in old spec */
 	ELFOSABI_MONTEREY =	ELFOSABI_AIX,		/* Monterey */
-
-
 
 /* Values for e_type. */
 	ET_NONE =	0,		/* Unknown type. */
@@ -798,7 +794,6 @@ enum ElfCommonConstants {
  * The remaining relocs are from the Embedded ELF ABI, and are not in the
  *  SVR4 ELF ABI.
  */
-
 	R_PPC_EMB_NADDR32 =	101,
 	R_PPC_EMB_NADDR16 =	102,
 	R_PPC_EMB_NADDR16_LO =	103,

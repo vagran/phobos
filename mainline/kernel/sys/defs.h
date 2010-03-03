@@ -25,9 +25,9 @@
  */
 #define OFFSETOF(struc_name, field_name) (((unsigned int)&((struc_name *)1)->field_name) - 1)
 
-#define FIELDTYPE(struc_name, field_name) typeof(((struc_name *)1)->field_name)
+#define TYPEOF(struc_name, field_name) typeof(((struc_name *)1)->field_name)
 
-#define FIELDSIZE(struc_name, field_name) sizeof(((struc_name *)1)->field_name)
+#define SIZEOF(struc_name, field_name) sizeof(((struc_name *)1)->field_name)
 
 #define BIN(x) ((x & 0x1) | ((x & 0x10) ? 0x2 : 0) | \
 	((x & 0x100) ? 0x4 : 0) | ((x & 0x1000) ? 0x8 : 0) | \

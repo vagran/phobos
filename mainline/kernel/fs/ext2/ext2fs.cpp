@@ -437,7 +437,7 @@ Ext2FS::ReadLink(Handle node, void *buf, u32 bufLen)
 {
 	u32 size = ((Node *)node)->inode->size;
 	u32 count = min(size, bufLen);
-	if (size <= FIELDSIZE(Inode, symlink)) {
+	if (size <= SIZEOF(Inode, symlink)) {
 		memcpy(buf, ((Node *)node)->inode->symlink, count);
 	} else {
 		u32 numRead = ReadFile((Node *)node, 0, count, buf);

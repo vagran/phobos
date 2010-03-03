@@ -24,14 +24,13 @@ typedef u64		Elf32_Lword;
 
 typedef Elf32_Word	Elf32_Hashelt;
 
-/* Non-standard class-dependent datatype used for abstraction. */
+/* Non-standard class-dependent data types used for abstraction. */
 typedef Elf32_Word	Elf32_Size;
 typedef Elf32_Sword	Elf32_Ssize;
 
 /*
  * ELF header.
  */
-
 typedef struct {
 	u8			e_ident[EI_NIDENT];	/* File identification. */
 	Elf32_Half	e_type;		/* File type. */
@@ -52,7 +51,6 @@ typedef struct {
 /*
  * Section header.
  */
-
 typedef struct {
 	Elf32_Word	sh_name;	/* Section name (index into the
 					   section header string table). */
@@ -70,7 +68,6 @@ typedef struct {
 /*
  * Program header.
  */
-
 typedef struct {
 	Elf32_Word	p_type;		/* Entry type. */
 	Elf32_Off	p_offset;	/* File offset of contents. */
@@ -85,7 +82,6 @@ typedef struct {
 /*
  * Dynamic structure.  The ".dynamic" section contains an array of them.
  */
-
 typedef struct {
 	Elf32_Sword	d_tag;		/* Entry type. */
 	union {
@@ -159,7 +155,6 @@ typedef struct {
 /*
  * Symbol table entries.
  */
-
 typedef struct {
 	Elf32_Word	st_name;	/* String table index of name. */
 	Elf32_Addr	st_value;	/* Symbol value. */

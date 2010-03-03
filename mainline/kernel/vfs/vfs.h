@@ -53,6 +53,8 @@ public:
 		~Node();
 		void AddRef();
 		int Release();
+
+		inline Type GetType() { return type; }
 	};
 
 	class Mount {
@@ -78,7 +80,7 @@ public:
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
 
-		inline Node::Type GetType() { return node->type; }
+		inline Node::Type GetType() { return node->GetType(); }
 
 		virtual u32 Read(u64 offset, u32 len, void *buf);
 		virtual u32 GetSize();

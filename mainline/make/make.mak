@@ -12,7 +12,8 @@ COMPILE_FLAGS_CXX = -fno-exceptions -fno-rtti
 COMPILE_FLAGS_C =
 COMPILE_FLAGS_ASM = -DASSEMBLER
 # XXX -static is temporal
-LINK_FLAGS = -static -nodefaultlibs -nostartfiles -nostdinc -nostdinc++
+LINK_FLAGS = -static -nodefaultlibs -nostartfiles -nostdinc -nostdinc++ \
+	--no-omagic -z common-page-size=0x1000
 
 ifdef APP
 LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.app.ld
