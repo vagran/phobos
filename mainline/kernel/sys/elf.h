@@ -14,9 +14,14 @@ phbSource("$Id$");
 #include <elf_common.h>
 #include <elf32.h>
 
+typedef Elf32_Ehdr ElfEhdr;
+typedef Elf32_Phdr ElfPhdr;
+typedef Elf32_Shdr ElfShdr;
+
 class ElfImageLoader : public PM::ImageLoader {
 private:
-
+	ElfEhdr ehdr;
+	int status;
 public:
 	ElfImageLoader(VFS::File *file);
 	virtual ~ElfImageLoader();

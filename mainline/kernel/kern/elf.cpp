@@ -15,25 +15,38 @@ RegisterImageLoader(ElfImageLoader, "Executable and Linkable Format (ELF)");
 
 ElfImageLoader::ElfImageLoader(VFS::File *file) : PM::ImageLoader(file)
 {
-
+	status = -1;
+	if (file->Read(0, &ehdr, sizeof(ehdr)) != sizeof(ehdr)) {
+		return;
+	}
+	if (!IS_ELF(ehdr)) {
+		return;
+	}
+	status = 0;
 }
 
 ElfImageLoader::~ElfImageLoader()
 {
-
 }
 
 DefineILFactory(ElfImageLoader);
 
 DefineILProber(ElfImageLoader)
 {
-	//notimpl
-	return 0;
+	ElfEhdr hdr;
+
+	if (file->Read(0, &hdr, sizeof(hdr)) != sizeof(hdr)) {
+		return -1;
+	}
+	return IS_ELF(hdr) ? 0 : -1;
 }
 
 int
 ElfImageLoader::Load(MM::Map *map)
 {
+	if (status) {
+		return -1;
+	}
 	//notimpl
 	return 0;
 }
@@ -41,6 +54,5 @@ ElfImageLoader::Load(MM::Map *map)
 vaddr_t
 ElfImageLoader::GetEntryPoint()
 {
-	//notimpl
-	return 0;
+	return ehdr.e_entry;
 }

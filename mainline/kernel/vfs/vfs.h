@@ -82,7 +82,7 @@ public:
 
 		inline Node::Type GetType() { return node->GetType(); }
 
-		virtual u32 Read(u64 offset, u32 len, void *buf);
+		virtual u32 Read(u64 offset, void *buf, u32 len);
 		virtual u32 GetSize();
 	};
 

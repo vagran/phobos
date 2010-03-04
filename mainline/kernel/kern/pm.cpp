@@ -34,6 +34,18 @@ PM::RegisterIL(const char *desc, ILFactory factory, ILProber prober)
 	return 0;
 }
 
+PM::ImageLoader *
+PM::GetImageLoader(VFS::File *file)
+{
+	ILEntry *ile;
+	LIST_FOREACH(ILEntry, list, ile, imageLoaders) {
+		if (!ile->prober(file)) {
+			return ile->factory(file);
+		}
+	}
+	return 0;
+}
+
 PM::pid_t
 PM::AllocatePID()
 {
@@ -157,6 +169,16 @@ PM::CreateProcess(Thread::ThreadEntry entry, void *arg, int priority)
 	return IntCreateProcess(entry, arg, priority);
 }
 
+int
+PM::ProcessEntry(void *arg)
+{
+	Thread *thrd = Thread::GetCurrent();
+	Process *proc = thrd->GetProcess();
+	(void)proc;//temp
+	//notimpl
+	return 0;
+}
+
 PM::Process *
 PM::CreateProcess(const char *path, int priority)
 {
@@ -164,8 +186,25 @@ PM::CreateProcess(const char *path, int priority)
 	if (!file) {
 		return 0;
 	}
-	//notimpl
-	return 0;
+	ImageLoader *il = GetImageLoader(file);
+	if (!il) {
+		return 0;
+	}
+	Process *proc = IntCreateProcess(ProcessEntry, 0, priority, 0, 0);
+	if (!proc) {
+		DELETE(il);
+		return 0;
+	}
+	if (il->Load(proc->userMap)) {
+		DestroyProcess(proc);
+		DELETE(il);
+		return 0;
+	}
+	proc->SetEntryPoint(il->GetEntryPoint());
+	DELETE(il);
+	Thread *thrd = proc->GetThread();
+	thrd->Run();
+	return proc;
 }
 
 int
@@ -554,6 +593,12 @@ PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize, u
 	return thrd;
 }
 
+PM::Thread *
+PM::Process::GetThread()
+{
+	return LIST_FIRST(Thread, list, threads);
+}
+
 int
 PM::Process::Initialize(u32 priority, int isKernelProc)
 {
@@ -716,6 +761,7 @@ PM::Thread::Run(CPU *cpu)
 {
 	assert(state == S_NONE);
 	if (!cpu) {
+		/* XXX should balance load */
 		cpu = CPU::GetCurrent();
 	}
 	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;

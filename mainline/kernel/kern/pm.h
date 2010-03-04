@@ -41,7 +41,7 @@ public:
 	};
 
 	typedef ImageLoader *(*ILFactory)(VFS::File *file);
-	typedef int (*ILProber)(VFS::File *file);
+	typedef int (*ILProber)(VFS::File *file); /* return zero if identified */
 
 	class ILRegistrator {
 	public:
@@ -137,6 +137,9 @@ public:
 		SpinLock thrdListLock;
 		MM::Map *map, *userMap, *gateMap;
 		u32 priority;
+		vaddr_t entryPoint;
+
+		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 	public:
 		Process();
 		~Process();
@@ -146,6 +149,7 @@ public:
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
+		Thread *GetThread();
 	};
 
 	class Runqueue {
@@ -223,6 +227,8 @@ private:
 	void SleepTimeout(Thread *thrd);
 	int Wakeup(SleepEntry *se);
 	int Wakeup(Thread *thrd);
+	ImageLoader *GetImageLoader(VFS::File *file);
+	static int ProcessEntry(void *arg);
 public:
 	PM();
 	static inline Thread *GetCurrentThread() { return Thread::GetCurrent(); }

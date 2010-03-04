@@ -339,7 +339,7 @@ VFS::File::~File()
 }
 
 u32
-VFS::File::Read(u64 offset, u32 len, void *buf)
+VFS::File::Read(u64 offset, void *buf, u32 len)
 {
 	if (!node->mount) {
 		return 0;
