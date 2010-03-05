@@ -56,7 +56,7 @@
 	. = ALIGN(0x1000);
 	_end = ABSOLUTE(.);
 	
-	.stab : AT(_end - _btext + _eboot) {
+	.stab . : {
 		*(.stab)
 	}
 	
