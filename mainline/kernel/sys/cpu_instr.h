@@ -16,7 +16,7 @@ bsf(u32 string)
 {
 	u32 rc;
 
-	__asm__ __volatile__ ("bsfl %0, %1" : "=r"(rc) : "r"(string));
+	ASM ("bsfl %0, %1" : "=r"(rc) : "r"(string));
 	return rc;
 }
 
@@ -25,7 +25,7 @@ inb(u16 port)
 {
   u8 _v;
 
-  __asm__ __volatile__ ("inb %w1,%0" : "=a" (_v):"Nd" (port));
+  ASM ("inb %w1,%0" : "=a" (_v):"Nd" (port));
   return _v;
 }
 
@@ -34,7 +34,7 @@ inw(u16 port)
 {
   u16 _v;
 
-  __asm__ __volatile__ ("inw %w1,%0" : "=a" (_v):"Nd" (port));
+  ASM ("inw %w1,%0" : "=a" (_v):"Nd" (port));
   return _v;
 }
 
@@ -43,33 +43,33 @@ inl(u16 port)
 {
   u32 _v;
 
-  __asm__ __volatile__ ("inl %w1,%0" : "=a" (_v):"Nd" (port));
+  ASM ("inl %w1,%0" : "=a" (_v):"Nd" (port));
   return _v;
 }
 
 static __inline void
 outb(u16 port, u8 value)
 {
-  __asm__ __volatile__ ("outb %b0,%w1" : : "a" (value), "Nd" (port));
+  ASM ("outb %b0,%w1" : : "a" (value), "Nd" (port));
 }
 
 static __inline void
 outw(u16 port, u16 value)
 {
-  __asm__ __volatile__ ("outw %w0,%w1": :"a" (value), "Nd" (port));
+  ASM ("outw %w0,%w1": :"a" (value), "Nd" (port));
 
 }
 
 static __inline void
 outl(u16 port, u32 value)
 {
-  __asm__ __volatile__ ("outl %0,%w1" : : "a" (value), "Nd" (port));
+  ASM ("outl %0,%w1" : : "a" (value), "Nd" (port));
 }
 
 static __inline void
 invlpg(vaddr_t va)
 {
-	__asm__ __volatile__ ("invlpg %0" : : "m"(*(u8 *)va));
+	ASM ("invlpg %0" : : "m"(*(u8 *)va));
 }
 
 static __inline u32
@@ -77,14 +77,14 @@ rcr0()
 {
 	register u32 r;
 
-	__asm__ __volatile__ ("movl %%cr0, %0" : "=r"(r));
+	ASM ("movl %%cr0, %0" : "=r"(r));
 	return r;
 }
 
 static __inline void
 wcr0(u32 x)
 {
-	__asm__ __volatile__ ("movl %0, %%cr0" : : "r"(x));
+	ASM ("movl %0, %%cr0" : : "r"(x));
 }
 
 static __inline u32
@@ -92,14 +92,14 @@ rcr2()
 {
 	register u32 r;
 
-	__asm__ __volatile__ ("movl %%cr2, %0" : "=r"(r));
+	ASM ("movl %%cr2, %0" : "=r"(r));
 	return r;
 }
 
 static __inline void
 wcr2(u32 x)
 {
-	__asm__ __volatile__ ("movl %0, %%cr2" : : "r"(x));
+	ASM ("movl %0, %%cr2" : : "r"(x));
 }
 
 static __inline u32
@@ -107,14 +107,14 @@ rcr3()
 {
 	register u32 r;
 
-	__asm__ __volatile__ ("movl %%cr3, %0" : "=r"(r));
+	ASM ("movl %%cr3, %0" : "=r"(r));
 	return r;
 }
 
 static __inline void
 wcr3(u32 x)
 {
-	__asm__ __volatile__ ("movl %0, %%cr3" : : "r"(x));
+	ASM ("movl %0, %%cr3" : : "r"(x));
 }
 
 static __inline u32
@@ -122,20 +122,20 @@ rcr4()
 {
 	register u32 r;
 
-	__asm__ __volatile__ ("movl %%cr4, %0" : "=r"(r));
+	ASM ("movl %%cr4, %0" : "=r"(r));
 	return r;
 }
 
 static __inline void
 wcr4(u32 x)
 {
-	__asm__ __volatile__ ("movl %0, %%cr4" : : "r"(x));
+	ASM ("movl %0, %%cr4" : : "r"(x));
 }
 
 static __inline void
 cpuid(u32 op, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"cpuid" :
 		"=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) :
 		"a"(op));
@@ -146,20 +146,20 @@ rdtsc()
 {
 	u64 x;
 
-	__asm__ __volatile__ ("rdtsc" : "=A"(x));
+	ASM ("rdtsc" : "=A"(x));
 	return x;
 }
 
-#define hlt() __asm__ __volatile__ ("hlt")
+#define hlt() ASM ("hlt")
 
-#define cli() __asm__ __volatile__ ("cli")
+#define cli() ASM ("cli")
 
-#define sti() __asm__ __volatile__ ("sti")
+#define sti() ASM ("sti")
 
 static __inline void
 lgdt(void *p)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"lgdt	%0"
 		:
 		: "m"(*(u8 *)p)
@@ -169,7 +169,7 @@ lgdt(void *p)
 static __inline void
 lidt(void *p)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"lidt	%0"
 		:
 		: "m"(*(u8 *)p)
@@ -179,7 +179,7 @@ lidt(void *p)
 static __inline void
 lldt(u16 sel)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"lldt	%0"
 		:
 		: "r"(sel)
@@ -189,7 +189,7 @@ lldt(u16 sel)
 static __inline void
 sgdt(void *p)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"sgdt	%0"
 		: "=m"(*(u8 *)p)
 	);
@@ -198,7 +198,7 @@ sgdt(void *p)
 static __inline void
 sidt(void *p)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"sidt	%0"
 		: "=m"(*(u8 *)p)
 	);
@@ -208,7 +208,7 @@ static __inline u16
 sldt()
 {
 	u16 sel;
-	__asm__ __volatile__ (
+	ASM (
 		"sldt	%0"
 		: "=r"(sel)
 	);
@@ -218,7 +218,7 @@ sldt()
 static __inline void
 ltr(u16 sel)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"ltr	%0"
 		:
 		: "r"(sel)
@@ -229,7 +229,7 @@ static __inline u64
 rdmsr(u32 msr)
 {
 	u64 rc;
-	__asm__ __volatile__ (
+	ASM (
 		"rdmsr"
 		: "=A"(rc)
 		: "c"(msr)
@@ -240,7 +240,7 @@ rdmsr(u32 msr)
 static __inline void
 wrmsr(u32 msr, u64 value)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"wrmsr"
 		:
 		: "c"(msr), "A"(value)
@@ -250,13 +250,13 @@ wrmsr(u32 msr, u64 value)
 static __inline void
 sysenter(u32 cs, u32 eip, u32 esp)
 {
-	__asm__ __volatile__ ("sysenter");
+	ASM ("sysenter");
 }
 
 static __inline void
 sysexit(u32 eip, u32 esp)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"sysexit"
 		:
 		: "d"(eip), "c"(esp)
@@ -268,7 +268,7 @@ static __inline u32
 GetEflags()
 {
 	u32 rc;
-	__asm__ __volatile__ (
+	ASM (
 		"pushfl\n"
 		"popl	%0\n"
 		: "=r"(rc)
@@ -279,7 +279,7 @@ GetEflags()
 static __inline void
 SetEflags(u32 value)
 {
-	__asm__ __volatile__ (
+	ASM (
 		"pushl	%0\n"
 		"popfl\n"
 		:
@@ -290,25 +290,25 @@ SetEflags(u32 value)
 static __inline void
 pause()
 {
-	__asm__ __volatile__ ("pause");
+	ASM ("pause");
 }
 
 static __inline void
 lfence()
 {
-	__asm__ __volatile__ ("lfence");
+	ASM ("lfence");
 }
 
 static __inline void
 sfence()
 {
-	__asm__ __volatile__ ("sfence");
+	ASM ("sfence");
 }
 
 static __inline void
 mfence()
 {
-	__asm__ __volatile__ ("mfence");
+	ASM ("mfence");
 }
 
 #endif /* CPU_INSTR_H_ */

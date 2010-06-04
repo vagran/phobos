@@ -295,7 +295,7 @@ CreateInitialStack()
 		"movsb\n"
 		:
 		:
-		: "ecx", "esi", "edi"
+		: "ecx", "esi", "edi", "cc"
 	);
 }
 

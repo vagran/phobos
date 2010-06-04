@@ -12,7 +12,7 @@
 phbSource("$Id$");
 
 #define Barrier() { \
-	__asm__ __volatile__ ("" ::: "memory"); \
+	ASM ("" ::: "memory"); \
 	mfence(); \
 }
 
@@ -30,7 +30,7 @@ class AtomicOp {
 public:
 	static inline u32 Set(u32 *value, u32 newValue) { /* return previous value */
 		u32 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"lock xchgl %1, %0"
 			: "=m"(*value), "=r"(rc)
 			: "1"(newValue)
@@ -40,7 +40,7 @@ public:
 
 	static inline u16 Set(u16 *value, u16 newValue) { /* return previous value */
 		u16 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"lock xchgw %1, %0"
 			: "=m"(*value), "=r"(rc)
 			: "1"(newValue)
@@ -50,7 +50,7 @@ public:
 
 	static inline u8 Set(u8 *value, u8 newValue) { /* return previous value */
 		u8 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"lock xchgb %1, %0"
 			: "=m"(*value), "=r"(rc)
 			: "1"(newValue)
@@ -59,7 +59,7 @@ public:
 	}
 
 	static inline void Inc(u32 *value) {
-		__asm__ __volatile__ (
+		ASM (
 			"lock incl %0"
 			:
 			: "m"(*value)
@@ -69,7 +69,7 @@ public:
 
 	static inline int Dec(u32 *value) { /* return zero if value is zero after decrement */
 		int rc;
-		__asm__ __volatile__ (
+		ASM (
 			"xorl	%%eax, %%eax\n"
 			"lock decl	%1\n"
 			"setnzb	%%al"
@@ -82,7 +82,7 @@ public:
 
 	static inline u32 Add(u32 *dst, u32 src) { /* return previous value */
 		u32 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movl	%2, %%eax\n"
 			"1:\n"
 			"movl	%1, %%ecx\n"
@@ -98,7 +98,7 @@ public:
 
 	static inline u32 Sub(u32 *dst, u32 src) { /* return previous value */
 		u32 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movl	%2, %%eax\n"
 			"1:\n"
 			"movl	%%eax, %%ecx\n"
@@ -114,7 +114,7 @@ public:
 
 	static inline u32 And(u32 *dst, u32 src) { /* return previous value */
 		u32 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movl	%2, %%eax\n"
 			"1:\n"
 			"movl	%1, %%ecx\n"
@@ -130,7 +130,7 @@ public:
 
 	static inline u32 Or(u32 *dst, u32 src) { /* return previous value */
 		u32 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movl	%2, %%eax\n"
 			"1:\n"
 			"movl	%1, %%ecx\n"
@@ -146,7 +146,7 @@ public:
 
 	static inline u32 Xor(u32 *dst, u32 src) { /* return previous value */
 		u32 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movl	%2, %%eax\n"
 			"1:\n"
 			"movl	%1, %%ecx\n"
@@ -161,7 +161,7 @@ public:
 	}
 
 	static inline void Inc(u16 *value) {
-		__asm__ __volatile__ (
+		ASM (
 			"lock incw %0"
 			:
 			: "m"(*value)
@@ -171,7 +171,7 @@ public:
 
 	static inline int Dec(u16 *value) { /* return zero if value is zero after decrement */
 		int rc;
-		__asm__ __volatile__ (
+		ASM (
 			"xorl	%%eax, %%eax\n"
 			"lock decw	%1\n"
 			"setnzb	%%al"
@@ -184,7 +184,7 @@ public:
 
 	static inline u16 Add(u16 *dst, u16 src) { /* return previous value */
 		u16 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movw	%2, %%ax\n"
 			"1:\n"
 			"movw	%1, %%cx\n"
@@ -200,7 +200,7 @@ public:
 
 	static inline u16 Sub(u16 *dst, u16 src) { /* return previous value */
 		u16 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movw	%2, %%ax\n"
 			"1:\n"
 			"movw	%%ax, %%cx\n"
@@ -216,7 +216,7 @@ public:
 
 	static inline u16 And(u16 *dst, u16 src) { /* return previous value */
 		u16 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movw	%2, %%ax\n"
 			"1:\n"
 			"movw	%1, %%cx\n"
@@ -232,7 +232,7 @@ public:
 
 	static inline u16 Or(u16 *dst, u16 src) { /* return previous value */
 		u16 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movw	%2, %%ax\n"
 			"1:\n"
 			"movw	%1, %%cx\n"
@@ -248,7 +248,7 @@ public:
 
 	static inline u16 Xor(u16 *dst, u16 src) { /* return previous value */
 		u16 rc;
-		__asm__ __volatile__ (
+		ASM (
 			"movw	%2, %%ax\n"
 			"1:\n"
 			"movw	%1, %%cx\n"
@@ -263,7 +263,7 @@ public:
 	}
 
 	static inline void Inc(u8 *value) {
-		__asm__ __volatile__ (
+		ASM (
 			"lock incb %0"
 			:
 			: "m"(*value)
@@ -273,7 +273,7 @@ public:
 
 	static inline int Dec(u8 *value) { /* return zero if value is zero after decrement */
 		int rc;
-		__asm__ __volatile__ (
+		ASM (
 			"xorl	%%eax, %%eax\n"
 			"lock decb	%1\n"
 			"setnzb	%%al"

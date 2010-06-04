@@ -67,7 +67,7 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	SDT::SetDescriptor(privSeg, (u32)&privSegData, sizeof(PrivSegment) - 1, 0,
 		0, SDT::DST_DATA | SDT::DST_D_WRITE, 0);
 	/* private segment is referenced by %fs register of each CPU */
-	__asm__ __volatile__ (
+	ASM (
 		"movw	%0, %%fs"
 		:
 		: "r"(privSegSel));
@@ -100,7 +100,7 @@ CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 
 	/* Switch stack and jump to startup code */
 	int rc;
-	__asm__ __volatile__ (
+	ASM (
 		"movl	%1, %%esp\n"
 		"pushl	%3\n"
 		"call	*%2\n"
@@ -129,7 +129,7 @@ CPU *
 CPU::GetCurrent()
 {
 	CPU *cpu;
-	__asm__ __volatile__ (
+	ASM (
 		"xorl	%0, %0\n"
 		"movl	%%fs, %0\n"
 		"testl	%0, %0\n"
@@ -138,6 +138,7 @@ CPU::GetCurrent()
 		"1:\n"
 		: "=&r"(cpu)
 		: "m"(*(u32 *)OFFSETOF(PrivSegment, cpu))
+		: "cc"
 	);
 	return cpu;
 }

@@ -41,6 +41,8 @@
 
 #define ASMCALL extern "C" __attribute__((regparm(0)))
 
+#define ASM		__asm__ __volatile__
+
 #define __packed			__attribute__((packed))
 #define __format(type, fmtIdx, argIdx)	__attribute__ ((format(type, fmtIdx, argIdx)))
 #define __noreturn			__attribute__ ((noreturn))

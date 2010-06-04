@@ -674,7 +674,7 @@ OnThreadExit(u32 exitCode, PM::Thread *thrd)
 	thrd->Exit(exitCode);
 }
 
-__asm__ __volatile__ (
+ASM (
 	".globl _OnThreadExit\n"
 	"_OnThreadExit:\n"
 	"pushl	%eax\n"
@@ -695,7 +695,7 @@ int
 PM::Thread::SaveContext(Context *ctx)
 {
 	int rc;
-	__asm__ __volatile__ (
+	ASM (
 		/* save general purpose registers in stack */
 		"pushl	%%ebx\n"
 		"pushl	%%ecx\n"
@@ -717,6 +717,8 @@ PM::Thread::SaveContext(Context *ctx)
 		"popl	%%ecx\n"
 		"popl	%%ebx\n"
 		: "=m"(ctx->ebp), "=m"(ctx->esp), "=m"(ctx->eip), "=&a"(rc)
+		:
+		: "cc"
 	);
 	return rc;
 }
@@ -725,7 +727,7 @@ PM::Thread::SaveContext(Context *ctx)
 void
 PM::Thread::RestoreContext(Context *ctx, u32 asRoot)
 {
-	__asm__ __volatile__ (
+	ASM (
 		/* preload values in registers because they can be addressed by %ebp/%esp */
 		"movl	%0, %%eax\n"
 		"movl	%1, %%ebx\n"

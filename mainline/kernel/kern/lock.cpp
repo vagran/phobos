@@ -20,7 +20,7 @@ SpinLock::SpinLock(int flag)
 void
 SpinLock::Lock()
 {
-	__asm__ __volatile__ (
+	ASM (
 		"1: lock btsl	$0, %0\n"
 		"jnc	2f\n"
 		"pause\n"
@@ -35,7 +35,7 @@ SpinLock::Lock()
 void
 SpinLock::Unlock()
 {
-	__asm__ __volatile__ (
+	ASM (
 		"lock btcl	$0, %0"
 		:
 		: "m"(flag)
@@ -47,7 +47,7 @@ int
 SpinLock::TryLock()
 {
 	register int rc;
-	__asm__ __volatile__ (
+	ASM (
 		"xorl	%%eax, %%eax\n"
 		"lock btsl	$0, %1\n"
 		"jnc	1f\n"

@@ -89,6 +89,7 @@ GDT::GDT()
 		:
 		:"m"(pd), "r"((u32)GetSelector(SI_KCODE, 0)), "r"((u32)GetSelector(SI_KDATA, 0)),
 		 "r"(GetSelector(SI_LDT, 0))
+		: "cc"
 		);
 }
 

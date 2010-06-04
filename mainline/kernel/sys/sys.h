@@ -17,7 +17,7 @@ phbSource("$Id$");
 #define atop(x)			((x) >> PAGE_SHIFT)
 #define ptoa(x)			((x) << PAGE_SHIFT)
 
-#define tracec(c) __asm __volatile ("movl $0x3f8, %%edx; outb %%al, %%dx;" \
+#define tracec(c) ASM ("movl $0x3f8, %%edx; outb %%al, %%dx;" \
 	: : "a"(c) : "edx")
 
 #ifndef ASSEMBLER
