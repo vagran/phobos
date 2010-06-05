@@ -1,0 +1,1542 @@
+---//$Id$//
+
+====== Project diary ======
+Here is briefly logged the history of the project development.
+
+===== Revisions history =====
+
+r113 | vagran | 2010-03-02 22:06:49 EET
+Changed paths:
+	M /mainline/mfs/Makefile
+	A /mainline/kernel/sys/elf_common.h
+	A /mainline/kernel/sys/elf32.h
+	A /mainline/kernel/sys/elf.h
+	M /mainline/kernel/vfs/vfs.cpp
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+
+ext2 file system reading implemented.
+
+//Now I can read a file from a file system by its path. Symbolic links resolution is not yet implemented but is not yet required. Next objective is to implement ELF executable file loading. The system should be able to parse all its sections and map them in user space. At least memory mapping with backing by VFS node is also required. Some next milestone is reached again. Pheeew.//
+----------------------------------------------------------------------------
+r112 | vagran | 2010-03-02 17:51:43 EET
+Changed paths:
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/kernel/fs/ext2/ext2fs.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/fs/fs.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/vfs/vfs.cpp
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+
+Implementing ext2 file system reading.
+
+//Getting block ID by offset in inode, reading files content and parsing directory content - the major part of features required to get read access on ext2 file system is implemented.//
+----------------------------------------------------------------------------
+r111 | vagran | 2010-03-01 22:17:02 EET
+Changed paths:
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/kernel/fs/ext2/ext2fs.h
+	M /mainline/kernel/fs/fs.cpp
+	M /mainline/kernel/fs/fs.h
+	M /mainline/kernel/sys/log.h
+	M /mainline/kernel/vfs/vfs.cpp
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+	M /mainline/kernel/kern/log.cpp
+
+Implementing ext2fs reading.
+----------------------------------------------------------------------------
+r110 | vagran | 2010-03-01 18:11:51 EET
+Changed paths:
+	M /mainline/kernel/fs/ext2/ext2fs.h
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/vfs/vfs.cpp
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+
+Implementing ext2 file system reading.
+----------------------------------------------------------------------------
+r109 | vagran | 2010-02-28 23:13:59 EET
+Changed paths:
+	M /mainline/kernel/fs/ext2/ext2fs.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/fs/fs.cpp
+	M /mainline/kernel/fs/fs.h
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+
+Implementing ext2fs reading.
+----------------------------------------------------------------------------
+r108 | vagran | 2010-02-28 14:15:30 EET
+Changed paths:
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/fs/fs.cpp
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/fs/fs.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/vfs/vfs.cpp
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/kernel/fs/ext2/ext2fs.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/kern/lock.cpp
+	A /mainline/kernel/sys/object.h
+
+Implementing file system operations.
+----------------------------------------------------------------------------
+r107 | vagran | 2010-02-24 16:38:32 EET
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/sys/log.h
+	M /mainline/kernel/vfs/vfs.cpp
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/kern/log.cpp
+
+Mounting implementation started in VFS.
+----------------------------------------------------------------------------
+r106 | vagran | 2010-02-23 23:07:43 EET
+Changed paths:
+	M /mainline/kernel/fs/ext2/ext2fs.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/fs/fs.cpp
+	M /mainline/kernel/dev/blk/ramdisk.cpp
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/fs/fs.h
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+
+ext2 FS prober implemented.
+
+//I have plans to develop my own disk file system but now I need quickly implement files reading from some storage. ext2 on RAM disk is the simplest solution. Relatively... :-)//
+----------------------------------------------------------------------------
+r105 | vagran | 2010-02-21 22:12:47 EET
+Changed paths:
+	M /mainline/lib/startup
+	A /mainline/kernel/vfs
+	A /mainline/kernel/fs/ext2/Makefile
+	A /mainline/kernel/fs/fs.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/mfs
+	A /mainline/kernel/dev/blk/ramdisk.cpp
+	M /mainline/kernel/sys/queue.h
+	A /mainline/kernel/fs/fs.h
+	M /mainline/kernel/unit_test/Makefile
+	M /mainline/kernel/kern/pm.cpp
+	A /mainline/kernel/fs/Makefile
+	A /mainline/kernel/dev/blk/ramdisk.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/kern/pm.h
+	A /mainline/kernel/dev/blk/Makefile
+	M /mainline/mfs/Makefile
+	M /mainline/make/makevar.mak
+	A /mainline/kernel/lib/common
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/dev/Makefile
+	M /mainline/kernel/dev/device.cpp
+	R /mainline/kernel/lib/common/Makefile
+	D /mainline/kernel/lib/Tree
+	A /mainline/kernel/dev/blk
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/Makefile
+	M /mainline/kernel/make/link.ld
+	A /mainline/kernel/sys/Bitmap.h
+	M /mainline/bin/init
+	A /mainline/kernel/fs
+	A /mainline/kernel/vfs/vfs.cpp
+	A /mainline/kernel/lib/Bitmap.cpp
+	A /mainline/kernel/fs/ext2/ext2fs.cpp
+	A /mainline/kernel/vfs/vfs.h
+	A /mainline/kernel/fs/ext2/ext2fs.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/Makefile
+	A /mainline/kernel/fs/ext2
+	A /mainline/kernel/vfs/Makefile
+
+VFS implementation started.
+
+//One more new mandatory component. And again it is not simple :-(//
+----------------------------------------------------------------------------
+r104 | vagran | 2010-02-20 01:57:10 EET
+Changed paths:
+	A /mainline/lib/startup
+	A /mainline/lib/startup/AppStartup.cpp
+	A /mainline/make
+	M /mainline/kernel/dev/Makefile
+	A /mainline/bin/Makefile
+	A /mainline/make/make.mak
+	M /mainline/kernel/sys/sys.h
+	A /mainline/lib/Makefile
+	A /mainline/mfs
+	M /mainline/kernel/Makefile
+	A /mainline/bin/init/init.cpp
+	M /mainline/kernel/make/link.ld
+	M /mainline/kernel/unit_test/Makefile
+	A /mainline/make/link.app.ld
+	A /mainline/bin/init/Makefile
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/doc/pages/__template.txt
+	A /mainline/lib
+	M /mainline/kernel/lib/Tree/Makefile
+	A /mainline/mfs/Makefile
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/lib/Makefile
+	A /mainline/make/makevar.mak
+	M /mainline/kernel/make/unit_test.mak
+	A /mainline/include
+	M /mainline/kernel/make/make.mak
+	A /mainline/lib/startup/Makefile
+	M /mainline
+	A /mainline/Makefile
+
+RAM disk image compilation implemented. System tree making implemented.
+
+//It becomes more serious :-)//
+----------------------------------------------------------------------------
+r103 | vagran | 2010-02-19 11:58:29 EET
+Changed paths:
+	M /mainline/kernel/kern/pm.cpp
+
+Do not switch address space when switching to kernel process.
+----------------------------------------------------------------------------
+r102 | vagran | 2010-02-19 11:17:26 EET
+Changed paths:
+	A /mainline/doc/pages/components/kernel/im.txt
+	M /mainline/doc/pages/start.txt
+
+Restoring a couple of pages in dropped documentation library from browser cache.
+
+//Just a couple of pages... :-(//
+----------------------------------------------------------------------------
+r101 | vagran | 2010-02-18 23:42:17 EET
+Changed paths:
+	M /mainline/doc/pages/components/kernel/kernel.txt
+	M /mainline/doc/pages/components/kernel/pm.txt
+
+Project documentation server accidentally destroyed with all content... Just several pages restored...
+
+//Epic fail... :-(//
+----------------------------------------------------------------------------
+r100 | vagran | 2010-02-18 22:57:56 EET
+Changed paths:
+	A /mainline/bin
+	A /mainline/bin/init
+
+Adding bin directory for user space binaries.
+
+//I'm waiting for the moment I will be able to design user space programs. The long way to this target is started.//
+----------------------------------------------------------------------------
+r99 | vagran | 2010-02-18 22:16:30 EET
+Changed paths:
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/kern/tm.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/tm.h
+	M /mainline/kernel/init/main.cpp
+
+Sleep with timeout implemented.
+----------------------------------------------------------------------------
+r98 | vagran | 2010-02-17 23:04:19 EET
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/dev/video/vga.cpp
+	M /mainline/kernel/kern/pm.cpp
+
+Fixed bug in VGA driver, when framebuffer wrapped around, the last line was not cleared.
+----------------------------------------------------------------------------
+r97 | vagran | 2010-02-16 23:29:18 EET
+Changed paths:
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Stack concept changed - we cannot provide completely dynamically growing stack for the kernel. Instead we assure that we have enough mapped pages on top of user stack when entering kernel mode. Context switching stability test passed.
+
+//The page faults of the stack growing in the kernel mode cannot be processed on x86 architecture. The CPU cannot handle exception if it doesn't have valid stack. This point was completely unpredicted by system concept design. I hope it is the first and the last serious design defect. I am ashamed... :-(//
+----------------------------------------------------------------------------
+r96 | vagran | 2010-02-16 21:32:21 EET
+Changed paths:
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Context switch between processes implemented and works. Stability test failed - accident CPU reset after many thousands switches. Probably stack mapping corrupted. Must be fixed before further process management development!
+----------------------------------------------------------------------------
+r95 | vagran | 2010-02-16 12:10:00 EET
+Changed paths:
+	M /mainline/kernel/sys/bitops.h
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/gcc.cpp
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/sys/SlabAllocator.h
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/init/main.cpp
+
+Wakeup() method implemented.
+----------------------------------------------------------------------------
+r94 | vagran | 2010-02-15 22:33:50 EET
+Changed paths:
+	M /mainline/kernel/dev/condev.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing context switching. Virtual address space switching must be fixed.
+----------------------------------------------------------------------------
+r93 | vagran | 2010-02-14 23:19:00 EET
+Changed paths:
+	M /mainline/kernel/sys/MemAllocator.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Zone parameter added to malloc method. Address space switching implemented.
+----------------------------------------------------------------------------
+r92 | vagran | 2010-02-14 19:04:19 EET
+Changed paths:
+	A /mainline/kernel/sys/bitops.h
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+
+Implementing processes and threads. Need to fix bug in Map constructor - PDPT should be allocated in 4GB zone. malloc interface needs to be changed to accept zone argument. Thread::SwitchTo must switch address space when process changed.
+----------------------------------------------------------------------------
+r91 | vagran | 2010-02-11 23:10:13 EET
+Changed paths:
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Previous commit tested and fixes applied.
+
+//I'm using an approach when I write some much code and commit it without testing (because in some work environment I don't have emulator installed) and test it later. Seems such approach is quite productive...//
+----------------------------------------------------------------------------
+r90 | vagran | 2010-02-11 14:51:08 EET
+Changed paths:
+	A /mainline/kernel/mem/SwapPager.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/kdb/debugger.cpp
+	A /mainline/kernel/mem/SwapPager.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/kern/log.cpp
+
+Start pagers implementation to make possible create processes (process stack is dynamically growen through page faults handling and retrieving pages from associated pager).
+----------------------------------------------------------------------------
+r89 | vagran | 2010-02-07 21:26:55 EET
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/dev/condev.cpp
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/sys/defs.h
+	A /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/unit_test
+	M /mainline/kernel
+	A /mainline/kernel/kern/pm.h
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/unit_test/buddy.cpp
+
+Implementing processes and threads.
+
+//Processes manager - one more complex component. Probably there is no simple components...//
+----------------------------------------------------------------------------
+r88 | vagran | 2010-02-07 11:56:29 EET
+Changed paths:
+	A /mainline/doc/media/components/kernel
+	M /mainline/doc
+	A /mainline/doc/media
+	A /mainline/doc/media/components
+
+Updating documentation tree.
+----------------------------------------------------------------------------
+r87 | vagran | 2010-02-07 11:37:55 EET
+Changed paths:
+	D /mainline/pages
+	A /mainline/doc/pages
+
+Changing documentation tree layout.
+----------------------------------------------------------------------------
+r86 | vagran | 2010-02-07 11:37:05 EET
+Changed paths:
+	A /mainline/doc
+
+Changing documentation tree layout.
+----------------------------------------------------------------------------
+r85 | vagran | 2010-02-07 11:36:20 EET
+Changed paths:
+	A /mainline/pages
+	D /mainline/doc
+
+Changing documentation tree layout.
+----------------------------------------------------------------------------
+r84 | vagran | 2010-02-06 23:05:13 EET
+Changed paths:
+	A /mainline/doc/components
+	A /mainline/doc/components/kernel/pm.txt
+	A /mainline/doc/components/kernel/kernel.txt
+	M /mainline/doc
+	A /mainline/doc/.project
+	A /mainline/doc/components/kernel/mm.txt
+	A /mainline/doc/__template.txt
+	A /mainline/doc/start.txt
+	A /mainline/doc/components/kernel
+
+Initial commit of PhobOS documentation wiki.
+
+//Let's make some info for the next generation :-)//
+----------------------------------------------------------------------------
+r83 | vagran | 2010-02-06 16:43:25 EET
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/dev/sys/rtc.cpp
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+
+Praparing for multitasking implementation. TSS created. CPU initialization changed: private kernel stack for each CPU, old stack content is not copied to new one. Fixed deadlock in interrupt manager.
+----------------------------------------------------------------------------
+r82 | vagran | 2010-02-01 23:16:50 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+
+Fixed bug in interrupts manager: SelectClient() method incorrectly processed interrupts mask. Also when hardware interrupt occurred on slave PIC, EOI must be also issued on the master PIC for cascading line.
+----------------------------------------------------------------------------
+r81 | vagran | 2010-02-01 18:51:32 EET
+Changed paths:
+	M /mainline/kernel/dev/condev.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/dev/condev.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+I/O queuing for console devices implemented.
+----------------------------------------------------------------------------
+r80 | vagran | 2010-01-31 22:33:45 EET
+Changed paths:
+	M /mainline/kernel/dev/condev.cpp
+	M /mainline/kernel/dev/Makefile
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/dev/condev.h
+	D /mainline/kernel/dev/uart
+	M /mainline/kernel/dev/chr/syscons.cpp
+	M /mainline/kernel/dev/device.h
+	A /mainline/kernel/dev/chr/ser.cpp
+	M /mainline/kernel/kern/tm.h
+	M /mainline/kernel/dev/chr/syscons.h
+	M /mainline/kernel/init/main.cpp
+	A /mainline/kernel/dev/chr/ser.h
+
+Redesigning console devices. Input and output queues must be implemented.
+----------------------------------------------------------------------------
+r79 | vagran | 2010-01-31 02:35:09 EET
+Changed paths:
+	M /mainline/kernel/dev/sys/rtc.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/dev/sys/pit.cpp
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/kern/tm.cpp
+	M /mainline/kernel/dev/sys/pit.h
+	M /mainline/kernel/dev/sys/rtc.cpp
+	M /mainline/kernel/kern/tm.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+
+Software timers implemented.
+
+//I'm happy :-)//
+----------------------------------------------------------------------------
+r78 | vagran | 2010-01-30 00:59:03 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/kern/tm.cpp
+	M /mainline/kernel/kern/tm.h
+	M /mainline/kernel/init/main.cpp
+
+GetTime() method implemented. MaskIrq() method fixed.
+----------------------------------------------------------------------------
+r77 | vagran | 2010-01-29 17:23:33 EET
+Changed paths:
+	M /mainline/kernel/dev/sys/rtc.h
+	M /mainline/kernel/dev/sys/pit.cpp
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/kern/tm.cpp
+	M /mainline/kernel/dev/sys/pit.h
+	M /mainline/kernel/dev/sys/rtc.cpp
+	M /mainline/kernel/kern/tm.h
+
+RTC basic functionality implemented. Implementing time manager.
+----------------------------------------------------------------------------
+r76 | vagran | 2010-01-29 12:05:51 EET
+Changed paths:
+	M /mainline/kernel/dev/sys/rtc.h
+	M /mainline/kernel/kern/im.cpp
+
+Implementing RTC. Registers related constants added.
+----------------------------------------------------------------------------
+r75 | vagran | 2010-01-29 11:07:04 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/kern/im.h
+
+Interrupts scheduling optimized (early mask checking, slots lists contain only slots with clients).
+----------------------------------------------------------------------------
+r74 | vagran | 2010-01-28 22:30:14 EET
+Changed paths:
+	A /mainline/kernel/dev/sys/rtc.h
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/dev/sys/pit.cpp
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/dev/sys/pit.h
+	A /mainline/kernel/dev/sys/rtc.cpp
+	M /mainline/kernel/init/main.cpp
+
+Interrupts scheduler fixed. RTC support implementation started.
+----------------------------------------------------------------------------
+r73 | vagran | 2010-01-28 15:48:40 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/sys/queue.h
+
+Interrupts priorities implemented. LIST_SORT macro added.
+----------------------------------------------------------------------------
+r72 | vagran | 2010-01-27 23:56:36 EET
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/lib/SlabAllocator.cpp
+
+Interrupts scheduling redesign. Round robin balancing implemented.
+
+//It becomes better every day :-)//
+----------------------------------------------------------------------------
+r71 | vagran | 2010-01-26 22:03:53 EET
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/dev/sys/pit.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/kern/tm.cpp
+	M /mainline/kernel/dev/sys/pic.h
+	M /mainline/kernel/dev/sys/pit.h
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/init/main.cpp
+
+Implementing time manager.
+----------------------------------------------------------------------------
+r70 | vagran | 2010-01-26 16:58:41 EET
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/dev/sys/pic.cpp
+	M /mainline/kernel/dev/sys/Makefile
+	A /mainline/kernel/dev/sys/pit.cpp
+	M /mainline/kernel/sys/sys.h
+	A /mainline/kernel/kern/tm.cpp
+	A /mainline/kernel/dev/sys/pit.h
+	A /mainline/kernel/kern/tm.h
+	M /mainline/kernel/sys/stdlib.h
+	M /mainline/kernel/init/main.cpp
+
+Implementing time manager. strcpy() function fixed. strncpy() function added.
+
+//I want timers in the kernel like in other OSes. This will make me happy :-)//
+----------------------------------------------------------------------------
+r69 | vagran | 2010-01-26 13:53:55 EET
+Changed paths:
+	A /mainline/kernel/lib/Tree/Makefile
+	M /mainline/kernel/lib/Makefile
+	A /mainline/kernel/lib/Tree
+	M /mainline/kernel/make/make.mak
+	A /mainline/kernel/lib/Tree/Tree.cpp
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/unit_test/Makefile
+	D /mainline/kernel/lib/Tree.cpp
+
+Support for static libraries with common code implemented. The first library created with a binary trees implementation.
+
+//I suppose some common code can be shared between the kernel and user space... Anyway this OS is very peculiar :-)//
+----------------------------------------------------------------------------
+r68 | vagran | 2010-01-25 21:49:10 EET
+Changed paths:
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/init/start.S
+	M /mainline/kernel/dev/chr/syscons.cpp
+	M /mainline/kernel/make/link.ld
+	M /mainline/kernel/kdb/debugger.cpp
+
+Make entry point linked on high virtual address to make GDB happy.
+----------------------------------------------------------------------------
+r67 | vagran | 2010-01-24 12:32:32 EET
+Changed paths:
+	M /mainline/kernel/kdb/debugger.cpp
+
+Small fixes in kdb.
+----------------------------------------------------------------------------
+r66 | vagran | 2010-01-23 15:08:53 EET
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/sys/stdlib.h
+
+Support for traces in remote GDB implemented. Safe printf-family functions implemented in standard library. Many correction in GDB stub for multi-threading support.
+----------------------------------------------------------------------------
+r65 | vagran | 2010-01-21 23:43:27 EET
+Changed paths:
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/kdb/debugger.cpp
+
+Multiprocessor support in debugger implemented.
+----------------------------------------------------------------------------
+r64 | vagran | 2010-01-19 15:50:54 EET
+Changed paths:
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/kdb/debugger.cpp
+
+Implementing threads support in remote GDB stub.
+----------------------------------------------------------------------------
+r63 | vagran | 2010-01-17 22:18:10 EET
+Changed paths:
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/init/start.S
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Multiprocessor support in debugger implemented (still need threads support in remote GDB protocol implementation). Fixed incorrect calculation of offset in VM object in map entry allocator.
+----------------------------------------------------------------------------
+r62 | vagran | 2010-01-15 14:09:35 EET
+Changed paths:
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+
+BuddyAllocator slightly corrected to make it more safe for multithreading.
+----------------------------------------------------------------------------
+r61 | vagran | 2010-01-15 12:23:25 EET
+Changed paths:
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/mem/mm.cpp
+
+Support for partial inserting objects in a map.
+----------------------------------------------------------------------------
+r60 | vagran | 2010-01-14 21:50:02 EET
+Changed paths:
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/dev/chr/syscons.cpp
+	M /mainline/kernel/dev/sys/cpu_boot.S
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/dev/chr/syscons.h
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+APs proper startup implemented. Multiprocessor debugger implementation started.
+----------------------------------------------------------------------------
+r59 | vagran | 2010-01-02 01:51:33 EET
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/dev/sys/cpu_boot.S
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/dev/sys/lapic.cpp
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/dev/sys/lapic.h
+	M /mainline/kernel/dev/chr/syscons.cpp
+	M /mainline/kernel/dev/video/vga.cpp
+	M /mainline/kernel/kdb/debugger.cpp
+	A /mainline/kernel/sys/log.h
+	M /mainline/kernel/sys/stdlib.h
+	M /mainline/kernel/dev/chr/syscons.h
+	A /mainline/kernel/kern/log.cpp
+
+APs bootstrapping implemented. Log class added.
+
+//Yeah! I'm able to run code on the rest processors. I didn't fully believe that it is possible for me :-)//
+----------------------------------------------------------------------------
+r58 | vagran | 2010-01-01 02:10:16 EET
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/dev/sys/lapic.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/dev/video/vga.cpp
+	A /mainline/kernel/dev/sys/cpu_boot.S
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+	M /mainline/kernel/dev/sys/lapic.cpp
+
+Application Processors start-up.
+
+//Let's start SMP implementation. It should be great experience for me.//
+----------------------------------------------------------------------------
+r57 | vagran | 2009-12-31 00:46:34 EET
+Changed paths:
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/dev/condev.cpp
+	A /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/sys/frame.h
+	M /mainline/kernel/dev/condev.h
+	M /mainline/kernel/sys/sys.h
+	A /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/kern/trap.S
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+	A /mainline/kernel/dev/sys/lapic.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/mem/mm.h
+	A /mainline/kernel/dev/sys/lapic.h
+	M /mainline/kernel/sys/specialreg.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/dev/video/vga.cpp
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/sys/stdlib.h
+	M /mainline/kernel/dev/video/vga.h
+
+VGA text terminal driver implemented. Traps/Exceptions/Interrupts handling code redesigned. Implementing LAPIC support.
+----------------------------------------------------------------------------
+r56 | vagran | 2009-12-28 15:26:20 EET
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/dev/condev.cpp
+	A /mainline/kernel/dev/video
+	M /mainline/kernel/dev/Makefile
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/dev/condev.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/mem/mm.h
+	A /mainline/kernel/dev/video/Makefile
+	M /mainline/kernel/dev/chr/syscons.cpp
+	A /mainline/kernel/dev/video/vga.cpp
+	A /mainline/kernel/dev/video/vga.h
+	M /mainline/kernel/lib/SlabAllocator.cpp
+	M /mainline/kernel/dev/chr/syscons.h
+
+Implementing VGA text terminal driver.
+
+//Finally I will see something on the screen, not from serial port only. One day I will implement graphical mode and nice GUI :-)//
+----------------------------------------------------------------------------
+r55 | vagran | 2009-12-22 23:00:43 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/sys/frame.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/dev/chr/syscons.cpp
+	M /mainline/kernel/kern/trap.S
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+
+Interrupts manager basic functionality implemented (tested with keyboard interrupts).
+
+//Seems it's working. Great :-)//
+----------------------------------------------------------------------------
+r54 | vagran | 2009-12-22 16:57:07 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/dev/sys/pic.cpp
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/dev/sys/pic.h
+	A /mainline/kernel/dev/sys/IntController.h
+	M /mainline/kernel/sys/cpu_instr.h
+
+PIC device class implemented.
+----------------------------------------------------------------------------
+r53 | vagran | 2009-12-22 11:41:53 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/dev/sys/pic.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/dev/sys/pic.h
+
+Implementing PIC device class.
+----------------------------------------------------------------------------
+r52 | vagran | 2009-12-21 23:18:00 EET
+Changed paths:
+	M /mainline/kernel/dev/Makefile
+	A /mainline/kernel/dev/sys/pic.cpp
+	A /mainline/kernel/dev/sys
+	M /mainline/kernel/dev/device.cpp
+	A /mainline/kernel/dev/sys/Makefile
+	M /mainline/kernel/dev/chr/syscons.cpp
+	A /mainline/kernel/dev/sys/pic.h
+	M /mainline/kernel/dev/device.h
+
+Implementing Programmable Interrupt Controller device.
+
+//I should probably implement I/O APIC support which will completely replace PIC. But now it is more easy and quick to implement.//
+----------------------------------------------------------------------------
+r51 | vagran | 2009-12-21 13:28:07 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/kern/im.h
+
+Implementing interrupts manager. IRQ masking implemented.
+----------------------------------------------------------------------------
+r50 | vagran | 2009-12-20 23:39:50 EET
+Changed paths:
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/kern/trap_hi.cpp
+
+Implementing interrupts manager.
+----------------------------------------------------------------------------
+r49 | vagran | 2009-12-20 19:41:25 EET
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+	M /mainline/kernel/sys/types.h
+	A /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/sys/specialreg.h
+	A /mainline/kernel/kern/im.h
+	M /mainline/kernel/sys/stdlib.h
+
+Implementing interrupts manager.
+
+//Also not so simple component...//
+----------------------------------------------------------------------------
+r48 | vagran | 2009-12-19 20:11:46 EET
+Changed paths:
+	A /mainline/kernel/.project
+	M /mainline/kernel/sys/SlabAllocator.h
+	M /mainline/kernel/lib/SlabAllocator.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Slab allocator should maintain slab for its own structures (SlabGroup).
+Incorrect assert fixed.
+----------------------------------------------------------------------------
+r47 | vagran | 2009-12-19 19:14:27 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/make/link.ld
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing VM system: memory allocations are now functional.
+Added 16-bits atomic arithmetic functions.
+Fixed bug in identity mapping zeroing. Fixed ld script to properly drop boot code constructors/destructors sections. Fixed pointers in MBInfo structures to be in high memory.
+
+//Basic memory management now is functional! Many people who wanted to write their OS were off the distance because of this subsystem implementation complexity. I'm running yet :-)//
+----------------------------------------------------------------------------
+r46 | vagran | 2009-12-18 16:56:53 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/sys/mem.h
+
+Implementing memory manager. Physical map. Pages allocations.
+----------------------------------------------------------------------------
+r45 | vagran | 2009-12-18 11:56:32 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/sys/frame.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing memory manager. Objects insertion in map. Allocators creating for particular entries.
+----------------------------------------------------------------------------
+r44 | vagran | 2009-12-17 21:14:51 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	A /mainline/doc
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Minor changes in memory manager structures (preparing for stacked objects model implementation.
+Added 'doc' directory to sources tree.
+----------------------------------------------------------------------------
+r43 | vagran | 2009-12-17 09:57:51 EET
+Changed paths:
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/init/start.S
+
+Disable interrupts when system starts (paranoic).
+----------------------------------------------------------------------------
+r42 | vagran | 2009-12-16 22:10:26 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/sys/queue.h
+
+Atomic operations implemented.
+
+//I definitely will implement SMP because it is very complex and cool feature :-) So think about it already now.//
+----------------------------------------------------------------------------
+r41 | vagran | 2009-12-16 10:12:19 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing memory manager.
+----------------------------------------------------------------------------
+r40 | vagran | 2009-12-16 09:55:34 EET
+Changed paths:
+	M /mainline/kernel/sys/cpu_instr.h
+
+sysenter and sysexit instructions should not write to MSRs
+
+//I'm dreaming about a day when I will be able to start system calls implementation :-)//
+----------------------------------------------------------------------------
+r39 | vagran | 2009-12-16 09:28:31 EET
+Changed paths:
+	M /mainline/kernel/sys/cpu_instr.h
+
+Added inline functions for "rdmsr", "wrmsr", "sysenter", "sysexit" instructions.
+----------------------------------------------------------------------------
+r38 | vagran | 2009-12-15 20:55:09 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/mem/mm.cpp
+
+TREE_FIND macro changed to have more nice form.
+----------------------------------------------------------------------------
+r37 | vagran | 2009-12-14 10:56:55 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing memory manager.
+----------------------------------------------------------------------------
+r36 | vagran | 2009-12-11 12:09:45 EET
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/unit_test/buddy.cpp
+
+Fixed area allocation implemented in BuddyAllocator.
+----------------------------------------------------------------------------
+r35 | vagran | 2009-12-11 10:53:39 EET
+Changed paths:
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/unit_test/buddy.cpp
+
+Unit test for buddy allocator enhanced (looking up for free blocks). Fixed bug in BuddyAllocator: BF_BUSY flag was not cleared in head block descriptor when freeing the block.
+----------------------------------------------------------------------------
+r34 | vagran | 2009-12-10 22:53:30 EET
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/unit_test/buddy.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing VM system: lookup method implemented in buddy allocator.
+----------------------------------------------------------------------------
+r33 | vagran | 2009-12-08 22:02:30 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing VM system: 'new' operator debugging features, VM objects.
+----------------------------------------------------------------------------
+r32 | vagran | 2009-12-06 13:54:17 EET
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/stdlib.h
+	M /mainline/kernel/sys/boot.h
+	M /mainline/kernel/mem/mm.cpp
+
+Page descriptors array allocation implemented.
+----------------------------------------------------------------------------
+r31 | vagran | 2009-12-05 15:53:09 EET
+Changed paths:
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/kern/lock.cpp
+
+SVN properties corrected
+----------------------------------------------------------------------------
+r30 | vagran | 2009-12-05 15:50:55 EET
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/mem/pte.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/init/init.cpp
+	A /mainline/kernel/sys/lock.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/sys/SlabAllocator.h
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/unit_test/slab.cpp
+	M /mainline/kernel/sys/MemAllocator.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/make/make.mak
+	A /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/lib/SlabAllocator.cpp
+
+Improving memory management. Synchronization support implemented.
+----------------------------------------------------------------------------
+r29 | vagran | 2009-12-04 23:13:20 EET
+Changed paths:
+	M /mainline/kernel/sys/MemAllocator.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/sys/SlabAllocator.h
+	M /mainline/kernel/lib/SlabAllocator.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Unsigned integer overflow accounted in buddy allocator algorithms.
+----------------------------------------------------------------------------
+r28 | vagran | 2009-12-04 17:03:18 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.cpp
+
+Kernel image and initial allocations should be excluded from available pages array.
+----------------------------------------------------------------------------
+r27 | vagran | 2009-12-03 10:35:21 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/mem/mm.cpp
+
+Memory layout control constants are used for recursive mapping initialization.
+----------------------------------------------------------------------------
+r26 | vagran | 2009-12-03 09:58:34 EET
+Changed paths:
+	D /mainline/kernel/unit_test/obj
+	D /mainline/kernel/unit_test/unit_obj
+
+Deleting erroneously committed files.
+----------------------------------------------------------------------------
+r25 | vagran | 2009-12-03 09:56:39 EET
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/unit_test/queue.cpp
+	A /mainline/kernel/unit_test/obj
+	A /mainline/kernel/unit_test/obj/utrun.exe
+	M /mainline/kernel/sys/queue.h
+	A /mainline/kernel/unit_test/unit_obj
+	M /mainline/kernel/mem/mm.cpp
+----------------------------------------------------------------------------
+r24 | vagran | 2009-11-27 12:14:54 EET
+Changed paths:
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/sys/frame.h
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing virtual memory management for kernel.
+----------------------------------------------------------------------------
+r23 | vagran | 2009-11-25 20:27:33 EET
+Changed paths:
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+
+BuddyAllocator tail space utilization feature implemented.
+----------------------------------------------------------------------------
+r22 | vagran | 2009-11-25 19:37:40 EET
+Changed paths:
+	D /mainline/kernel/.settings
+	D /mainline/kernel/.cproject
+	D /mainline/kernel/.project
+	D /mainline/kernel/build
+
+Deleting errorneously committed files and directories.
+----------------------------------------------------------------------------
+r21 | vagran | 2009-11-25 15:31:08 EET
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/unit_test/buddy.cpp
+
+Caller specific argument for BuddyAllocator allocation routines added.
+----------------------------------------------------------------------------
+r20 | vagran | 2009-11-25 12:15:05 EET
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	A /mainline/kernel/.settings
+	A /mainline/kernel/build/DEBUG
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	A /mainline/kernel/.cproject
+	A /mainline/kernel/.project
+	A /mainline/kernel/.settings/org.eclipse.cdt.core.prefs
+	M /mainline/kernel/init/main.cpp
+	A /mainline/kernel/build
+
+Implementing enhancement for buddy allocator: allocate regions which are not multiple of two's power by managing the chain of busy blocks.
+
+//It becomes more and more complex...//
+----------------------------------------------------------------------------
+r19 | vagran | 2009-11-25 10:55:10 EET
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/unit_test/slab.cpp
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/mem/pte.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/unit_test/buddy.cpp
+	M /mainline/kernel/unit_test/CTest.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/unit_test/main.cpp
+
+Correcting (c) symbol encoding in files headers.
+----------------------------------------------------------------------------
+r18 | vagran | 2009-11-17 21:21:28 EET
+Changed paths:
+	M /mainline/kernel/mem/pte.h
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/init/main.cpp
+
+Initial memory mapping fixed. Quick map cannot be used when paging is not enabled yet.
+
+----------------------------------------------------------------------------
+r17 | vagran | 2009-11-08 14:38:13 EET
+Changed paths:
+	M /mainline/kernel/unit_test/slab.cpp
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/make/unit_test.mak
+	D /mainline/kernel/.cproject
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/make/make.mak
+	D /mainline/kernel/.project
+	M /mainline/kernel/unit_test/buddy.cpp
+	A /mainline/eclipse/codetemplates.xml
+	M /mainline/kernel/unit_test/CTest.h
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/unit_test/main.cpp
+
+Fixed bug in BuddyAllocator in Reserver method. Code adopted to new Linux-based build environment.
+
+//I have finally refused Windows environment and migrated to Ubuntu. Later I will remember my Windows work environment as a nightmare :-)//
+----------------------------------------------------------------------------
+r16 | vagran | 2009-10-25 15:30:17 EET
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/dev/chr/syscons.cpp
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/unit_test/buddy.cpp
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/lib/Tree.cpp
+	M /mainline/kernel/sys/stdlib.h
+
+Space reservation for buddy allocator implemented.
+----------------------------------------------------------------------------
+r15 | vagran | 2009-10-22 22:35:34 EEST
+Changed paths:
+	M /mainline/kernel/unit_test/slab.cpp
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/sys/SlabAllocator.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/lib/Tree.cpp
+	M /mainline/kernel/lib/SlabAllocator.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Slab allocator implemented.
+----------------------------------------------------------------------------
+r14 | vagran | 2009-10-21 20:21:13 EEST
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	A /mainline/kernel/unit_test/slab.cpp
+	A /mainline/kernel/sys/SlabAllocator.h
+	M /mainline/kernel/unit_test/Makefile
+	A /mainline/kernel/lib/SlabAllocator.cpp
+
+Implementing slab allocator.
+
+//I really need some slab allocator for small structures in the kernel. Buddy allocator has significant code and memory space overhead for using it for many small blocks allocations.//
+----------------------------------------------------------------------------
+r13 | vagran | 2009-10-19 23:01:32 EEST
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	A /mainline/kernel/sys/BuddyAllocator.h
+	A /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/.cproject
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/frame.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/.project
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/unit_test/Makefile
+	M /mainline/kernel/unit_test/CTest.h
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/unit_test/main.cpp
+	A /mainline/kernel/sys/MemAllocator.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/make/make.mak
+	A /mainline/kernel/unit_test/buddy.cpp
+	D /mainline/kernel/lib/Tree32.cpp
+	M /mainline/kernel/kdb/debugger.cpp
+	A /mainline/kernel/lib/Tree.cpp
+
+BuddyAllocator implemented.
+
+//That's my pride! Universal buddy allocator which has very abstracted implementation. It should be able to allocate everything! However its primary purpose is usage in memory manager to allocate regions in virtual and physical memory. Later it might be used for some other applications.//
+----------------------------------------------------------------------------
+r12 | vagran | 2009-10-17 11:19:49 EEST
+Changed paths:
+	D /mainline/kernel/.settings
+
+Eclipse settings file removed from repository.
+----------------------------------------------------------------------------
+r11 | vagran | 2009-10-14 16:39:17 EEST
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/kern/trap.S
+	M /mainline/kernel/sys/boot.h
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing memory management
+
+//I guess it will be the most complex component in the system...//
+----------------------------------------------------------------------------
+r10 | vagran | 2009-10-11 18:43:14 EEST
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	A /mainline/kernel/kdb/debugger.h
+	A /mainline/kernel/kern/Makefile
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/.cproject
+	A /mainline/kernel/sys/frame.h
+	M /mainline/kernel/dev/condev.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/Makefile
+	A /mainline/kernel/kdb
+	A /mainline/kernel/kern/trap.S
+	A /mainline/kernel/mem/segments.cpp
+	A /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/sys/mem.h
+	A /mainline/kernel/kdb/Makefile
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/make/unit_test.mak
+	A /mainline/kernel/kern
+	M /mainline/kernel/sys/specialreg.h
+	M /mainline/kernel/make/make.mak
+	A /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/sys/stdlib.h
+
+Remote debugger support implemented.
+
+//My kernel has its own built-in debugger! That's cool, it's really convenient ant functional when using it in remote GDB mode. Later I will migrate my emulation environment to Qemu with built-in GDB stub which perfectly can replace my debugger. But now I use it and am happy :-) Also it is good to view faults backtrace because they have non-standard frame which is not properly displayed when using Qemu stub.//
+----------------------------------------------------------------------------
+r9 | vagran | 2009-10-10 00:48:55 EEST
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/dev/condev.cpp
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/dev/condev.h
+	M /mainline/kernel/sys/sys.h
+	A /mainline/kernel/dev/chr/syscons.cpp
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/lib/Tree32.cpp
+	M /mainline/kernel/sys/stdlib.h
+	A /mainline/kernel/dev/chr/syscons.h
+	M /mainline/kernel/init/main.cpp
+
+System console implemented.
+----------------------------------------------------------------------------
+r8 | vagran | 2009-10-08 21:25:41 EEST
+Changed paths:
+	A /mainline/kernel/lib/stdlib.cpp
+	D /mainline/kernel/dev/chr/console.cpp
+	A /mainline/kernel/dev/condev.cpp
+	A /mainline/kernel/mem/pte.h
+	A /mainline/kernel/mem/segments.h
+	A /mainline/kernel/mem/mm.h
+	A /mainline/kernel/dev/device.cpp
+	D /mainline/kernel/dev/chr/console.h
+	A /mainline/kernel/dev/condev.h
+	M /mainline/kernel/sys/defs.h
+	A /mainline/kernel/dev/device.h
+	A /mainline/kernel/sys/stdlib.h
+	A /mainline/kernel/mem/mm.cpp
+
+Implementing basic devices classing.
+----------------------------------------------------------------------------
+r7 | vagran | 2009-10-04 20:45:28 EEST
+Changed paths:
+	M /mainline/kernel/sys/gcc.h
+	M /mainline/kernel/dev/Makefile
+	D /mainline/kernel/init/init.c
+	A /mainline/kernel/init/init.cpp
+	M /mainline/kernel/.cproject
+	A /mainline/kernel/dev/chr/Makefile
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/init/start.S
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/Makefile
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/make/link.ld
+	M /mainline/kernel/sys/boot.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+	M /mainline/kernel/sys/mem.h
+	A /mainline/kernel/dev/chr/console.cpp
+	A /mainline/kernel/dev/uart/Makefile
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/lib/gcc.cpp
+	A /mainline/kernel/dev/chr
+	A /mainline/kernel/dev/chr/console.h
+	M /mainline/kernel/sys/specialreg.h
+	M /mainline/kernel/make/make.mak
+
+Initial memory mapping completed. Enhancing standard library.
+----------------------------------------------------------------------------
+r6 | vagran | 2009-10-01 21:07:29 EEST
+Changed paths:
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/lib/Tree32.cpp
+	M /mainline/kernel/unit_test/CTest.h
+	M /mainline/kernel/unit_test/main.cpp
+
+Unit testing framework implemented. Unit tests for linked lists and binary trees implemented.
+
+//Now some critical fundamental data management code can be tested automatically. That's good :-)//
+----------------------------------------------------------------------------
+r5 | vagran | 2009-09-30 23:21:09 EEST
+Changed paths:
+	A /mainline/kernel/.settings
+	M /mainline/kernel/make/unit_test.mak
+	A /mainline/kernel/.cproject
+	A /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/make/make.mak
+	A /mainline/kernel/.project
+	A /mainline/kernel/.settings/org.eclipse.cdt.core.prefs
+	M /mainline/kernel/sys/queue.h
+	A /mainline/kernel/lib/Tree32.cpp
+	M /mainline/kernel/unit_test/Makefile
+	A /mainline/kernel/unit_test/CTest.h
+	A /mainline/kernel/unit_test/main.cpp
+
+Unit testing framework implementation started.
+----------------------------------------------------------------------------
+r4 | vagran | 2009-09-30 19:07:17 EEST
+Changed paths:
+	A /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/Makefile
+	M /mainline/kernel/make/make.mak
+	A /mainline/kernel/sys/queue.h
+	A /mainline/kernel/unit_test/Makefile
+	M /mainline/kernel/sys/cpu_instr.h
+	A /mainline/kernel/unit_test
+
+Preparing for unit testing framework implementation.
+----------------------------------------------------------------------------
+r3 | vagran | 2009-09-29 22:38:14 EEST
+Changed paths:
+	A /mainline/kernel/mem/Makefile
+	A /mainline/kernel/dev/Makefile
+	A /mainline/kernel/init/init.c
+	M /mainline/kernel/sys/sys.h
+	A /mainline/kernel/dev/uart
+	M /mainline/kernel/init/start.S
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/Makefile
+	M /mainline/kernel/make/link.ld
+	M /mainline/kernel/sys/boot.h
+	M /mainline/kernel/init/main.cpp
+	A /mainline/kernel/sys/cpu_instr.h
+	A /mainline/kernel/sys/mem.h
+	A /mainline/kernel/dev/uart/uart.h
+	M /mainline/kernel/lib/gcc.cpp
+	A /mainline/kernel/mem
+	A /mainline/kernel/dev
+	A /mainline/kernel/sys/specialreg.h
+	M /mainline/kernel/make/make.mak
+
+Bootstrap stack fixed. Startup code is functional.
+
+//Seems I really can do this :-)//
+----------------------------------------------------------------------------
+r2 | vagran | 2009-09-27 21:52:02 EEST
+Changed paths:
+	A /mainline/kernel/sys/gcc.h
+	A /mainline/eclipse/code_style.xml
+	A /mainline/kernel/lib
+	A /mainline/kernel/sys/sys.h
+	A /mainline/kernel/init/start.S
+	A /mainline/kernel/sys/defs.h
+	A /mainline/kernel/Makefile
+	A /mainline/kernel/make/link.ld
+	A /mainline/kernel/init/Makefile
+	A /mainline/kernel/sys/boot.h
+	A /mainline/kernel/make
+	A /mainline/kernel/init/main.cpp
+	A /mainline/kernel/sys
+	A /mainline/kernel/init
+	A /mainline/kernel
+	A /mainline/kernel/sys/types.h
+	A /mainline/kernel/lib/gcc.cpp
+	A /mainline/kernel/lib/Makefile
+	A /mainline/eclipse
+	A /mainline/kernel/lib/SourceFile.cpp
+	A /mainline/kernel/make/make.mak
+
+Initial commit. The kernel is loadable by GRUB (Multiboot specification supported).
+
+//I though the beginning would be more problematic...//
+----------------------------------------------------------------------------
+r1 | vagran | 2009-09-26 15:56:01 EEST
+Changed paths:
+	A /mainline
+
+'mainline' directory creation for source trunk.
+
+//Let's start a great project! :-)//
+----------------------------------------------------------------------------
