@@ -29,6 +29,7 @@ private:
 		BLOCK_GRAN = 4, /* must be power of 2 */
 		MAX_EMPTY_SLABS = 8,
 		EMPTY_SLABS_HYST = 4,
+		MAX_BLOCK_SIZE = 0x4000,
 	} AllocPolicy;
 
 	typedef enum {
@@ -71,7 +72,7 @@ private:
 		};
 	} Block;
 
-	ListHead slabGroups;
+	SlabGroup *slabGroups[MAX_BLOCK_SIZE / BLOCK_GRAN];
 	SlabGroup groupGroup;
 	u8 *initialPool;
 	u32 initialPoolSize;

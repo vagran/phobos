@@ -15,7 +15,7 @@ SlabAllocator::SlabAllocator(SlabClient *client, void *initialPool, u32 initialP
 {
 	assert(client);
 	client->Lock();
-	LIST_INIT(slabGroups);
+	memset(slabGroups, 0, sizeof(slabGroups));
 	this->initialPool = (u8 *)initialPool;
 	this->initialPoolSize = initialPoolSize;
 	initialPoolPtr = 0;
@@ -25,10 +25,11 @@ SlabAllocator::SlabAllocator(SlabClient *client, void *initialPool, u32 initialP
 
 SlabAllocator::~SlabAllocator()
 {
-	SlabGroup *g;
 	client->Lock();
-	while ((g = LIST_FIRST(SlabGroup, list, slabGroups))) {
-		FreeGroup(g);
+	for (size_t i = 0; i < sizeof(slabGroups) / sizeof(slabGroups[0]); i++) {
+		if (slabGroups[i]) {
+			FreeGroup(slabGroups[i]);
+		}
 	}
 	client->Unlock();
 	if (initialPool) {
@@ -39,13 +40,11 @@ SlabAllocator::~SlabAllocator()
 SlabAllocator::SlabGroup *
 SlabAllocator::GetGroup(u32 size)
 {
-	SlabGroup *g;
-	LIST_FOREACH(SlabGroup, list, g, slabGroups) {
-		if (g->blockSize == size) {
-			return g;
-		}
+	SlabGroup *g = slabGroups[size / BLOCK_GRAN];
+	if (g) {
+		return g;
 	}
-	/* no group in list, create new */
+	/* no group, create new */
 	if (size == sizeof(SlabGroup)) {
 		g = &groupGroup;
 		memset(g, 0, sizeof(*g));
@@ -66,7 +65,7 @@ SlabAllocator::GetGroup(u32 size)
 	LIST_INIT(g->filledSlabs);
 	LIST_INIT(g->fullSlabs);
 	g->blockSize = size;
-	LIST_ADD(list, g, slabGroups);
+	slabGroups[size / BLOCK_GRAN] = g;
 	return g;
 }
 
@@ -126,9 +125,6 @@ SlabAllocator::GetSlab(u32 size)
 		if (!slab) {
 			/* need new slab */
 			slab = AllocateSlab(g);
-			if (!slab) {
-				return 0;
-			}
 		}
 	}
 	return slab;
@@ -263,7 +259,7 @@ SlabAllocator::FreeGroup(SlabGroup *g)
 			FreeSlab(slab);
 		}
 	}
-	LIST_DELETE(list, g, slabGroups);
+	slabGroups[g->blockSize / BLOCK_GRAN] = 0;
 	if (!(g->flags & F_INITIALPOOL)) {
 		Free(g, sizeof(*g));
 	}
@@ -303,6 +299,9 @@ SlabAllocator::mfree(void *p)
 void *
 SlabAllocator::AllocateStruct(u32 size)
 {
+	if (size > MAX_BLOCK_SIZE) {
+		return malloc(size);
+	}
 	client->Lock();
 	void *p = Allocate(size);
 	client->Unlock();
@@ -312,6 +311,9 @@ SlabAllocator::AllocateStruct(u32 size)
 void
 SlabAllocator::FreeStruct(void *p, u32 size)
 {
+	if (size > MAX_BLOCK_SIZE) {
+		return mfree(p);
+	}
 	client->Lock();
 	Free(p, size);
 	client->Unlock();

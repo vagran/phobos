@@ -351,7 +351,7 @@ MM::OpNew(u32 size, int isSingle)
 	}
 #ifdef DEBUG_MALLOC
 	/* fill with known pattern to catch uninitialized members */
-	memset(m, 0xcc, bSize);
+	memset(m + 1, 0xcc, size);
 #endif /* DEBUG_MALLOC */
 	memset(m, 0, sizeof(*m));
 	if (initState < IS_NORMAL) {
