@@ -1,5 +1,8 @@
 ---//$Id$//
 
+====== Interrupts controllers ======
+Currently there is implemented support for LAPIC and 8259 PIC. 82093AA I/O APIC support must be mandatory implemented soon. 8259 PIC support probably can be dropped since this device is obsolete.
+
 ====== Interrupts manager overview ======
 
 Interrupts manager functionality is implemented in ''IM'' class. Only one instance of this class is present in the system (''im'' global variable). Main function of the IM is to service interrupts requests with different priority levels from different hardware and software sources. The IM has limited number of slots for each interrupt type (currently 16 for hardware and 32 for software interrupts). Each slot can have unlimited number of clients which could process the interrupt on this slot. Each client has its own priority value. When client is servicing an interrupt request, all interrupts with the same and lower priority are masked. However, interrupts requests still can be accepted but they might not be serviced immediately - if the request is masked it will get 'pending' status and will be serviced when the IRQ line (slot) is unmasked. Order of pending interrupts servicing is determined by scheduler algorithm which accounts priorities and gives a chance to every slot be serviced using round-robin balancing. IM provides interface to the system for interrupts requests posting, masking and unmasking specific interrupts, setting current interrupts priority level, disabling and enabling hardware interrupts, dynamical IRQ slots allocation and clients registration. 
