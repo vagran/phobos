@@ -29,7 +29,7 @@ private:
 		BLOCK_GRAN = 4, /* must be power of 2 */
 		MAX_EMPTY_SLABS = 8,
 		EMPTY_SLABS_HYST = 4,
-		MAX_BLOCK_SIZE = 0x4000,
+		MAX_BLOCK_SIZE = 0x1000,
 	} AllocPolicy;
 
 	typedef enum {

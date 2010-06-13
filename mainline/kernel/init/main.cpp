@@ -264,12 +264,12 @@ Main(paddr_t firstAddr)
 {
 	/* setup basic memory management */
 	MM::PreInitialize((vaddr_t)(firstAddr - LOAD_ADDRESS + KERNEL_ADDRESS));
+	/* setup GDT, LDT, IDT */
+	InitTables();
 	/* call constructors for all static objects */
 	CXA::ConstructStaticObjects();
 	/* become noisy */
 	InitConsoles();
-	/* setup GDT, LDT, IDT */
-	InitTables();
 	/* create kernel built-in debugger */
 	sysDebugger = NEWSINGLE(Debugger, (ConsoleDev *)devMan.GetDevice("syscons", 1));
 	/* create system log */

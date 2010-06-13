@@ -248,7 +248,6 @@ MM::InitMM()
 	devAlloc = devEntry->CreateAllocator();
 	assert(devAlloc);
 	initState = IS_NORMAL;
-
 	idt->RegisterHandler(IDT::ST_PAGEFAULT, OnPageFault, this);
 }
 
@@ -355,7 +354,10 @@ MM::OpNew(u32 size, int isSingle)
 #endif /* DEBUG_MALLOC */
 	memset(m, 0, sizeof(*m));
 	if (initState < IS_NORMAL) {
-		m->flags = OF_NOFREE;
+		m->flags |= OF_NOFREE;
+	}
+	if (isSingle) {
+		m->flags |= OF_SINGLE;
 	}
 	return m + 1;
 }
@@ -383,7 +385,11 @@ MM::OpDelete(void *p)
 	if (m->flags & OF_NOFREE) {
 		return;
 	}
-	mm->kmemSlab->FreeStruct(m);
+	if (m->flags & OF_SINGLE) {
+		mm->kmemSlab->mfree(m);
+	} else {
+		mm->kmemSlab->FreeStruct(m);
+	}
 }
 
 void *
@@ -998,7 +1004,7 @@ MM::VMObject::InsertPage(Page *pg, vaddr_t offset)
 	}
 	pg->object = this;
 	pg->offset = offset;
-	TREE_ADD(objEntry, pg, pages, offset);
+	TREE_ADD(objEntry, pg, pages, offset >> PAGE_SHIFT);
 	numPages++;
 	lock.Unlock();
 	return 0;
@@ -1008,7 +1014,7 @@ MM::Page *
 MM::VMObject::LookupPage(vaddr_t offset)
 {
 	lock.Lock();
-	Page *pg = TREE_FIND(rounddown2(offset, PAGE_SIZE), Page, objEntry, pages);
+	Page *pg = TREE_FIND(offset >> PAGE_SHIFT, Page, objEntry, pages);
 	lock.Unlock();
 	return pg;
 }
@@ -1429,6 +1435,12 @@ int
 MM::Map::Free(vaddr_t base)
 {
 	return alloc.Free(base);
+}
+
+int
+MM::Map::Free(Entry *e)
+{
+	return alloc.Free(e->base);
 }
 
 int

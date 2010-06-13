@@ -83,24 +83,21 @@ Device::_IOBuf *
 Device::IOBuf::AllocateBuffer()
 {
 	IOBuf *buf = NEW(IOBuf);
-	memset(buf, 0, sizeof(buf));
 	return buf;
-}
-
-int
-Device::IOBuf::Free()
-{
-	DELETE(this);
-	return 0;
 }
 
 int
 Device::IOBuf::Wait(u64 timeout)
 {
-	int rc;
+	int rc, timedOut;
+
 	while (!(flags & F_COMPLETE)) {
-		rc = pm->Sleep(this, "IOBuf::Wait", timeout);
+		rc = pm->Sleep(this, "IOBuf::Wait", timeout, &timedOut);
 		if (rc) {
+			break;
+		}
+		if (timedOut) {
+			rc = 1;
 			break;
 		}
 	}
@@ -218,7 +215,7 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 		if (iob1->size != size) {
 			iob2 = AllocateBuffer();
 			if (!iob2) {
-				iob1->Free();
+				iob1->Release();
 				return -1;
 			}
 			iob2->addr = addr + iob1->size;
@@ -228,18 +225,18 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 		}
 	}
 	if (Push(iob1)) {
-		iob1->Free();
+		iob1->Release();
 		if (iob2) {
-			iob2->Free();
+			iob2->Release();
 		}
 		return -1;
 	}
 	if (iob2) {
 		if (Push(iob2)) {
-			iob2->Free();
+			iob2->Release();
 			iob1->Wait();
 			Pull(iob1);
-			iob1->Free();
+			iob1->Release();
 			return -1;
 		}
 	}
@@ -261,9 +258,9 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 			memcpy((u8 *)buf + iob1->size, buf1, size - iob1->size);
 		}
 	}
-	iob1->Free();
+	iob1->Release();
 	if (iob2) {
-		iob2->Free();
+		iob2->Release();
 	}
 	return rc;
 }

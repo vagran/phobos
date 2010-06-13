@@ -11,11 +11,12 @@ phbSource("$Id$");
 
 PM *pm;
 
+ListHead PM::imageLoaders;
+
 PM::PM() : pidMap(MAX_PROCESSES)
 {
 	LIST_INIT(processes);
 	LIST_INIT(runQueues);
-	LIST_INIT(imageLoaders);
 	TREE_INIT(tqSleep);
 	TREE_INIT(pids);
 	numProcesses = 0;
@@ -26,7 +27,7 @@ PM::PM() : pidMap(MAX_PROCESSES)
 int
 PM::RegisterIL(const char *desc, ILFactory factory, ILProber prober)
 {
-	ILEntry *ile = NEWSINGLE(ILEntry);
+	ILEntry *ile = NEW(ILEntry);
 	ile->desc = desc;
 	ile->factory = factory;
 	ile->prober = prober;
@@ -192,16 +193,16 @@ PM::CreateProcess(const char *path, int priority)
 	}
 	Process *proc = IntCreateProcess(ProcessEntry, 0, priority, 0, 0);
 	if (!proc) {
-		DELETE(il);
+		il->Release();
 		return 0;
 	}
 	if (il->Load(proc->userMap)) {
 		DestroyProcess(proc);
-		DELETE(il);
+		il->Release();
 		return 0;
 	}
 	proc->SetEntryPoint(il->GetEntryPoint());
-	DELETE(il);
+	il->Release();
 	Thread *thrd = proc->GetThread();
 	thrd->Run();
 	return proc;
@@ -270,6 +271,7 @@ PM::SleepTimeout(Thread *thrd)
 	SleepEntry *se = (SleepEntry *)thrd->waitEntry;
 	assert(se->numThreads);
 	Wakeup(thrd);
+	thrd->wakenByTimeout = 1;
 	if (!se->numThreads) {
 		FreeSleepEntry(se);
 	}
@@ -278,7 +280,7 @@ PM::SleepTimeout(Thread *thrd)
 }
 
 int
-PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout)
+PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout, int *byTimeout)
 {
 	u64 x = im->SetPL(IM::IP_MAX);
 	tqLock.Lock();
@@ -313,6 +315,9 @@ PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout)
 	/* at least idle thread should be there */
 	assert(next);
 	next->SwitchTo();
+	if (byTimeout) {
+		*byTimeout = thrd->wakenByTimeout;
+	}
 	return 0;
 }
 
@@ -358,9 +363,9 @@ PM::FreeSleepChannel(waitid_t channelID)
 }
 
 int
-PM::Sleep(void *channelID, const char *sleepString, u64 timeout)
+PM::Sleep(void *channelID, const char *sleepString, u64 timeout, int *byTimeout)
 {
-	return Sleep((waitid_t)channelID, sleepString, timeout);
+	return Sleep((waitid_t)channelID, sleepString, timeout, byTimeout);
 }
 
 /* return 0 if someone waken, 1 if nobody waits on this channel, -1 if error */
@@ -413,6 +418,7 @@ PM::Wakeup(Thread *thrd)
 		tm->RemoveTimer(thrd->waitTimeout);
 		thrd->waitTimeout = 0;
 	}
+	thrd->wakenByTimeout = 0;
 	thrd->Unsleep();
 	thrd->Run(); /* XXX CPU should be selected */
 	return 0;
@@ -630,7 +636,7 @@ PM::Process::Initialize(u32 priority, int isKernelProc)
 PM::ImageLoader::ImageLoader(VFS::File *file)
 {
 	file->AddRef();
-	this->file = 0;
+	this->file = file;
 }
 
 PM::ImageLoader::~ImageLoader()
@@ -643,7 +649,7 @@ PM::ImageLoader::~ImageLoader()
 
 PM::ILRegistrator::ILRegistrator(const char *desc, ILFactory factory, ILProber prober)
 {
-
+	PM::RegisterIL(desc, factory, prober);
 }
 
 /***********************************************/
@@ -677,17 +683,20 @@ OnThreadExit(u32 exitCode, PM::Thread *thrd)
 ASM (
 	".globl _OnThreadExit\n"
 	"_OnThreadExit:\n"
+	"addl	$4, %esp\n" /* pop argument for entry point */
 	"pushl	%eax\n"
 	"call	OnThreadExit\n");
 
 extern "C" void _OnThreadExit();
 
-int
+void
 PM::Thread::Exit(u32 exitCode)
 {
 	printf("Thread %d exited\n", GetID());//temp
 	//notimpl
-	return 0;
+	while (1) {
+		hlt();
+	}
 }
 
 /* return 0 for caller, 1 for restored thread */
@@ -811,7 +820,7 @@ PM::Thread::SwitchTo()
 	assert(state == S_RUNNING);
 	assert(cpu == CPU::GetCurrent());
 	Thread *prev = GetCurrent();
-	/* switch address space if it is another process and not kernel process */
+	/* switch address space if it is another process */
 	u32 asRoot;
 	if (!prev || prev->proc != proc) {
 		asRoot = proc->map->GetCR3();
@@ -840,6 +849,7 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority
 	}
 	stackEntry = proc->userMap->InsertObject(stackObj, 0, stackObj->GetSize());
 	if (!stackEntry) {
+		stackObj->Release();
 		return -1;
 	}
 	ctx.eip = (u32)entry;

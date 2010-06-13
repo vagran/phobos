@@ -47,9 +47,9 @@ extern void __assert(const char *file, u32 line, const char *cond);
 
 #include <lock.h>
 #include <object.h>
+#include <mem.h>
 #include <dev/device.h>
 #include <dev/chr/syscons.h>
-#include <mem.h>
 #include <kern/im.h>
 #include <kern/tm.h>
 #include <dev/sys/cpu.h>

@@ -75,6 +75,8 @@ void *operator new(size_t size, int isSingle, const char *className, const char 
 void operator delete(void *p);
 void operator delete[](void *p);
 
+class ConsoleDev;
+
 class MM {
 public:
 	enum {
@@ -332,6 +334,7 @@ public:
 		Entry *Allocate(vsize_t size, vaddr_t *base, int fixed = 0);
 		Entry *AllocateSpace(vsize_t size, vaddr_t *base = 0, int fixed = 0);
 		int Free(vaddr_t base);
+		int Free(Entry *e);
 		Entry *ReserveSpace(vaddr_t base, vsize_t size);
 		int UnReserveSpace(vaddr_t base);
 		Entry *Lookup(vaddr_t base);
@@ -366,6 +369,7 @@ private:
 
 	typedef enum {
 		OF_NOFREE =		0x1,
+		OF_SINGLE =		0x2,
 	} ObjFlags;
 
 	typedef struct {

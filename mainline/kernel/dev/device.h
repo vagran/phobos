@@ -44,9 +44,11 @@ public:
 		u32 size;
 		void *buf;
 		Device *dev;
+		RefCount refCount;
 
 		static _IOBuf *AllocateBuffer();
-		int Free();
+		OBJ_ADDREF(refCount);
+		OBJ_RELEASE(refCount);
 		int Wait(u64 timeout = 0);
 		inline int GetDirection() { return flags & F_DIR; }
 	};

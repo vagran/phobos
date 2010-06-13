@@ -31,10 +31,14 @@ public:
 
 	class ImageLoader {
 	protected:
+		RefCount refCount;
 		VFS::File *file;
 	public:
 		ImageLoader(VFS::File *file);
 		virtual ~ImageLoader();
+
+		OBJ_ADDREF(refCount);
+		OBJ_RELEASE(refCount);
 
 		virtual int Load(MM::Map *map) = 0;
 		virtual vaddr_t GetEntryPoint() = 0;
@@ -102,6 +106,7 @@ public:
 		void *waitEntry; /* zero if not waiting */
 		const char *waitString;
 		Handle waitTimeout;
+		int wakenByTimeout:1;
 		void *rqQueue; /* active or expired queue */
 		State state;
 
@@ -111,7 +116,7 @@ public:
 
 		int Initialize(ThreadEntry entry, void *arg = 0,
 			u32 stackSize = DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
-		int Exit(u32 exitCode);
+		void Exit(u32 exitCode) __noreturn;
 		int SaveContext(Context *ctx); /* return 0 for caller, 1 for restored thread */
 		void RestoreContext(Context *ctx, u32 asRoot = 0); /* jump to SaveContext */
 		void SwitchTo(); /* thread must be in same CPU runqueue with the current thread */
@@ -180,7 +185,7 @@ public:
 		inline Thread *GetCurrentThread() { return curThread; }
 	};
 
-	int RegisterIL(const char *desc, ILFactory factory, ILProber prober);
+	static int RegisterIL(const char *desc, ILFactory factory, ILProber prober);
 private:
 	typedef struct {
 		ListEntry list;
@@ -200,7 +205,7 @@ private:
 		u32 numThreads;
 	} SleepEntry;
 
-	ListHead imageLoaders;
+	static ListHead imageLoaders;
 	ListHead processes;
 	SpinLock rqLock;
 	ListHead runQueues;
@@ -237,8 +242,12 @@ public:
 	int DestroyProcess(Process *proc);
 	void AttachCPU(Thread::ThreadEntry kernelProcEntry = 0, void *arg = 0) __noreturn;
 	inline Process *GetKernelProc() { return kernelProc; }
-	int Sleep(waitid_t channelID, const char *sleepString, u64 timeout = 0);
-	int Sleep(void *channelID, const char *sleepString, u64 timeout = 0);
+	/*
+	 * If byTimeout argument is provided it indicates either the thread was waken by timeout
+	 * or by event on specified channel.
+	 */
+	int Sleep(waitid_t channelID, const char *sleepString, u64 timeout = 0, int *byTimeout = 0);
+	int Sleep(void *channelID, const char *sleepString, u64 timeout = 0, int *byTimeout = 0);
 	int ReserveSleepChannel(void *channelID);
 	int ReserveSleepChannel(waitid_t channelID);
 	int FreeSleepChannel(void *channelID); /* do not need to be called if Sleep() was called */
