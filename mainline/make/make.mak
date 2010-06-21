@@ -6,7 +6,7 @@
 
 include $(PHOBOS_ROOT)/make/makevar.mak
 
-COMPILE_FLAGS = -pipe -Werror -Wall -pipe -fno-stack-protector -fno-default-inline
+COMPILE_FLAGS = -pipe -Werror -Wall -fno-stack-protector -fno-default-inline
 
 COMPILE_FLAGS_CXX = -fno-exceptions -fno-rtti
 COMPILE_FLAGS_C =

@@ -11,7 +11,7 @@ phbSource("$Id$");
 
 /*
  * Our per-CPU private data stored in specially created segments (CPU::PrivSegment).
- * The segments are referenced by %fs register if each CPU and contain at least
+ * The segments are referenced by %fs register of each CPU and contain at least
  * pointer to CPU class instance associated with the given CPU.
  */
 
