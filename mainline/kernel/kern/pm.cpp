@@ -217,7 +217,7 @@ PM::DestroyProcess(Process *proc)
 	numProcesses--;
 	TREE_DELETE(tree, &proc->pid, pids);
 	procListLock.Unlock();
-	ReleasePID(TREE_KEY(tree, &proc->pid));
+	ReleasePID(proc->GetID());
 	DELETE(proc);
 	return 0;
 }
@@ -565,8 +565,9 @@ PM::Process::Process()
 
 PM::Process::~Process()
 {
+	//notimpl
 	if (map) {
-		DELETE(map);
+		mm->DestroyMap(map);
 	}
 }
 

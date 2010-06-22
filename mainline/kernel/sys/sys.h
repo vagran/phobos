@@ -22,6 +22,7 @@ phbSource("$Id$");
 
 #ifndef ASSEMBLER
 #include <types.h>
+#include <error.h>
 #include <queue.h>
 #include <Bitmap.h>
 #include <specialreg.h>

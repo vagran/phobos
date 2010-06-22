@@ -60,6 +60,7 @@ phbSource("$Id$");
 #define APTDPTDI			(ALTPTMAP_ADDRESS >> PD_SHIFT)
 
 #define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
+#define FREE(p)					MM::mfree(p)
 
 #ifndef DEBUG_MALLOC
 #define NEW(className,...)			new((int)0) className(__VA_ARGS__)
@@ -166,6 +167,7 @@ public:
 		RefCount	refCount;
 		SpinLock	lock;
 		Pager		*pager; /* backing storage */
+		vaddr_t		pagerOffset;
 
 		VMObject(vsize_t size, u32 flags = 0);
 		~VMObject();
@@ -280,7 +282,7 @@ public:
 		class MapEntryClient : public BuddyAllocator<vaddr_t>::BuddyClient {
 		private:
 			MemAllocator *m;
-			Mutex mtx;
+			SpinLock lock;
 		public:
 			MapEntryClient(MemAllocator *m) { this->m = m; }
 			virtual void *malloc(u32 size) { return m->malloc(size); }
@@ -291,8 +293,8 @@ public:
 			virtual int Free(vaddr_t base, vaddr_t size, void *arg = 0);
 			virtual int Reserve(vaddr_t base, vaddr_t size, void *arg = 0);
 			virtual int UnReserve(vaddr_t base, vaddr_t size, void *arg = 0);
-			virtual void Lock() { mtx.Lock(); }
-			virtual void Unlock() { mtx.Unlock(); }
+			virtual void Lock() { lock.Lock(); }
+			virtual void Unlock() { lock.Unlock(); }
 		};
 
 		MapEntryClient	mapEntryClient;
@@ -348,6 +350,7 @@ public:
 		int IsCurrent();
 		int IsAlt();
 		void SetAlt(); /* set this map as current alternative AS */
+		static void ResetAlt(); /* reset alternative AS mapping */
 		int AddPT(vaddr_t va); /* must be called with locked tables */
 		int Pagein(vaddr_t va); /* make this page resident */
 		inline u32 GetCR3() { return cr3; }
@@ -486,6 +489,7 @@ public:
 	int MapPhys(vaddr_t va, paddr_t pa);
 	int UnmapPhys(vaddr_t va);
 	Map *CreateMap();
+	int DestroyMap(Map *map);
 	int UpdatePDE(Map *originator, vaddr_t va, PTE::PDEntry *pde);
 };
 

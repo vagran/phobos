@@ -24,6 +24,7 @@ Tree<key_t>::AddNode(TreeRoot &root, TreeEntry *node)
 	TreeEntry *p = root.rootnode;
 	while (1) {
 		if (p->key == node->key) {
+			assert(p == node);
 			return;
 		}
 		if (node->key & p->mask) {

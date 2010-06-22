@@ -25,17 +25,20 @@ SwapPager::~SwapPager()
 int
 SwapPager::HasPage(vaddr_t offset)
 {
+	//notimpl
 	return 0;
 }
 
 int
 SwapPager::GetPage(MM::Page *pg, vaddr_t offset)
 {
+	//notimpl
 	return 0;
 }
 
 int
 SwapPager::PutPage(MM::Page *pg, vaddr_t offset)
 {
+	//notimpl
 	return 0;
 }

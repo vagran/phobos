@@ -639,6 +639,16 @@ MM::CreateMap()
 }
 
 int
+MM::DestroyMap(Map *map)
+{
+	mapsLock.Lock();
+	LIST_DELETE(list, map, maps);
+	mapsLock.Unlock();
+	DELETE(map);
+	return 0;
+}
+
+int
 MM::UpdatePDE(Map *originator, vaddr_t va, PTE::PDEntry *pde)
 {
 	if (va < KERNEL_ADDRESS) {
@@ -956,6 +966,7 @@ MM::VMObject::VMObject(vsize_t size, u32 flags)
 	TREE_INIT(pages);
 	numPages = 0;
 	pager = 0;
+	pagerOffset = 0;
 	this->size = size;
 	copyObj = 0;
 	copyOffset = 0;
@@ -1131,6 +1142,10 @@ MM::Map::Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree) :
 
 MM::Map::~Map()
 {
+	assert(!IsCurrent());
+	if (IsAlt()) {
+		ResetAlt();
+	}
 	FreeSubmaps(&submaps);
 	if (freeTables) {
 		mfree(pdpt);
@@ -1378,6 +1393,13 @@ MM::Map::SetAlt()
 	for (int i = 0; i < PD_PAGES; i++) {
 		altPTDpde[i].raw = ptd[PTDPTDI + i].raw;
 	}
+	FlushTLB();
+}
+
+void
+MM::Map::ResetAlt()
+{
+	memset(altPTDpde, 0, sizeof(PTE::PDEntry) * PD_PAGES);
 	FlushTLB();
 }
 
@@ -1641,7 +1663,9 @@ MM::Map::Entry::MapPA(vaddr_t va, paddr_t pa)
 	/* XXX should use entry protection */
 	pte->raw = pa | PTE::F_P | PTE::F_S | PTE::F_W |
 		((flags & F_NOCACHE) ? PTE::F_WT | PTE::F_CD : 0);
-	invlpg(va);
+	if (map->IsCurrent()) {
+		invlpg(va);
+	}
 	map->tablesLock.Unlock();
 	return 0;
 }
@@ -1657,6 +1681,9 @@ MM::Map::Entry::Unmap(vaddr_t va)
 	}
 	PTE::PTEntry *pte = map->GetPTE(va);
 	pte->raw = 0;
+	if (map->IsCurrent()) {
+		invlpg(va);
+	}
 	map->tablesLock.Unlock();
 	return 0;
 }

@@ -167,6 +167,9 @@ int
 SlabAllocator::Free(void *p, u32 size)
 {
 	size = roundup2(size, BLOCK_GRAN);
+#ifdef DEBUG
+	memset(p, 0xfe, size);
+#endif /* DEBUG */
 	Block *b = (Block *)(((u8 *)p) - OFFSETOF(Block, data));
 	if (b->type == BT_INITIAL) {
 		return 0;

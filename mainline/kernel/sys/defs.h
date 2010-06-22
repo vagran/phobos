@@ -9,6 +9,9 @@
 #ifndef DEFS_H_
 #define DEFS_H_
 
+#define FALSE	0
+#define TRUE	1
+
 #define __CONCAT2(x, y)		x##y
 #define __CONCAT(x, y)		__CONCAT2(x, y)
 

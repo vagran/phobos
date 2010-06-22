@@ -17,15 +17,15 @@ extern DeviceManager devMan;
 
 class Device {
 public:
-	struct _IOBuf;
-	typedef struct _IOBuf IOBuf;
-	struct _IOBuf {
+	class IOBuf {
+	public:
 		enum Flags {
 			F_DIR =			0x1,
 			F_DIR_IN = 		0x0,
 			F_DIR_OUT =		0x1,
 			F_COMPLETE =	0x2,
 			F_QUEUED =		0x4, /* queued by device driver */
+			F_OWNBUF =		0x8, /* data buffer allocated and freed by IOBuf */
 		};
 
 		enum Status {
@@ -34,6 +34,8 @@ public:
 			S_CUSTOM_ERROR,			/* custom device error codes can start from this value */
 
 			S_OK =			0,
+			S_PENDING,
+
 			S_CUSTOM_STATUS,		/* custom device status codes can start from this value */
 		};
 
@@ -46,9 +48,14 @@ public:
 		Device *dev;
 		RefCount refCount;
 
-		static _IOBuf *AllocateBuffer();
+		IOBuf(u32 size);
+		~IOBuf();
+
+		/* Data buffer is allocated when size is non-zero */
+		static IOBuf *AllocateBuffer(u32 size = 0);
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
+		void Setup(u64 addr, int direction, u32 size = 0, void *buf = 0);
 		int Wait(u64 timeout = 0);
 		inline int GetDirection() { return flags & F_DIR; }
 	};

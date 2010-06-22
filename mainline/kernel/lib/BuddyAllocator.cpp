@@ -576,10 +576,12 @@ BuddyAllocator<range_t>::Free(range_t location)
 		MergeBlock(cb);
 	}
 	b->flags &= ~BF_BUSY;
+	client->Unlock();
+	client->Free(location, blockSize, allocArg);
+	client->Lock();
 	AddFreeBlock(b);
 	MergeBlock(b);
 	client->Unlock();
-	client->Free(location, blockSize, allocArg);
 	return 0;
 }
 
@@ -613,10 +615,12 @@ BuddyAllocator<range_t>::UnReserve(range_t location)
 		MergeBlock(cb);
 	}
 	b->flags &= ~BF_RESERVED;
+	client->Unlock();
+	client->UnReserve(location, blockSize, allocArg);
+	client->Lock();
 	AddFreeBlock(b);
 	MergeBlock(b);
 	client->Unlock();
-	client->UnReserve(location, blockSize, allocArg);
 	return 0;
 }
 

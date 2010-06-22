@@ -79,10 +79,35 @@ Device::AllocateBuffer()
 
 /* Device::IOBuf class */
 
-Device::_IOBuf *
-Device::IOBuf::AllocateBuffer()
+Device::IOBuf::IOBuf(u32 size)
 {
-	IOBuf *buf = NEW(IOBuf);
+	if (size) {
+		flags = F_OWNBUF;
+		buf = MM::malloc(size);
+		ensure(buf);
+	} else {
+		flags = 0;
+		buf = 0;
+	}
+	status = 0;
+	addr = 0;
+	this->size = size;
+	dev = 0;
+}
+
+Device::IOBuf::~IOBuf()
+{
+	if (flags & F_OWNBUF) {
+		if (buf) {
+			MM::mfree(buf);
+		}
+	}
+}
+
+Device::IOBuf *
+Device::IOBuf::AllocateBuffer(u32 size)
+{
+	IOBuf *buf = NEW(IOBuf, size);
 	return buf;
 }
 
@@ -102,6 +127,27 @@ Device::IOBuf::Wait(u64 timeout)
 		}
 	}
 	return rc;
+}
+
+void
+Device::IOBuf::Setup(u64 addr, int direction, u32 size, void *buf)
+{
+	this->addr = addr;
+	assert(!(direction & ~F_DIR));
+	if (direction == F_DIR_IN) {
+		flags |= F_DIR_IN;
+	} else {
+		flags |= F_DIR_OUT;
+	}
+	status = S_PENDING;
+	if (size) {
+		assert(!(flags & F_OWNBUF) || size <= this->size);
+		this->size = size;
+	}
+	if (buf) {
+		assert(!(flags & F_OWNBUF));
+		this->buf = buf;
+	}
 }
 
 /**************************************************************
@@ -196,7 +242,6 @@ BlkDevice::~BlkDevice()
 int
 BlkDevice::Read(u64 addr, void *buf, u32 size)
 {
-	u8 buf1[blockSize];
 
 	/* XXX should be able to read from unaligned location */
 	assert(!(addr & (blockSize - 1)));
@@ -204,8 +249,9 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 	if (!iob1) {
 		return -1;
 	}
-	iob1->addr = addr;
-	iob1->flags = IOBuf::F_DIR_IN;
+	u8 *buf1 = (u8 *)MM::malloc(blockSize);
+	assert(buf1);
+	iob1->Setup(addr, IOBuf::F_DIR_IN);
 	if (size < blockSize) {
 		iob1->size = blockSize;
 		iob1->buf = buf1;
@@ -216,12 +262,10 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 			iob2 = AllocateBuffer();
 			if (!iob2) {
 				iob1->Release();
+				MM::mfree(buf1);
 				return -1;
 			}
-			iob2->addr = addr + iob1->size;
-			iob2->size = blockSize;
-			iob2->flags = IOBuf::F_DIR_IN;
-			iob2->buf = buf1;
+			iob2->Setup(iob2->addr, IOBuf::F_DIR_IN, blockSize, buf1);
 		}
 	}
 	if (Push(iob1)) {
@@ -229,6 +273,7 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 		if (iob2) {
 			iob2->Release();
 		}
+		MM::mfree(buf1);
 		return -1;
 	}
 	if (iob2) {
@@ -237,6 +282,7 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 			iob1->Wait();
 			Pull(iob1);
 			iob1->Release();
+			MM::mfree(buf1);
 			return -1;
 		}
 	}
@@ -262,6 +308,7 @@ BlkDevice::Read(u64 addr, void *buf, u32 size)
 	if (iob2) {
 		iob2->Release();
 	}
+	MM::mfree(buf1);
 	return rc;
 }
 

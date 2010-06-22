@@ -283,7 +283,7 @@ Main(paddr_t firstAddr)
 	/* from now kernel memory management is fully operational */
 	im = NEWSINGLE(IM);
 	/* ... as well as interrupts management */
-	sysCons->SetQueue();
+	sysCons->SetQueue(); /* activate console buffering */
 
 	/* try to create text terminal on video device if available */
 	ConsoleDev *videoTerm = (ConsoleDev *)devMan.CreateDevice("vga", 0);
