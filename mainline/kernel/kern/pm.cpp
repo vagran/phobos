@@ -268,13 +268,8 @@ PM::SleepTimeout(Thread *thrd)
 	tqLock.Lock();
 	assert(thrd->waitTimeout);
 	thrd->waitTimeout = 0;
-	SleepEntry *se = (SleepEntry *)thrd->waitEntry;
-	assert(se->numThreads);
 	Wakeup(thrd);
 	thrd->wakenByTimeout = 1;
-	if (!se->numThreads) {
-		FreeSleepEntry(se);
-	}
 	tqLock.Unlock();
 	im->RestorePL(x);
 }
@@ -396,11 +391,12 @@ PM::Wakeup(SleepEntry *se)
 		se->flags |= SleepEntry::F_WAKEN;
 		return 0;
 	}
+	se->numThreads++; /* hold reference to sleep entry */
 	Thread *thrd;
 	while ((thrd = LIST_FIRST(Thread, sleepList, se->threads))) {
 		Wakeup(thrd);
 	}
-	assert(!se->numThreads);
+	assert(se->numThreads == 1);
 	FreeSleepEntry(se);
 	return 0;
 }
@@ -408,6 +404,17 @@ PM::Wakeup(SleepEntry *se)
 /* must be called with tqLock */
 int
 PM::Wakeup(Thread *thrd)
+{
+	UnsleepThread(thrd);
+	thrd->wakenByTimeout = 0;
+	thrd->Unsleep();
+	thrd->Run(); /* XXX CPU should be selected */
+	return 0;
+}
+
+/* must be called with tqLock */
+int
+PM::UnsleepThread(Thread *thrd)
 {
 	SleepEntry *se = (SleepEntry *)thrd->waitEntry;
 	assert(se);
@@ -418,9 +425,9 @@ PM::Wakeup(Thread *thrd)
 		tm->RemoveTimer(thrd->waitTimeout);
 		thrd->waitTimeout = 0;
 	}
-	thrd->wakenByTimeout = 0;
-	thrd->Unsleep();
-	thrd->Run(); /* XXX CPU should be selected */
+	if (!se->numThreads) {
+		FreeSleepEntry(se);
+	}
 	return 0;
 }
 
@@ -565,10 +572,31 @@ PM::Process::Process()
 
 PM::Process::~Process()
 {
-	//notimpl
+	/* destroy threads */
+	while (1) {
+		thrdListLock.Lock();
+		Thread *t = LIST_FIRST(Thread, list, threads);
+		if (!t) {
+			thrdListLock.Unlock();
+			break;
+		}
+		LIST_DELETE(list, t, threads);
+		numThreads--;
+		thrdListLock.Unlock();
+		DeleteThread(t);
+	}
 	if (map) {
 		mm->DestroyMap(map);
 	}
+}
+
+int
+PM::Process::DeleteThread(Thread *t)
+{
+	assert(t != Thread::GetCurrent());
+	t->Dequeue();
+	DELETE(t);
+	return 0;
 }
 
 PM::Thread *
@@ -814,6 +842,20 @@ PM::Thread::Unsleep()
 	return 0;
 }
 
+int
+PM::Thread::Dequeue()
+{
+	if (state == S_RUNNING) {
+		Stop();
+	} else if (state == S_SLEEP) {
+		pm->tqLock.Lock();
+		pm->UnsleepThread(this);
+		pm->tqLock.Unlock();
+		Unsleep();
+	}
+	return 0;
+}
+
 /* thread must be in same CPU runqueue with the current thread */
 void
 PM::Thread::SwitchTo()
@@ -898,6 +940,11 @@ PM::Thread::MapKernelStack(vaddr_t esp)
 
 PM::Thread::~Thread()
 {
+	pm->procListLock.Lock();
+	TREE_DELETE(tree, &pid, pm->pids);
+	pm->procListLock.Unlock();
+	pm->ReleasePID(GetID());
+
 	if (stackObj) {
 		stackObj->Release();
 	}

@@ -125,6 +125,7 @@ public:
 		int Stop();
 		int Sleep(void *waitEntry, const char *waitString, Handle waitTimeout = 0);
 		int Unsleep();
+		int Dequeue();
 		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
 		inline Process *GetProcess() { return proc; }
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
@@ -145,6 +146,7 @@ public:
 		vaddr_t entryPoint;
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
+		int DeleteThread(Thread *t);
 	public:
 		Process();
 		~Process();
@@ -232,6 +234,7 @@ private:
 	void SleepTimeout(Thread *thrd);
 	int Wakeup(SleepEntry *se);
 	int Wakeup(Thread *thrd);
+	int UnsleepThread(Thread *thrd);
 	ImageLoader *GetImageLoader(VFS::File *file);
 	static int ProcessEntry(void *arg);
 public:

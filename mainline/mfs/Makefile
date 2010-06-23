@@ -25,4 +25,4 @@ system_install:
 	$(MAKE) -C $(PHOBOS_ROOT) install
 	
 clean:
-	rm -rf $(MFS_MOUNT) $(TARGET)
+	rm -rf $(MFS_MOUNT) image

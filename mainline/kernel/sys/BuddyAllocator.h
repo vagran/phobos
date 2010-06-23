@@ -85,6 +85,7 @@ private:
 	void FreeBlock(BlockDesc *b);
 	int KeepBlocks();
 	BlockDesc *AddBlock(u16 order, range_t location);
+	BlockDesc *FindBlock(range_t location);
 	void DeleteBlock(BlockDesc *b);
 	void AddFreeBlock(BlockDesc *b);
 	void DeleteFreeBlock(BlockDesc *b);

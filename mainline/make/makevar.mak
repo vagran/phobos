@@ -30,7 +30,7 @@ INCLUDE_DIRS = $(PHOBOS_ROOT)/kernel $(PHOBOS_ROOT)/kernel/sys $(PHOBOS_ROOT)/in
 INCLUDE_FLAGS = $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
 MFS_IMAGE_NAME = mfs_image
-MFS_IMAGE = $(PHOBOS_ROOT)/mfs/$(TARGET)/$(MFS_IMAGE_NAME)
+MFS_IMAGE = $(PHOBOS_ROOT)/mfs/image/$(TARGET)/$(MFS_IMAGE_NAME)
 MFS_BLOCK_SIZE = 1024
 MFS_IMAGE_LABEL = PhobOS_MFS
 # MFS image size in kilobytes

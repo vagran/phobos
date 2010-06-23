@@ -228,23 +228,6 @@ public:
 
 	class Map {
 	public:
-		ListEntry	list; /* global maps list */
-		vaddr_t		base;
-		vsize_t		size;
-		BuddyAllocator<vaddr_t> alloc; /* kernel virtual address space allocator */
-		u32			numEntries;
-		ListHead	entries;
-		Mutex		entriesLock; /* entries list lock */
-		int			freeTables;
-		PTE::PDEntry *pdpt; /* PDPT map in kernel KVAS */
-		PTE::PDEntry *ptd; /* PTD map in kernel KVAS */
-		SpinLock	tablesLock;
-		SpinLock	smListLock;
-		ListEntry	smList; /* submaps list */
-		ListHead	submaps;
-		Map			*parentMap, *rootMap;
-		u32			cr3;
-
 		class MapEntryAllocator;
 
 		class Entry {
@@ -278,6 +261,24 @@ public:
 			int Unmap(vaddr_t va);
 			int GetOffset(vaddr_t va, vaddr_t *offs);
 		};
+
+		ListEntry	list; /* global maps list */
+		vaddr_t		base;
+		vsize_t		size;
+		BuddyAllocator<vaddr_t> alloc; /* kernel virtual address space allocator */
+		u32			numEntries;
+		ListHead	entries;
+		SpinLock	entriesLock; /* entries list lock */
+		int			freeTables;
+		PTE::PDEntry *pdpt; /* PDPT map in kernel KVAS */
+		PTE::PDEntry *ptd; /* PTD map in kernel KVAS */
+		SpinLock	tablesLock;
+		SpinLock	smListLock;
+		ListEntry	smList; /* submaps list */
+		ListHead	submaps;
+		Map			*parentMap, *rootMap;
+		u32			cr3;
+		Entry		*submapEntry;
 
 		class MapEntryClient : public BuddyAllocator<vaddr_t>::BuddyClient {
 		private:
@@ -333,6 +334,8 @@ public:
 			int minBlockOrder = KMEM_MIN_BLOCK, int maxBlockOrder = KMEM_MAX_BLOCK);
 
 		Map *CreateSubmap(vaddr_t base, vsize_t size);
+		int RemoveSubmap(Map *sm);
+		inline Map *GetParent() { return parentMap; } /* return 0 for root map */
 		Entry *Allocate(vsize_t size, vaddr_t *base, int fixed = 0);
 		Entry *AllocateSpace(vsize_t size, vaddr_t *base = 0, int fixed = 0);
 		int Free(vaddr_t base);

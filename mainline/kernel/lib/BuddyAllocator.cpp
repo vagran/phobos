@@ -11,6 +11,8 @@ phbSource("$Id$");
 
 #include <BuddyAllocator.h>
 
+#define BLOCK_LOC(b)	(TREE_KEY(node, b) << minOrder)
+
 template <typename range_t>
 BuddyAllocator<range_t>::BuddyAllocator(BuddyClient *client)
 {
@@ -220,7 +222,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 	if (b->order > reqOrder) {
 		SplitBlock(b, reqOrder);
 	}
-	*location = b->node.key;
+	*location = BLOCK_LOC(b);
 
 	/* make chain if required */
 	range_t realSize = roundup2(size, 1 << minOrder);
@@ -232,7 +234,8 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 	b->busyHead.allocArg = arg;
 	BlockDesc *headBlock = b;
 	while (realSize < blockSize) {
-		BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
+		BlockDesc *b2 = AddBlock(b->order - 1, BLOCK_LOC(b) +
+			((range_t)1 << (b->order - 1)));
 		b->order--;
 		if (realSize <= (blockSize >> 1)) {
 			AddFreeBlock(b2);
@@ -253,7 +256,8 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 /* must be called locked */
 template <typename range_t>
 int
-BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg, int reserve)
+BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size,
+	void *arg, int reserve)
 {
 	range_t end = roundup2(location + size, (range_t)1 << minOrder);
 	location = rounddown2(location, (range_t)1 << minOrder);
@@ -268,7 +272,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	u16 order = minOrder;
 	BlockDesc *b = 0;
 	while (order <= maxOrder) {
-		b = TREE_FIND(loc, BlockDesc, node, tree);
+		b = FindBlock(loc);
 		if (b) {
 			if (!(b->flags & BF_FREE)) {
 				client->Unlock();
@@ -289,7 +293,7 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	assert(b);
 	/* scan the range */
 	while (loc < end) {
-		b = TREE_FIND(loc, BlockDesc, node, tree);
+		b = FindBlock(loc);
 		assert(b);
 		if (!(b->flags & BF_FREE)) {
 			client->Unlock();
@@ -304,18 +308,19 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	order = minOrder;
 	b = 0;
 	while (order <= maxOrder) {
-		b = TREE_FIND(loc, BlockDesc, node, tree);
+		b = FindBlock(loc);
 		if (b) {
 			while (loc != location) {
-				BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
+				BlockDesc *b2 = AddBlock(b->order - 1, BLOCK_LOC(b) +
+					((range_t)1 << (b->order - 1)));
 				AddFreeBlock(b2);
 				DeleteFreeBlock(b);
 				b->order--;
 				AddFreeBlock(b);
-				if (location >= b2->node.key) {
+				if (location >= BLOCK_LOC(b2)) {
 					b = b2;
 				}
-				loc = b->node.key;
+				loc = BLOCK_LOC(b);
 			}
 			break;
 		}
@@ -334,7 +339,8 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 	while (location < end) {
 		range_t bsize = (range_t)1 << b->order;
 		while (end - location < bsize) {
-			BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
+			BlockDesc *b2 = AddBlock(b->order - 1, BLOCK_LOC(b) +
+				((range_t)1 << (b->order - 1)));
 			AddFreeBlock(b2);
 			DeleteFreeBlock(b);
 			b->order--;
@@ -355,11 +361,11 @@ BuddyAllocator<range_t>::AllocateArea(range_t location, range_t size, void *arg,
 		}
 		location += (range_t)1 << b->order;
 		if (location < end) {
-			b = TREE_FIND(location, BlockDesc, node, tree);
+			b = FindBlock(location);
 			assert(b);
 		}
 	}
-	range_t cl_loc = head->node.key;
+	range_t cl_loc = BLOCK_LOC(head);
 	range_t cl_size = head->busyHead.blockSize;
 	void *cl_arg = head->busyHead.allocArg;
 	client->Unlock();
@@ -410,7 +416,7 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 		if (order != minOrder && newLookupLoc == lookupLoc) {
 			continue;
 		}
-		BlockDesc *b = TREE_FIND(newLookupLoc, BlockDesc, node, tree);
+		BlockDesc *b = FindBlock(newLookupLoc);
 		if (b) {
 			assert(b->order >= order);
 			if (b->flags & BF_FREE) {
@@ -464,7 +470,7 @@ BuddyAllocator<range_t>::Lookup(range_t location, range_t *pBase, range_t *pSize
 				}
 			}
 			if (pBase) {
-				*pBase = b->node.key;
+				*pBase = BLOCK_LOC(b);
 			}
 			client->Unlock();
 			return 0;
@@ -480,7 +486,8 @@ void
 BuddyAllocator<range_t>::SplitBlock(BlockDesc *b, u16 reqOrder)
 {
 	while (b->order > reqOrder) {
-		BlockDesc *b2 = AddBlock(b->order - 1, b->node.key + ((range_t)1 << (b->order - 1)));
+		BlockDesc *b2 = AddBlock(b->order - 1, BLOCK_LOC(b) +
+			((range_t)1 << (b->order - 1)));
 		AddFreeBlock(b2);
 		b->order--;
 	}
@@ -493,13 +500,13 @@ BuddyAllocator<range_t>::MergeBlock(BlockDesc *b)
 	int deleted = 0;
 	while (b->order < maxOrder) {
 		range_t posBit = (range_t)1 << b->order;
-		range_t adjLoc = b->node.key ^ posBit;
-		BlockDesc *adjBlock = TREE_FIND(adjLoc, BlockDesc, node, tree);
+		range_t adjLoc = BLOCK_LOC(b) ^ posBit;
+		BlockDesc *adjBlock = FindBlock(adjLoc);
 		if (!adjBlock || !(adjBlock->flags & BF_FREE) || (adjBlock->order != b->order)) {
 			break;
 		}
 
-		if (b->node.key & posBit) {
+		if (BLOCK_LOC(b) & posBit) {
 			DeleteBlock(b);
 			b = adjBlock;
 			deleted = 0;
@@ -528,7 +535,7 @@ BuddyAllocator<range_t>::AddBlock(u16 order, range_t location)
 	}
 	b->order = order;
 	b->flags = 0;
-	TREE_ADD(node, b, tree, location);
+	TREE_ADD(node, b, tree, location >> minOrder);
 	numBlocks++;
 	return b;
 }
@@ -547,6 +554,13 @@ BuddyAllocator<range_t>::DeleteBlock(BlockDesc *b)
 }
 
 template <typename range_t>
+typename BuddyAllocator<range_t>::BlockDesc *
+BuddyAllocator<range_t>::FindBlock(range_t location)
+{
+	return TREE_FIND(location >> minOrder, BlockDesc, node, tree);
+}
+
+template <typename range_t>
 int
 BuddyAllocator<range_t>::Free(range_t location)
 {
@@ -556,7 +570,7 @@ BuddyAllocator<range_t>::Free(range_t location)
 	}
 	KeepBlocks();
 	client->Lock();
-	BlockDesc *b = TREE_FIND(location, BlockDesc, node, tree);
+	BlockDesc *b = FindBlock(location);
 	if (!b) {
 		client->Unlock();
 		return -1;
@@ -595,7 +609,7 @@ BuddyAllocator<range_t>::UnReserve(range_t location)
 	}
 	KeepBlocks();
 	client->Lock();
-	BlockDesc *b = TREE_FIND(location, BlockDesc, node, tree);
+	BlockDesc *b = FindBlock(location);
 	if (!b) {
 		client->Unlock();
 		return -1;
@@ -624,6 +638,7 @@ BuddyAllocator<range_t>::UnReserve(range_t location)
 	return 0;
 }
 
+/* called with client locked */
 template <typename range_t>
 void
 BuddyAllocator<range_t>::FreeTree()
@@ -631,12 +646,23 @@ BuddyAllocator<range_t>::FreeTree()
 	BlockDesc *d;
 
 	if (freeBlocks) {
+		client->Unlock();
 		client->mfree(freeBlocks);
+		client->Lock();
 		freeBlocks = 0;
 	}
 	while ((d = TREE_ROOT(BlockDesc, node, tree))) {
 		TREE_DELETE(node, d, tree);
+		client->Unlock();
+		if (d->flags & BF_BUSY) {
+			client->Free(BLOCK_LOC(d), d->busyHead.blockSize,
+				d->busyHead.allocArg);
+		} else if (d->flags & BF_RESERVED) {
+			client->UnReserve(BLOCK_LOC(d), d->busyHead.blockSize,
+				d->busyHead.allocArg);
+		}
 		client->FreeStruct(d, sizeof(BlockDesc));
+		client->Lock();
 	}
 }
 

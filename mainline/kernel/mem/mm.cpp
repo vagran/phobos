@@ -641,10 +641,15 @@ MM::CreateMap()
 int
 MM::DestroyMap(Map *map)
 {
-	mapsLock.Lock();
-	LIST_DELETE(list, map, maps);
-	mapsLock.Unlock();
-	DELETE(map);
+	Map *parentMap;
+	if ((parentMap = map->GetParent())) {
+		parentMap->RemoveSubmap(map);
+	} else {
+		mapsLock.Lock();
+		LIST_DELETE(list, map, maps);
+		mapsLock.Unlock();
+		DELETE(map);
+	}
 	return 0;
 }
 
@@ -1163,6 +1168,7 @@ MM::Map::Initialize()
 	LIST_INIT(submaps);
 	parentMap = 0;
 	rootMap = this;
+	submapEntry = 0;
 	return 0;
 }
 
@@ -1207,6 +1213,7 @@ MM::Map::CreateSubmap(vaddr_t base, vsize_t size)
 	}
 	submap->parentMap = this;
 	submap->rootMap = this->rootMap;
+	submap->submapEntry = e;
 	u16 minOrder, maxOrder;
 	alloc.GetOrders(&minOrder, &maxOrder);
 	ensure(!submap->SetRange(base, size, minOrder, maxOrder));
@@ -1217,18 +1224,27 @@ MM::Map::CreateSubmap(vaddr_t base, vsize_t size)
 }
 
 int
+MM::Map::RemoveSubmap(Map *sm)
+{
+	assert(sm->parentMap == this);
+	smListLock.Lock();
+	LIST_DELETE(smList, sm, submaps);
+	smListLock.Unlock();
+	ensure(!UnReserveSpace(sm->base));
+	DELETE(sm);
+	return 0;
+}
+
+int
 MM::Map::FreeSubmaps(ListHead *submaps)
 {
 	if (!submaps) {
 		return 0;
 	}
 	Map *m;
-	smListLock.Lock();
 	while ((m = LIST_FIRST(Map, smList, *submaps))) {
-		LIST_DELETE(smList, m, *submaps);
-		DELETE(m);
+		RemoveSubmap(m);
 	}
-	smListLock.Unlock();
 	return 0;
 }
 
@@ -1638,6 +1654,11 @@ MM::Map::Entry::~Entry()
 {
 	if (alloc)	{
 		alloc->Release();
+		alloc = 0;
+	}
+	if (object) {
+		object->Release();
+		object = 0;
 	}
 	map->DeleteEntry(this);
 }
