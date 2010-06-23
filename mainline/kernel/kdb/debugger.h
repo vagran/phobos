@@ -11,7 +11,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
-class Debugger {
+class Debugger : public Object {
 private:
 	enum {
 		MAX_CMD_LINE = 4096,
@@ -93,9 +93,8 @@ private:
 	SpinLock threadLock;
 	Thread *curThread;
 
-	static int _BPHandler(Frame *frame, Debugger *d);
-	static int _DebugHandler(Frame *frame, Debugger *d);
-	static int _SMPDbgReqHandler(Frame *frame, Debugger *d);
+	int DebugHandler(Frame *frame);
+	int	UnhandledTrap(Frame *frame);
 	int BPHandler(Frame *frame);
 	int Shell();
 	void Prompt();

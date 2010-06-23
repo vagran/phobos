@@ -78,7 +78,7 @@ void operator delete[](void *p);
 
 class ConsoleDev;
 
-class MM {
+class MM : public Object {
 public:
 	enum {
 		QUICKMAP_SIZE =		8, /* pages */
@@ -113,7 +113,7 @@ public:
 
 	class Page;
 
-	class Pager {
+	class Pager : public Object {
 	public:
 		enum Type {
 			T_SWAP,
@@ -142,7 +142,7 @@ public:
 		virtual int PutPage(Page *pg, vaddr_t offset) = 0;
 	};
 
-	class VMObject {
+	class VMObject : public Object {
 	public:
 		enum Flags {
 			F_FILE =		0x1,
@@ -195,7 +195,7 @@ public:
 		NUM_ZONES,
 	};
 
-	class Page {
+	class Page : public Object {
 	public:
 		enum Flags {
 			F_ZONEMASK =	0x000f,
@@ -226,7 +226,7 @@ public:
 	u32	numPgFree, numPgCache, numPgActive, numPgInactive, numPgWired;
 	SpinLock pgqLock;
 
-	class Map {
+	class Map : public Object {
 	public:
 		class MapEntryAllocator;
 
@@ -462,8 +462,8 @@ private:
 	int CreatePageDescs();
 	Page *GetFreePage(int zone = ZONE_REST); /* pages queues must be locked */
 	Page *GetCachedPage(PageZone zone = ZONE_REST); /* pages queues must be locked */
-	static int OnPageFault(Frame *frame, void *arg);
-	int OnPageFault(vaddr_t va, u32 code, int isUserMode); /* ret zero if handled */
+	int OnPageFault(Frame *frame);
+	int HandlePageFault(vaddr_t va, u32 code, int isUserMode); /* ret zero if handled */
 public:
 	static void PreInitialize(vaddr_t addr);
 	static paddr_t VtoP(vaddr_t va); /* in current AS */

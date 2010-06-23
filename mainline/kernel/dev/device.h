@@ -15,9 +15,9 @@ class DeviceManager;
 
 extern DeviceManager devMan;
 
-class Device {
+class Device : public Object {
 public:
-	class IOBuf {
+	class IOBuf : public Object {
 	public:
 		enum Flags {
 			F_DIR =			0x1,
@@ -140,12 +140,12 @@ public:
 	int Read(u64 addr, void *buf, u32 size);
 };
 
-class DeviceManager {
+class DeviceManager : public Object {
 public:
 	typedef Device *(*DeviceFactory)(Device::Type type, u32 unit, u32 classID, void *arg);
 	typedef int (*DeviceProber)(int lastUnit, void *arg); /* return next found unit, -1 if none */
 
-	class DeviceRegistrator {
+	class DeviceRegistrator : public Object {
 	public:
 		DeviceRegistrator(const char *devClass, Device::Type type, const char *desc,
 			DeviceFactory factory, DeviceProber prober = 0, void *arg = 0);

@@ -11,7 +11,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
-class MemAllocator {
+class MemAllocator : public Object {
 public:
 	virtual void *malloc(u32 size) = 0;
 	virtual void *malloc(u32 size, void *param) { return malloc(size); }

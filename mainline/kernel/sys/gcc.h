@@ -11,6 +11,8 @@
 #include <sys.h>
 phbSource("$Id$");
 
+extern "C" void *__dso_handle;
+
 class CXA {
 public:
 	typedef struct {

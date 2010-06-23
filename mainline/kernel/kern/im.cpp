@@ -57,15 +57,15 @@ IM::IM()
 	}
 	/* install our handler in IDT */
 	for (int i = 0; i < NUM_HWIRQ; i++) {
-		idt->RegisterHandler(HWIRQ_BASE + i, HWIRQHandler, this);
+		idt->RegisterHandler(HWIRQ_BASE + i, this,
+			(IDT::TrapHandler)&IM::HWIRQHandler);
 	}
 }
 
 int
-IM::HWIRQHandler(Frame *frame, void *arg)
+IM::HWIRQHandler(Frame *frame)
 {
-	((IM *)arg)->Hwirq(frame->vectorIdx - HWIRQ_BASE);
-	return 0;
+	return Hwirq(frame->vectorIdx - HWIRQ_BASE);
 }
 
 int
@@ -407,7 +407,7 @@ IM::CallClient(IrqClient *ic, int stiEnabled)
 	if (stiEnabled) {
 		sti();
 	}
-	status = ic->isr((Handle)ic, ic->arg);
+	status = (ic->obj->*ic->isr)((Handle)ic);
 	if (stiEnabled) {
 		cli();
 	}
@@ -523,19 +523,19 @@ IM::UnMaskIrq(IrqType type, u32 idx, int stiEnabled)
 }
 
 Handle
-IM::AllocateHwirq(ISR isr, void *arg, u32 idx, u32 flags, int priority)
+IM::AllocateHwirq(Object *obj, ISR isr, u32 idx, u32 flags, int priority)
 {
-	return (Handle)Allocate(IT_HW, isr, arg, idx, flags, priority);
+	return (Handle)Allocate(IT_HW, obj, isr, idx, flags, priority);
 }
 
 Handle
-IM::AllocateSwirq(ISR isr, void *arg, u32 idx, u32 flags, int priority)
+IM::AllocateSwirq(Object *obj, ISR isr, u32 idx, u32 flags, int priority)
 {
-	return (Handle)Allocate(IT_SW, isr, arg, idx, flags, priority);
+	return (Handle)Allocate(IT_SW, obj, isr, idx, flags, priority);
 }
 
 IM::IrqClient *
-IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags, int priority)
+IM::Allocate(IrqType type, Object *obj, ISR isr, u32 idx, u32 flags, int priority)
 {
 	IrqSlot *isa;
 	u32 numSlots;
@@ -620,7 +620,7 @@ IM::Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags, int priority)
 	ic->idx = idx;
 	ic->type = type;
 	ic->isr = isr;
-	ic->arg = arg;
+	ic->obj = obj;
 	ic->priority = priority;
 	LIST_ADD(list, ic, is->clients);
 	is->numClients++;

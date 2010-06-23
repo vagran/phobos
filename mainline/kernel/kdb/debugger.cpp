@@ -69,10 +69,33 @@ Debugger::Debugger(ConsoleDev *con)
 	numThreads = 0;
 	LIST_INIT(threads);
 	SetConsole(con);
-	idt->RegisterHandler(IDT::ST_BREAKPOINT, (IDT::TrapHandler)_BPHandler, this);
-	idt->RegisterHandler(IDT::ST_DEBUG, (IDT::TrapHandler)_DebugHandler, this);
+	idt->RegisterUTHandler(this, (IDT::TrapHandler)&Debugger::UnhandledTrap);
+	idt->RegisterHandler(IDT::ST_BREAKPOINT, this, (IDT::TrapHandler)&Debugger::BPHandler);
+	idt->RegisterHandler(IDT::ST_DEBUG, this, (IDT::TrapHandler)&Debugger::DebugHandler);
 	/* we use NMI for inter-processor debugging requests */
-	idt->RegisterHandler(IDT::ST_NMI, (IDT::TrapHandler)_SMPDbgReqHandler, this);
+	idt->RegisterHandler(IDT::ST_NMI, this, (IDT::TrapHandler)&Debugger::DRHandler);
+}
+
+int
+Debugger::UnhandledTrap(Frame *frame)
+{
+	u32 esp;
+	if (((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
+		esp = frame->esp;
+	} else {
+		esp = (u32)&frame->esp;
+	}
+	if (Debugger::debugFaults && sysDebugger) {
+		sysDebugger->Trap(frame);
+	}
+	panic("Unhandled trap\nidx = %lx (%s), code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
+		"eax = 0x%08lx, ebx = 0x%08lx, ecx = 0x%08lx, edx = 0x%08lx\n"
+		"esi = 0x%08lx, edi = 0x%08lx, ebp = 0x%08lx, esp = 0x%08lx",
+		frame->vectorIdx, IDT::StrTrap((IDT::SysTraps)frame->vectorIdx),
+		frame->code, frame->eip, frame->eflags,
+		frame->eax, frame->ebx, frame->ecx, frame->edx,
+		frame->esi, frame->edi, frame->ebp, esp);
+	return 0;
 }
 
 int
@@ -102,16 +125,10 @@ Debugger::SetConsole(ConsoleDev *con)
 }
 
 int
-Debugger::_BPHandler(Frame *frame, Debugger *d)
+Debugger::DebugHandler(Frame *frame)
 {
-	return d->BPHandler(frame);
-}
-
-int
-Debugger::_DebugHandler(Frame *frame, Debugger *d)
-{
-	d->requestedBreak = 1; /* prevent from eip decrementing */
-	return d->BPHandler(frame);
+	requestedBreak = 1; /* prevent from eip decrementing */
+	return BPHandler(frame);
 }
 
 int
@@ -272,12 +289,6 @@ Debugger::SendDebugRequest(DebugRequest req, CPU *cpu)
 	}
 	reqSendLock.Unlock();
 	return rc;
-}
-
-int
-Debugger::_SMPDbgReqHandler(Frame *frame, Debugger *d)
-{
-	return d->DRHandler(frame);
 }
 
 int

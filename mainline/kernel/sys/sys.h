@@ -24,7 +24,6 @@ phbSource("$Id$");
 #include <types.h>
 #include <error.h>
 #include <queue.h>
-#include <Bitmap.h>
 #include <specialreg.h>
 #include <frame.h>
 #include <stdlib.h>
@@ -48,6 +47,7 @@ extern void __assert(const char *file, u32 line, const char *cond);
 
 #include <lock.h>
 #include <object.h>
+#include <Bitmap.h>
 #include <mem.h>
 #include <dev/device.h>
 #include <dev/chr/syscons.h>

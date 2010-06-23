@@ -11,7 +11,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
-class Log {
+class Log : public Object {
 public:
 	typedef enum {
 		LOG_DEBUG,

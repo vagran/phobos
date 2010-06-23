@@ -39,4 +39,12 @@ public:
 	return rc; \
 }
 
+class Object {
+protected:
+
+public:
+	Object() {}
+	~Object() {}
+};
+
 #endif /* OBJECT_H_ */

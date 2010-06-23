@@ -17,7 +17,7 @@ class DeviceFS;
 
 #include <vfs/vfs.h>
 
-class DeviceFS {
+class DeviceFS : public Object {
 public:
 	enum Flags {
 		F_READONLY =		0x1,

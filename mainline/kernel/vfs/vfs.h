@@ -11,11 +11,11 @@
 #include <sys.h>
 phbSource("$Id$");
 
-class VFS {
+class VFS : public Object {
 public:
 	class Mount;
 
-	class Node {
+	class Node : public Object {
 	public:
 		enum Type {
 			T_NONE,
@@ -57,7 +57,7 @@ public:
 		inline Type GetType() { return type; }
 	};
 
-	class Mount {
+	class Mount : public Object {
 	private:
 		RefCount refCount;
 		DeviceFS *fs;
@@ -70,7 +70,7 @@ public:
 		inline DeviceFS *GetFS() { return fs; }
 	};
 
-	class File {
+	class File : public Object {
 	protected:
 		RefCount refCount;
 		Node *node;

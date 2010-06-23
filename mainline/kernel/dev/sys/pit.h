@@ -15,7 +15,7 @@ phbSource("$Id$");
 
 class PIT : public Device {
 public:
-	typedef int (*TickCbk)(u64 ticks, void *arg);
+	typedef int (Object::*TickCbk)(u64 ticks);
 private:
 	enum {
 		IO_BASE =		0x40, /* Base address for I/O */
@@ -53,17 +53,16 @@ private:
 	Handle irq;
 	u64 ticks;
 	TickCbk tickCbk;
-	void *tickCbkArg;
+	Object *tickCbkObj;
 
-	static IM::IsrStatus IntrHandler(Handle h, void *arg);
-	IM::IsrStatus OnIntr();
+	IM::IsrStatus IntrHandler(Handle h);
 public:
 	PIT(Type type, u32 unit, u32 classID);
 	DeclareDevFactory();
 
 	u32 SetTickFreq(u32 freq); /* return divisor */
 	u64 GetTicks() {return ticks;}
-	TickCbk SetTickCbk(TickCbk cbk, void *arg = 0, void **prevArg = 0);
+	TickCbk SetTickCbk(Object *obj, TickCbk cbk, Object **prevObj = 0);
 	u32 GetDivisor() {return divisor;}
 	u32 GetBaseFreq() {return BASE_FREQ;}
 	u32 GetCounter(u64 *pTicks = 0);

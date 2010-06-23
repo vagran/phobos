@@ -21,7 +21,7 @@ typedef struct {
 	u32 usec;
 } Time;
 
-class TM {
+class TM : public Object {
 public:
 	enum {
 		TICKS_FREQ =			1000,
@@ -75,7 +75,6 @@ private:
 	Timers timers; /* default timers set */
 	Handle timerIrq;
 
-	static int TickHandler(u64 ticks, void *arg);
 	int TickHandler(u64 ticks);
 	static int SyncHandler(u64 time, void *arg);
 	int SyncHandler(u64 time);
@@ -84,8 +83,7 @@ private:
 	int InitTimers(Timers *timers);
 	int MigrateTimers(Timers *timers, ListHead *head);
 	int RunTimers(Timers *timers, u64 ticks);
-	static IM::IsrStatus TimerIntr(Handle h, void *arg);
-	IM::IsrStatus TimerIntr();
+	IM::IsrStatus TimerIntr(Handle h);
 public:
 	TM();
 

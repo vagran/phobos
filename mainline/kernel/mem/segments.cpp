@@ -138,13 +138,10 @@ GDT::GetSelector(SDT::Descriptor *d, u16 rpl)
 
 /*************************************************************/
 
-int UnhandledTrap(Frame *frame, void *arg);
-
 IDT::IDT()
 {
 	memset(handlers, 0, sizeof(handlers));
 	memset(&utHandler, 0, sizeof(utHandler));
-	RegisterUTHandler(UnhandledTrap);
 
 	table = (SDT::Gate *)MM::malloc(NUM_VECTORS * sizeof(*table), sizeof(*table));
 	memset(table, 0, NUM_VECTORS * sizeof(*table));
@@ -179,31 +176,43 @@ IDT::HandleTrap(Frame *frame)
 	TableEntry *p = &handlers[frame->vectorIdx];
 	if (!p->handler) {
 		if (!utHandler.handler) {
-			return 0;
+			u32 esp;
+			if (((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
+				esp = frame->esp;
+			} else {
+				esp = (u32)&frame->esp;
+			}
+			panic("Unhandled trap\nidx = %lx (%s), code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
+				"eax = 0x%08lx, ebx = 0x%08lx, ecx = 0x%08lx, edx = 0x%08lx\n"
+				"esi = 0x%08lx, edi = 0x%08lx, ebp = 0x%08lx, esp = 0x%08lx",
+				frame->vectorIdx, IDT::StrTrap((IDT::SysTraps)frame->vectorIdx),
+				frame->code, frame->eip, frame->eflags,
+				frame->eax, frame->ebx, frame->ecx, frame->edx,
+				frame->esi, frame->edi, frame->ebp, esp);
 		}
-		return utHandler.handler(frame, utHandler.arg);
+		return (p->obj->*utHandler.handler)(frame);
 	}
-	return p->handler(frame, p->arg);
+	return (p->obj->*p->handler)(frame);
 }
 
 IDT::TrapHandler
-IDT::RegisterHandler(u32 idx, TrapHandler h, void *arg)
+IDT::RegisterHandler(u32 idx, Object *obj, TrapHandler h)
 {
 	if (idx >= NUM_VECTORS) {
 		return 0;
 	}
 	TrapHandler ret = handlers[idx].handler;
 	handlers[idx].handler = h;
-	handlers[idx].arg = arg;
+	handlers[idx].obj = obj;
 	return ret;
 }
 
 IDT::TrapHandler
-IDT::RegisterUTHandler(TrapHandler h, void *arg)
+IDT::RegisterUTHandler(Object *obj, TrapHandler h)
 {
 	TrapHandler ret = utHandler.handler;
 	utHandler.handler = h;
-	utHandler.arg = arg;
+	utHandler.obj = obj;
 	return ret;
 }
 

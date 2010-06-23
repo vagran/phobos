@@ -16,16 +16,6 @@ phbSource("$Id$");
 	mfence(); \
 }
 
-class SpinLock {
-private:
-	u32		flag;
-public:
-	SpinLock(int flag = 0);
-	void Lock();
-	void Unlock();
-	int TryLock(); /* returns 0 if successfully locked, -1 otherwise */
-};
-
 class AtomicOp {
 public:
 	static inline u32 Set(u32 *value, u32 newValue) { /* return previous value */
@@ -285,8 +275,20 @@ public:
 	}
 };
 
+#include <object.h>
+
+class SpinLock : public Object {
+private:
+	u32		flag;
+public:
+	SpinLock(int flag = 0);
+	void Lock();
+	void Unlock();
+	int TryLock(); /* returns 0 if successfully locked, -1 otherwise */
+};
+
 template <typename value_t>
-class AtomicInt {
+class AtomicInt : public Object {
 private:
 	value_t value;
 public:
@@ -298,7 +300,7 @@ public:
 };
 
 /* Mutually exclusive access between threads */
-class Mutex {
+class Mutex : public Object {
 private:
 	SpinLock lock;
 public:
@@ -307,7 +309,7 @@ public:
 	void Unlock();
 };
 
-class CriticalSection {
+class CriticalSection : public Object {
 private:
 	Mutex *mtx;
 public:

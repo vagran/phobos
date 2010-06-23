@@ -23,7 +23,7 @@ TM::TM()
 	pit->SetTickFreq(TICKS_FREQ);
 	tickDivisor = pit->GetDivisor();
 	ratio = (u32)(((1ull << RATIO_BITS) * 1000000ull + 500000ull) / timerFreq);
-	pit->SetTickCbk(TickHandler, this);
+	pit->SetTickCbk(this, (PIT::TickCbk)&TM::TickHandler);
 	rtc = (RTC *)devMan.CreateDevice("rtc", 0);
 	if (rtc) {
 		printf("Setting up system time...\n");
@@ -38,7 +38,7 @@ TM::TM()
 	}
 	GetTime(&bootTime);
 	InitTimers(&timers);
-	timerIrq = im->AllocateSwirq(TimerIntr, this, 0,
+	timerIrq = im->AllocateSwirq(this, (IM::ISR)&TM::TimerIntr, 0,
 		IM::AF_EXCLUSIVE, IM::IP_TIMER);
 	ensure(timerIrq);
 }
@@ -82,12 +82,6 @@ TM::SyncHandler(u64 time)
 	syncIdx++;
 	timeValid = 1;
 	return 0;
-}
-
-int
-TM::TickHandler(u64 ticks, void *arg)
-{
-	return ((TM *)arg)->TickHandler(ticks);
 }
 
 int
@@ -298,13 +292,7 @@ TM::RunTimers(Timers *timers, u64 ticks)
 }
 
 IM::IsrStatus
-TM::TimerIntr(Handle h, void *arg)
-{
-	return ((TM *)arg)->TimerIntr();
-}
-
-IM::IsrStatus
-TM::TimerIntr()
+TM::TimerIntr(Handle h)
 {
 	RunTimers(&timers, GetTicks());
 	return IM::IS_PROCESSED;

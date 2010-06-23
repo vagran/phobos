@@ -11,7 +11,7 @@ phbSource("$Id$");
 
 #include <gcc.h>
 
-extern "C" int __dso_handle;
+void *__dso_handle;
 
 extern "C" CXA::CallbackList _CTOR_LIST, _DTOR_LIST;
 

@@ -71,8 +71,7 @@ private:
 	GetTimeCbk gtc;
 	void *gtcArg;
 
-	static IM::IsrStatus IntrHandler(Handle h, void *arg);
-	IM::IsrStatus OnIntr();
+	IM::IsrStatus IntrHandler(Handle h);
 	int GetRS(u32 freq);
 	int Initialize();
 	int UpdateTime();

@@ -19,7 +19,7 @@ phbSource("$Id$");
  */
 
 template <typename range_t>
-class BuddyAllocator {
+class BuddyAllocator : public Object {
 public:
 	class BuddyClient : public MemAllocator {
 	public:

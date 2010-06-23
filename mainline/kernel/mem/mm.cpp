@@ -248,7 +248,7 @@ MM::InitMM()
 	devAlloc = devEntry->CreateAllocator();
 	assert(devAlloc);
 	initState = IS_NORMAL;
-	idt->RegisterHandler(IDT::ST_PAGEFAULT, OnPageFault, this);
+	idt->RegisterHandler(IDT::ST_PAGEFAULT, this, (IDT::TrapHandler)&MM::OnPageFault);
 }
 
 paddr_t
@@ -816,11 +816,11 @@ MM::KmemMapClient::UnReserve(vaddr_t base, vaddr_t size, void *arg)
 }
 
 int
-MM::OnPageFault(Frame *frame, void *arg)
+MM::OnPageFault(Frame *frame)
 {
 	vaddr_t va = rcr2();
 	int isUserMode = GDT::GetRPL(frame->cs) == GDT::PL_USER;
-	if (((MM *)arg)->OnPageFault(va, frame->code, isUserMode)) {
+	if (HandlePageFault(va, frame->code, isUserMode)) {
 		if (isUserMode) {
 			/* send signal to process */
 			//notimpl
@@ -838,7 +838,7 @@ MM::OnPageFault(Frame *frame, void *arg)
 }
 
 int
-MM::OnPageFault(vaddr_t va, u32 code, int isUserMode)
+MM::HandlePageFault(vaddr_t va, u32 code, int isUserMode)
 {
 	printf("Processing page fault on 0x%08lx, code = 0x%08lx, userMode = %d\n",
 		va, code, isUserMode);//temp

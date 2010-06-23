@@ -25,7 +25,7 @@ PIT::PIT(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	ticks = 0;
 	tickCbk = 0;
 	SetTickFreq(DEF_TICK_FREQ);
-	irq = im->AllocateHwirq(IntrHandler, this, PIC::IRQ_PIT,
+	irq = im->AllocateHwirq(this, (IM::ISR)&PIT::IntrHandler, PIC::IRQ_PIT,
 		IM::AF_SPEC | IM::AF_EXCLUSIVE, IM::IP_CLOCK);
 	ensure(irq);
 	im->HwEnable(PIC::IRQ_PIT);
@@ -75,30 +75,24 @@ PIT::GetCounter(u64 *pTicks)
 	return lo | (hi << 8);
 }
 
-IM::IsrStatus
-PIT::IntrHandler(Handle h, void *arg)
-{
-	return ((PIT *)arg)->OnIntr();
-}
-
 PIT::TickCbk
-PIT::SetTickCbk(TickCbk cbk, void *arg, void **prevArg)
+PIT::SetTickCbk(Object *obj, TickCbk cbk, Object **prevObj)
 {
 	TickCbk prev = tickCbk;
-	if (prevArg) {
-		*prevArg = tickCbkArg;
+	if (prevObj) {
+		*prevObj = tickCbkObj;
 	}
 	tickCbk = cbk;
-	tickCbkArg = arg;
+	tickCbkObj = obj;
 	return prev;
 }
 
 IM::IsrStatus
-PIT::OnIntr()
+PIT::IntrHandler(Handle h)
 {
 	ticks++;
 	if (tickCbk) {
-		tickCbk(ticks, tickCbkArg);
+		(tickCbkObj->*tickCbk)(ticks);
 	}
 	return IM::IS_PROCESSED;
 }

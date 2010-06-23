@@ -13,7 +13,7 @@ phbSource("$Id$");
 
 /* Processes manager */
 
-class PM {
+class PM : public Object {
 public:
 	typedef u16 pid_t;
 	typedef u32 waitid_t;
@@ -29,7 +29,7 @@ public:
 		INVALID_PID =		(pid_t)~0,
 	};
 
-	class ImageLoader {
+	class ImageLoader : public Object {
 	protected:
 		RefCount refCount;
 		VFS::File *file;
@@ -47,7 +47,7 @@ public:
 	typedef ImageLoader *(*ILFactory)(VFS::File *file);
 	typedef int (*ILProber)(VFS::File *file); /* return zero if identified */
 
-	class ILRegistrator {
+	class ILRegistrator : public Object {
 	public:
 		ILRegistrator(const char *desc, ILFactory factory, ILProber prober);
 	};
@@ -65,7 +65,7 @@ public:
 		};
 	} PIDEntry;
 
-	class Thread {
+	class Thread : public Object {
 	public:
 		enum {
 			DEF_STACK_SIZE =		16 * 1024 * 1024, /* Default stack size */
@@ -132,7 +132,7 @@ public:
 		int MapKernelStack(vaddr_t esp);
 	};
 
-	class Process {
+	class Process : public Object {
 	private:
 		friend class PM;
 
@@ -159,7 +159,7 @@ public:
 		Thread *GetThread();
 	};
 
-	class Runqueue {
+	class Runqueue : public Object {
 	public:
 		enum ThreadFlags {
 			TF_EXPIRED =		0x1,

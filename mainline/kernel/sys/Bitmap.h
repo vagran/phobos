@@ -9,7 +9,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
-class Bitmap {
+class Bitmap : public Object {
 private:
 	int firstSet, lastUsed;
 	int numBits;

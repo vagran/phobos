@@ -57,7 +57,8 @@ u64 gethash64(const char *s);
 u64 gethash64(u8 *data, u32 size);
 
 typedef void (*PutcFunc)(int c, void *arg);
-int kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap, int maxOut = -1) __format(printf, 1, 0);
+int kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap,
+	int maxOut = -1) __format(printf, 1, 0);
 int sprintf(char *buf, const char *fmt,...) __format(printf, 2, 3);
 int snprintf(char *buf, int bufSize, const char *fmt,...) __format(printf, 3, 4);
 int vsprintf(char *buf, const char *fmt, va_list arg) __format(printf, 2, 0);

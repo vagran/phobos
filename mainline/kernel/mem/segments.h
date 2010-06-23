@@ -11,7 +11,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
-class SDT {
+class SDT : public Object {
 public:
 	struct SegSelector_s {
 		u32	rpl:2,		/* request privilege level */
@@ -91,7 +91,7 @@ public:
 	static void SetGate(Gate *g, u32 offset, u16 selector, u32 type);
 };
 
-class GDT {
+class GDT : public Object {
 public:
 	typedef enum {
 		SI_NULL,
@@ -146,7 +146,7 @@ public:
 
 extern GDT *gdt;
 
-class IDT {
+class IDT : public Object {
 public:
 	typedef enum {
 		ST_DIVIDE,
@@ -172,7 +172,7 @@ public:
 		ST_NUMRESERVED = 32, /* reserved by Intel */
 	} SysTraps;
 
-	typedef int (*TrapHandler)(Frame *frame, void *arg);
+	typedef int (Object::*TrapHandler)(Frame *frame);
 
 private:
 	enum {
@@ -183,7 +183,7 @@ private:
 	SDT::PseudoDescriptor pd;
 	typedef struct {
 		TrapHandler handler;
-		void *arg;
+		Object *obj;
 	} TableEntry;
 	TableEntry handlers[NUM_VECTORS];
 	TableEntry utHandler;
@@ -195,12 +195,12 @@ public:
 	IDT();
 	int HandleTrap(Frame *frame);
 
-	TrapHandler RegisterHandler(u32 idx, TrapHandler h, void *arg = 0);
-	TrapHandler RegisterUTHandler(TrapHandler h, void *arg = 0);
+	TrapHandler RegisterHandler(u32 idx, Object *obj, TrapHandler h);
+	TrapHandler RegisterUTHandler(Object *obj, TrapHandler h);
 	SDT::PseudoDescriptor *GetPseudoDescriptor() { return &pd; }
 };
 
-class TSS {
+class TSS : public Object {
 private:
 	typedef struct {
 		u32 tss_link; /* actually 16 bits: top 16 bits must be zero */

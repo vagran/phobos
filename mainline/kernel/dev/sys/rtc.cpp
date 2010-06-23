@@ -33,7 +33,7 @@ RTC::RTC(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 		klog(KLOG_ERROR, "RTC hardware initializing failed");
 		return;
 	}
-	irq = im->AllocateHwirq(IntrHandler, this, PIC::IRQ_RTC,
+	irq = im->AllocateHwirq(this, (IM::ISR)&RTC::IntrHandler, PIC::IRQ_RTC,
 			IM::AF_SPEC | IM::AF_EXCLUSIVE, IM::IP_RTC);
 	ensure(irq);
 	im->HwEnable(PIC::IRQ_RTC);
@@ -142,13 +142,7 @@ RTC::UpdateTime()
 }
 
 IM::IsrStatus
-RTC::IntrHandler(Handle h, void *arg)
-{
-	return ((RTC *)arg)->OnIntr();
-}
-
-IM::IsrStatus
-RTC::OnIntr()
+RTC::IntrHandler(Handle h)
 {
 	u32 x = IM::DisableIntr();
 	u8 sts = Read(REG_STATUSC);

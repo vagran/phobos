@@ -60,7 +60,7 @@ ConsoleDev::SetQueue(u32 inputQueueSize, u32 outputQueueSize)
 			return 0;
 		}
 	} else {
-		outIrq = im->AllocateSwirq(OutputIntr, this, 0,
+		outIrq = im->AllocateSwirq(this, (IM::ISR)&ConsoleDev::OutputIntr, 0,
 			IM::AF_EXCLUSIVE, IM::IP_CONSOLE);
 		ensure(outIrq);
 	}
@@ -76,13 +76,7 @@ ConsoleDev::SetQueue(u32 inputQueueSize, u32 outputQueueSize)
 }
 
 IM::IsrStatus
-ConsoleDev::OutputIntr(Handle h, void *arg)
-{
-	return ((ConsoleDev *)arg)->OutputIntr();
-}
-
-IM::IsrStatus
-ConsoleDev::OutputIntr()
+ConsoleDev::OutputIntr(Handle h)
 {
 	/* probably some data queued, check them and output if present */
 	while (1) {

@@ -15,7 +15,7 @@ phbSource("$Id$");
 
 /* Interrupts manager */
 
-class IM {
+class IM : public Object {
 public:
 	enum {
 		NUM_HWIRQ =		16,
@@ -53,7 +53,7 @@ public:
 
 	typedef u32 irqmask_t;
 
-	typedef IsrStatus (*ISR)(Handle h, void *arg);
+	typedef IsrStatus (Object::*ISR)(Handle h);
 
 private:
 	enum {
@@ -84,8 +84,8 @@ private:
 		ListEntry list; /* list sorted by client priority values */
 		IrqType type;
 		u32 idx;
+		Object *obj;
 		ISR isr;
-		void *arg;
 		u32 lastRound; /* last round when it was serviced */
 		int serviceComplete;
 		int priority;
@@ -124,9 +124,10 @@ private:
 
 	PIC *pic0, *pic1;
 
-	IrqClient *Allocate(IrqType type, ISR isr, void *arg, u32 idx, u32 flags, int priority);
+	IrqClient *Allocate(IrqType type, Object *obj, ISR isr, u32 idx, u32 flags,
+		int priority);
 	int Irq(IrqType type, u32 idx, int stiEnabled = 1);
-	static int HWIRQHandler(Frame *frame, void *arg);
+	int HWIRQHandler(Frame *frame);
 	int GetPIC(u32 idx, PIC **ppic, u32 *pidx);
 	IrqClient *SelectClient(IrqType type);
 	IrqClient *SelectClient();
@@ -138,9 +139,9 @@ private:
 public:
 	IM();
 
-	Handle AllocateHwirq(ISR isr, void *arg = 0, u32 idx = 0,
+	Handle AllocateHwirq(Object *obj, ISR isr, u32 idx = 0,
 		u32 flags = AF_EXCLUSIVE, int priority = IP_DEFAULT);
-	Handle AllocateSwirq(ISR isr, void *arg = 0, u32 idx = 0,
+	Handle AllocateSwirq(Object *obj, ISR isr, u32 idx = 0,
 		u32 flags = AF_EXCLUSIVE, int priority = IP_DEFAULT);
 	int ReleaseIrq(Handle h);
 	inline u32 GetIndex(Handle h) { assert(h); return ((IrqClient *)h)->idx; }

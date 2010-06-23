@@ -63,8 +63,7 @@ private:
 	Handle outIrq;
 
 	static void _Putc(int c, ConsoleDev *p);
-	static IM::IsrStatus OutputIntr(Handle h, void *arg);
-	IM::IsrStatus OutputIntr();
+	IM::IsrStatus OutputIntr(Handle h);
 	Device::IOStatus QPutc(u8 c);
 	Device::IOStatus DevPutc(u8 c);
 protected:
