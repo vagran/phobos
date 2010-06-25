@@ -16,6 +16,7 @@ enum ErrorCode {
 	E_FAULT = -1,			/* Unspecified error */
 	E_NOMEM = -32767,		/* No memory */
 	E_IO,					/* I/O operations error */
+	E_INVAL,				/* Invalid parameters */
 };
 
 #endif /* ERROR_H_ */

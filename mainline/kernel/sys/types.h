@@ -29,6 +29,30 @@ typedef u16		u_int16_t;
 typedef u32		u_int32_t;
 typedef u64		u_int64_t;
 
+#define UCHAR_MAX	0xff
+#define	CHAR_MAX	0x7f
+#define	CHAR_MIN	(-0x7f - 1)
+
+#define	USHRT_MAX	0xffff
+#define	SHRT_MAX	0x7fff
+#define	SHRT_MIN	(-0x7fff - 1)
+
+#define	UINT_MAX	0xffffffffU
+#define	INT_MAX		0x7fffffff
+#define	INT_MIN		(-0x7fffffff - 1)
+
+#define	ULONG_MAX	0xffffffffUL
+#define	LONG_MAX	0x7fffffffL
+#define	LONG_MIN	(-0x7fffffffL - 1)
+
+#define	ULLONG_MAX	0xffffffffffffffffULL
+#define	LLONG_MAX	0x7fffffffffffffffLL
+#define	LLONG_MIN	(-0x7fffffffffffffffLL - 1)
+
+#define	UQUAD_MAX	ULLONG_MAX
+#define	QUAD_MAX	LLONG_MAX
+#define	QUAD_MIN	LLONG_MIN
+
 typedef u32		vaddr_t;
 typedef u32		vsize_t;
 typedef u64		paddr_t;
@@ -46,6 +70,7 @@ typedef u8* va_list;
 #define va_roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
 #define va_size(arg)		va_roundup2(sizeof(arg), sizeof(int))
 #define va_start(va, arg)	((va) = ((u8 *)&arg) + va_size(arg))
+#define va_end(va)
 #define va_arg(va, type)	((va) += va_size(type), *(type *)((va) - va_size(type)))
 
 #endif /* TYPES_H_ */

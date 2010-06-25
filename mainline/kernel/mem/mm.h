@@ -97,6 +97,14 @@ public:
 		SMMemType type;
 	} BiosMemChunk;
 
+	enum Protection {
+		PROT_NONE =		0x0,
+		PROT_READ =		0x1,
+		PROT_WRITE =	0x2,
+		PROT_EXEC =		0x4,
+		PROT_COW =		0x8,
+	};
+
 	MemChunk physMem[MEM_MAX_CHUNKS];
 	u32 physMemSize;
 	psize_t physMemTotal;
@@ -169,6 +177,10 @@ public:
 		Pager		*pager; /* backing storage */
 		vaddr_t		pagerOffset;
 
+	private:
+		int CreateDefaultPager();
+	public:
+
 		VMObject(vsize_t size, u32 flags = 0);
 		~VMObject();
 		OBJ_ADDREF(refCount);
@@ -177,6 +189,7 @@ public:
 		inline vsize_t GetSize() { return size; }
 		int InsertPage(Page *pg, vaddr_t offset);
 		Page *LookupPage(vaddr_t offset);
+		int CreatePager(Handle pagingHandle = 0);
 		int Pagein(vaddr_t offset, Page **ppg = 0);
 		int Pageout(vaddr_t offset, Page **ppg = 0);
 	};
@@ -230,7 +243,7 @@ public:
 	public:
 		class MapEntryAllocator;
 
-		class Entry {
+		class Entry : public Object {
 		public:
 			enum Flags {
 				F_SPACE =		0x1, /* space only allocation */
@@ -252,6 +265,7 @@ public:
 			vaddr_t				offset; /* offset in object */
 			u32					flags;
 			MapEntryAllocator	*alloc;
+			int					protection;
 
 			Entry(Map *map);
 			~Entry();
@@ -322,7 +336,8 @@ public:
 
 		int Initialize();
 		Entry *IntInsertObject(VMObject *obj, vaddr_t base = 0, int fixed = 0,
-			vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
+			vaddr_t offset = 0, vsize_t size = VSIZE_MAX,
+			int protection = PROT_READ | PROT_WRITE);
 		int FreeSubmaps(ListHead *submaps);
 		int AddEntry(Entry *e);
 		int DeleteEntry(Entry *e);
@@ -343,9 +358,11 @@ public:
 		Entry *ReserveSpace(vaddr_t base, vsize_t size);
 		int UnReserveSpace(vaddr_t base);
 		Entry *Lookup(vaddr_t base);
-		Entry *InsertObject(VMObject *obj, vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
+		Entry *InsertObject(VMObject *obj, vaddr_t offset = 0,
+			vsize_t size = VSIZE_MAX, int protection = PROT_READ | PROT_WRITE);
 		Entry *InsertObjectAt(VMObject *obj, vaddr_t base,
-			vaddr_t offset = 0, vsize_t size = VSIZE_MAX);
+			vaddr_t offset = 0, vsize_t size = VSIZE_MAX,
+			int protection = PROT_READ | PROT_WRITE);
 		PTE::PDEntry *GetPDE(vaddr_t va);
 		PTE::PTEntry *GetPTE(vaddr_t va);
 		int IsMapped(vaddr_t va);

@@ -49,7 +49,10 @@ ASMCALL int	tolower(int c);
 ASMCALL int	toupper(int c);
 ASMCALL int isascii(int c);
 
+ASMCALL i32 strtol(const char *nptr, char **endptr, int base);
 ASMCALL u32 strtoul(const char *nptr, char **endptr, int base);
+ASMCALL i64 strtoq(const char *nptr, char **endptr, int base);
+ASMCALL u64 strtouq(const char *nptr, char **endptr, int base);
 
 u32 gethash(const char *s);
 u32 gethash(u8 *data, u32 size);
@@ -63,6 +66,9 @@ int sprintf(char *buf, const char *fmt,...) __format(printf, 2, 3);
 int snprintf(char *buf, int bufSize, const char *fmt,...) __format(printf, 3, 4);
 int vsprintf(char *buf, const char *fmt, va_list arg) __format(printf, 2, 0);
 int vsnprintf(char *buf, int bufSize, const char *fmt, va_list arg) __format(printf, 3, 0);
+
+int sscanf(const char *buf, const char *fmt, ...) __format(scanf, 2, 3);
+int vsscanf(const char *buf, char const *fmt, va_list ap) __format(scanf, 2, 0);
 
 #ifdef ENABLE_TRACING
 #define trace(fmt,...) printf(fmt, ## __VA_ARGS__)

@@ -231,6 +231,7 @@ VFS::CreateFile(const char *path)
 	if (!node) {
 		return 0;
 	}
+	/* XXX should implement file cache management */
 	File *file;
 	switch (node->type) {
 	case Node::T_REGULAR:
@@ -246,6 +247,39 @@ VFS::CreateFile(const char *path)
 		return 0;
 	}
 	return file;
+}
+
+MM::VMObject *
+VFS::MapFile(File *file)
+{
+	/* XXX should be able to map devices too */
+	if (file->GetType() != Node::T_REGULAR) {
+		return 0;
+	}
+	/* XXX should implement file cache management */
+	vsize_t size = roundup2(file->GetSize(), PAGE_SIZE);
+	MM::VMObject *obj = NEW(MM::VMObject, size, MM::VMObject::F_FILE);
+	if (!obj) {
+		return 0;
+	}
+	if (obj->CreatePager(file)) {
+		obj->Release();
+		return 0;
+	}
+	return obj;
+}
+
+MM::VMObject *
+VFS::MapFile(const char *path)
+{
+	File *file = CreateFile(path);
+	if (!file) {
+		return 0;
+	}
+	MM::VMObject *obj = MapFile(file);
+	/* release our reference to file */
+	file->Release();
+	return obj;
 }
 
 /******************************************************/
@@ -309,6 +343,26 @@ VFS::Node::Release()
 	return rc;
 }
 
+u32
+VFS::Node::GetSize()
+{
+	if (!mount) {
+		return 0;
+	}
+	DeviceFS *fs = mount->GetFS();
+	return fs->GetNodeSize(fsNode);
+}
+
+u32
+VFS::Node::Read(u64 offset, void *buf, u32 len)
+{
+	if (!mount) {
+		return 0;
+	}
+	DeviceFS *fs = mount->GetFS();
+	return fs->ReadNode(fsNode, offset, len, buf);
+}
+
 /******************************************************/
 /* VFS::Mount class */
 
@@ -341,21 +395,13 @@ VFS::File::~File()
 u32
 VFS::File::Read(u64 offset, void *buf, u32 len)
 {
-	if (!node->mount) {
-		return 0;
-	}
-	DeviceFS *fs = node->mount->GetFS();
-	return fs->ReadNode(node->fsNode, offset, len, buf);
+	return node->Read(offset, buf, len);
 }
 
 u32
 VFS::File::GetSize()
 {
-	if (!node->mount) {
-		return 0;
-	}
-	DeviceFS *fs = node->mount->GetFS();
-	return fs->GetNodeSize(node->fsNode);
+	return node->GetSize();
 }
 
 /******************************************************/

@@ -18,8 +18,8 @@ public:
 	inline RefCount() { count = 1; }
 	inline ~RefCount() { assert(!count); }
 
-	inline void Inc() { AtomicOp::Inc(&(count)); }
-	inline int Dec() { assert(count); return AtomicOp::Dec(&(count)); }
+	inline void Inc() { AtomicOp::Inc(&count); }
+	inline int Dec() { assert(count); return AtomicOp::Dec(&count); }
 	inline operator u32() { return count; }
 	inline void operator ++() { Inc(); }
 	inline int operator --() { return Dec(); }
@@ -39,12 +39,21 @@ public:
 	return rc; \
 }
 
+/*
+ * Most of the kernel classes are derived from this class. It allows at least
+ * usage of convenient callback methods notation and advanced debugging
+ * features.
+ */
 class Object {
+private:
+	static u32 objCount;
 protected:
 
 public:
-	Object() {}
-	~Object() {}
+	inline Object() { AtomicOp::Inc(&objCount); }
+	inline ~Object() { AtomicOp::Dec(&objCount); }
+
+	inline u32 GetCount() { return objCount; }
 };
 
 #endif /* OBJECT_H_ */

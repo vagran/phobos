@@ -11,6 +11,7 @@ phbSource("$Id$");
 
 #include <boot.h>
 #include <mem/SwapPager.h>
+#include <mem/FilePager.h>
 
 paddr_t IdlePDPT, IdlePTD;
 vaddr_t vIdlePDPT, vIdlePTD; /* virtual addresses */
@@ -941,6 +942,9 @@ MM::Pager::CreatePager(Type type, vsize_t size, Handle handle)
 	case T_SWAP:
 		p = NEW(SwapPager, size, handle);
 		break;
+	case T_FILE:
+		p = NEW(FilePager, size, handle);
+		break;
 	default:
 		panic("Invalid pager type: %d", type);
 	}
@@ -1036,6 +1040,49 @@ MM::VMObject::LookupPage(vaddr_t offset)
 }
 
 int
+MM::VMObject::CreatePager(Handle pagingHandle)
+{
+	ensure(!pager);
+	Pager::Type pType;
+	if (flags & F_FILE) {
+		VFS::Node::Type nodeType = ((VFS::File *)pagingHandle)->GetType();
+		if (nodeType == VFS::Node::T_REGULAR) {
+			pType = Pager::T_FILE;
+		} else if (nodeType == VFS::Node::T_CHARDEV ||
+			nodeType == VFS::Node::T_BLOCKDEV) {
+			pType = Pager::T_DEVICE;
+		} else {
+			klog(KLOG_ERROR, "Node type doesn't support paging: %d", nodeType);
+			return -1;
+		}
+	} else {
+		pType = Pager::T_SWAP;
+	}
+	pager = Pager::CreatePager(pType, size, pagingHandle);
+	if (!pager) {
+		klog(KLOG_ERROR, "Cannot create pager");
+		return -1;
+	}
+	return 0;
+}
+
+int
+MM::VMObject::CreateDefaultPager()
+{
+	ensure(!pager);
+	if (flags & F_FILE) {
+		klog(KLOG_ERROR, "No pager created yet for file object");
+		return -1;
+	}
+	pager = Pager::CreatePager(Pager::T_DEFAULT, size);
+	if (!pager) {
+		klog(KLOG_ERROR, "Cannot create pager");
+		return -1;
+	}
+	return 0;
+}
+
+int
 MM::VMObject::Pagein(vaddr_t offset, Page **ppg)
 {
 	offset = rounddown2(offset, PAGE_SIZE);
@@ -1043,9 +1090,7 @@ MM::VMObject::Pagein(vaddr_t offset, Page **ppg)
 		panic("Offset out of range: 0x%08lx", offset);
 	}
 	if (!pager) {
-		pager = Pager::CreatePager(Pager::T_DEFAULT, size);
-		if (!pager) {
-			klog(KLOG_ERROR, "Cannot create pager");
+		if (CreateDefaultPager()) {
 			return -1;
 		}
 	}
@@ -1073,12 +1118,8 @@ MM::VMObject::Pageout(vaddr_t offset, Page **ppg)
 	if (offset >= size) {
 		panic("Offset out of range: 0x%08lx", offset);
 	}
-	if (!pager) {
-		pager = Pager::CreatePager(Pager::T_DEFAULT, size);
-		if (!pager) {
-			klog(KLOG_ERROR, "Cannot create pager");
-			return -1;
-		}
+	if (CreateDefaultPager()) {
+		return -1;
 	}
 
 	return 0;
@@ -1339,22 +1380,18 @@ MM::Map::Lookup(vaddr_t base)
 
 MM::Map::Entry *
 MM::Map::IntInsertObject(VMObject *obj, vaddr_t base, int fixed,
-			vaddr_t offset, vsize_t size)
+			vaddr_t offset, vsize_t size, int protection)
 {
 	if (offset & (PAGE_SIZE - 1)) {
 		return 0;
 	}
-	if (size != VSIZE_MAX && (size & (PAGE_SIZE - 1))) {
-		return 0;
+	if (size != VSIZE_MAX) {
+		size = roundup2(size, PAGE_SIZE);
 	}
 	if (offset >= obj->size || !size) {
 		return 0;
 	}
-	if (size != VSIZE_MAX) {
-		if (offset + size > obj->size) {
-			return 0;
-		}
-	} else {
+	if (size == VSIZE_MAX) {
 		size = obj->size - offset;
 	}
 	Entry *e = Allocate(size, &base, fixed);
@@ -1364,17 +1401,20 @@ MM::Map::IntInsertObject(VMObject *obj, vaddr_t base, int fixed,
 	obj->AddRef();
 	e->object = obj;
 	e->offset = offset;
+	e->protection = protection;
 	return e;
 }
 
 MM::Map::Entry *
-MM::Map::InsertObject(VMObject *obj, vaddr_t offset, vsize_t size)
+MM::Map::InsertObject(VMObject *obj, vaddr_t offset, vsize_t size,
+	int protection)
 {
 	return IntInsertObject(obj, 0, 0, offset, size);
 }
 
 MM::Map::Entry *
-MM::Map::InsertObjectAt(VMObject *obj, vaddr_t base, vaddr_t offset, vsize_t size)
+MM::Map::InsertObjectAt(VMObject *obj, vaddr_t base, vaddr_t offset,
+	vsize_t size, int protection)
 {
 	return IntInsertObject(obj, base, 1, offset, size);
 }
@@ -1647,6 +1687,7 @@ MM::Map::Entry::Entry(Map *map)
 	offset = 0;
 	flags = 0;
 	alloc = 0;
+	protection = PROT_READ | PROT_WRITE;
 	map->AddEntry(this);
 }
 

@@ -62,20 +62,25 @@ int
 ElfImageLoader::Load(MM::Map *map)
 {
 	if (status) {
-		return -1;
+		return E_FAULT;
 	}
 	ElfPhdr *phdr = ALLOC(ElfPhdr, 1);
 	if (!phdr) {
 		return E_NOMEM;
 	}
+	MM::VMObject *obj = vfs->MapFile(file);
+	if (!obj) {
+		return E_FAULT;
+	}
 	/* iterate through program header entries */
 	for (int i = 0; i < ehdr.e_phnum; i++) {
-		/* XXX should not pass buffer in stack */
-		if (file->Read(ehdr.e_phoff + ehdr.e_phentsize * i, phdr, sizeof(*phdr))) {
-			/* XXX */
+		if (file->Read(ehdr.e_phoff + ehdr.e_phentsize * i, phdr,
+			sizeof(*phdr)) != sizeof(*phdr)) {
+			obj->Release();
 			FREE(phdr);
 			return E_IO;
 		}
+		/* load only segments of PT_LOAD type */
 		if (phdr->p_type != PT_LOAD) {
 			continue;
 		}
@@ -91,10 +96,33 @@ ElfImageLoader::Load(MM::Map *map)
 			mem_size += pad;
 			start_va -= pad;
 		}
-
+		if ((start_va & (PAGE_SIZE - 1)) || (start_off & (PAGE_SIZE - 1))) {
+			klog(KLOG_ERROR, "Unaligned executable binary segments loading "
+				"is not supported");
+			obj->Release();
+			FREE(phdr);
+			return E_INVAL;
+		}
+		/* build protection value */
+		int protection = 0;
+		if (phdr->p_flags & PF_R) {
+			protection |= MM::PROT_READ;
+		}
+		if (phdr->p_flags & PF_W) {
+			protection |= MM::PROT_COW;
+		}
+		if (phdr->p_flags & PF_X) {
+			protection |= MM::PROT_EXEC;
+		}
+		if (!map->InsertObjectAt(obj, start_va, start_off, mem_size,
+			protection)) {
+			obj->Release();
+			FREE(phdr);
+			return E_FAULT;
+		}
 	}
+	obj->Release();
 	FREE(phdr);
-	//notimpl
 	return 0;
 }
 

@@ -565,6 +565,7 @@ PM::Process::Process()
 {
 	LIST_INIT(threads);
 	numThreads = 0;
+	numAliveThreads = 0;
 	map = 0;
 	userMap = 0;
 	gateMap = 0;
@@ -599,6 +600,17 @@ PM::Process::DeleteThread(Thread *t)
 	return 0;
 }
 
+int
+PM::Process::TerminateThread(Thread *thrd)
+{
+	assert(thrd->GetProcess() == this);
+	thrd->Terminate();
+	thrdListLock.Lock();
+	numAliveThreads--;
+	thrdListLock.Unlock();
+	return 0;
+}
+
 PM::Thread *
 PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize, u32 priority)
 {
@@ -624,6 +636,7 @@ PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize, u
 	thrdListLock.Lock();
 	LIST_ADD(list, thrd, threads);
 	numThreads++;
+	numAliveThreads++;
 	thrdListLock.Unlock();
 	return thrd;
 }
@@ -721,11 +734,18 @@ extern "C" void _OnThreadExit();
 void
 PM::Thread::Exit(u32 exitCode)
 {
-	printf("Thread %d exited\n", GetID());//temp
-	//notimpl
-	while (1) {
-		hlt();
-	}
+	assert(GetCurrent() == this);
+	proc->TerminateThread(this);
+	/* switch to another thread */
+	CPU *cpu = CPU::GetCurrent();
+	assert(cpu);
+	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
+	assert(rq);
+	Thread *nextThrd = rq->SelectThread();
+	/* at least idle thread should be there */
+	assert(nextThrd);
+	nextThrd->SwitchTo();
+	NotReached();
 }
 
 /* return 0 for caller, 1 for restored thread */
@@ -817,6 +837,18 @@ PM::Thread::Stop()
 	Runqueue *rq = GetRunqueue();
 	assert(rq);
 	rq->RemoveThread(this);
+	return 0;
+}
+
+int
+PM::Thread::Terminate()
+{
+	Dequeue();
+	state = S_TERMINATED;
+	proc->userMap->Free(stackEntry);
+	stackEntry = 0;
+	stackObj->Release();
+	stackObj = 0;
 	return 0;
 }
 

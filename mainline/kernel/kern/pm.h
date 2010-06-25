@@ -76,6 +76,7 @@ public:
 			S_NONE,
 			S_RUNNING,
 			S_SLEEP,
+			S_TERMINATED,
 		};
 
 		typedef int (*ThreadEntry)(void *arg);
@@ -125,6 +126,7 @@ public:
 		int Stop();
 		int Sleep(void *waitEntry, const char *waitString, Handle waitTimeout = 0);
 		int Unsleep();
+		int Terminate();
 		int Dequeue();
 		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
 		inline Process *GetProcess() { return proc; }
@@ -139,7 +141,7 @@ public:
 		ListEntry list; /* list of all processes in PM */
 		PIDEntry pid;
 		ListHead threads;
-		u32 numThreads;
+		u32 numThreads, numAliveThreads;
 		SpinLock thrdListLock;
 		MM::Map *map, *userMap, *gateMap;
 		u32 priority;
@@ -155,6 +157,7 @@ public:
 
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
+		int TerminateThread(Thread *thrd);
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 		Thread *GetThread();
 	};

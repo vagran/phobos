@@ -55,6 +55,8 @@ public:
 		int Release();
 
 		inline Type GetType() { return type; }
+		u32 GetSize();
+		u32 Read(u64 offset, void *buf, u32 len);
 	};
 
 	class Mount : public Object {
@@ -111,6 +113,8 @@ public:
 	int MountDevice(BlkDevice *dev, const char *mountPoint, int flags = 0,
 		const char *type = 0);
 	File *CreateFile(const char *path);
+	MM::VMObject *MapFile(const char *path);
+	MM::VMObject *MapFile(File *file);
 };
 
 extern VFS *vfs;
