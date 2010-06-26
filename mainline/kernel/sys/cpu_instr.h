@@ -225,6 +225,17 @@ ltr(u16 sel)
 	);
 }
 
+static __inline u16
+str()
+{
+	u16 sel;
+	ASM (
+		"str	%0"
+		: "=&r"(sel)
+	);
+	return sel;
+}
+
 static __inline u64
 rdmsr(u32 msr)
 {
@@ -248,7 +259,7 @@ wrmsr(u32 msr, u64 value)
 }
 
 static __inline void
-sysenter(u32 cs, u32 eip, u32 esp)
+sysenter()
 {
 	ASM ("sysenter");
 }

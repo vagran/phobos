@@ -21,6 +21,10 @@ OnUserRet(Frame *frame)
 ASMCALL int
 OnTrap(Frame *frame)
 {
+	if (GDT::GetRPL(frame->cs) == GDT::PL_USER) {
+		/* restore per-cpu reference segment selector from private TSS */
+		CPU::RestoreSelector();
+	}
 	if (idt) {
 		return idt->HandleTrap(frame);
 	}

@@ -251,6 +251,8 @@ StartupProc(void *arg)
 static int
 SystemStartup(void *arg)
 {
+	/* gating management */
+	gm = NEWSINGLE(GM);
 	/* processes management */
 	pm = NEWSINGLE(PM);
 	pm->AttachCPU(StartupProc);

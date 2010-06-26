@@ -68,7 +68,7 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 		0, SDT::DST_DATA | SDT::DST_D_WRITE, 0);
 	/* private segment is referenced by %fs register of each CPU */
 	ASM (
-		"movw	%0, %%fs"
+		"mov	%0, %%fs"
 		:
 		: "r"(privSegSel));
 	devState = S_UP;
@@ -86,6 +86,27 @@ CPU::NestInterrupt(int nestIn)
 	}
 }
 
+/* Restore private segment selector from private TSS */
+CPU *
+CPU::RestoreSelector()
+{
+	TSS *tss = TSS::GetCurrent();
+	if (!tss) {
+		return 0;
+	}
+	u32 size;
+	PrivTSS *privTSS = (PrivTSS *)tss->GetPrivateData(&size);
+	if (!privTSS || size != sizeof(PrivTSS)) {
+		return 0;
+	}
+	ASM (
+		"mov	%0, %%fs"
+		:
+		: "r"(privTSS->cpu->privSegSel)
+	);
+	return privTSS->cpu;
+}
+
 int
 CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 {
@@ -93,9 +114,11 @@ CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 	initialStack = (u8 *)MM::malloc(stackSize);
 	assert(initialStack);
 
-	/* Setup private TSS for this CPU*/
-	tss = NEWSINGLE(TSS, initialStack + stackSize);
+	/* Setup private TSS for this CPU */
+	tss = NEWSINGLE(TSS, initialStack + stackSize, sizeof(PrivTSS));
 	ensure(tss);
+	PrivTSS *privTSS = (PrivTSS *)tss->GetPrivateData();
+	privTSS->cpu = this;
 	tss->SetActive();
 
 	/* Switch stack and jump to startup code */

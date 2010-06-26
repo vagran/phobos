@@ -11,10 +11,11 @@ phbSource("$Id$");
 
 extern int Main(void *arg);
 
-extern "C" int start(void *arg);
+extern "C" int AppStart(void *arg);
 
 int
-start(void *arg)
+AppStart(void *arg)
 {
-	return Main(arg);
+	int rc = Main(arg);
+	return rc;
 }

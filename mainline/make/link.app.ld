@@ -8,7 +8,7 @@
  
  PAGE_SIZE = 4096;
  
- ENTRY(start)
+ ENTRY(AppStart)
  
  SECTIONS {
 	. = PAGE_SIZE;

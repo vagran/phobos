@@ -49,6 +49,10 @@ private:
 		CPU *cpu;
 	} PrivSegment;
 
+	typedef struct {
+		CPU *cpu;
+	} PrivTSS;
+
 	SDT::Descriptor *privSeg;
 	u16 privSegSel;
 	PrivSegment privSegData;
@@ -69,6 +73,7 @@ public:
 	static CPU *GetCurrent(); /* return 0 if not yet attached */
 	static int StartSMP();
 	static inline u32 GetCpuCount() { return numCpus; }
+	static CPU *RestoreSelector();
 
 	u32 GetID();
 	LAPIC *GetLapic();

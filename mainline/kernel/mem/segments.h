@@ -89,10 +89,17 @@ public:
 	static void SetDescriptor(Descriptor *d, u32 base, u32 limit, u32 ring, u32 system,
 		u32 type, int is16bit = 0);
 	static void SetGate(Gate *g, u32 offset, u16 selector, u32 type);
+	static u32 GetBase(Descriptor *d);
+	static u32 GetLimit(Descriptor *d);
 };
 
 class GDT : public Object {
 public:
+	/*
+	 * Kernel code and data among with user code and data segments should have
+	 * fixed selector positions relatively to each other. This is required for
+	 * SYSENTER/SYSEXIT instructions support.
+	 */
 	typedef enum {
 		SI_NULL,
 		SI_KCODE,
@@ -138,10 +145,13 @@ public:
 
 	static inline u16 GetSelector(u32 idx, u16 rpl = PL_KERNEL) { return (idx << 3) | rpl; }
 	static inline PriorityLevel GetRPL(u16 selector) { return (PriorityLevel)(selector & 3); }
+	static inline u32 GetIndex(u16 selector) { return selector >> 3; }
 	u16 GetSelector(SDT::Descriptor *d, u16 rpl = PL_KERNEL);
 	SDT::Descriptor *AllocateSegment();
 	int ReleaseSegment(SDT::Descriptor *d);
 	SDT::PseudoDescriptor *GetPseudoDescriptor() { return &pd; }
+	inline SDT::Descriptor *GetDescriptor(u32 index) { return &table->null + index; }
+	inline SDT::Descriptor *GetDescriptor(u16 selector) { return GetDescriptor(GetIndex(selector)); }
 };
 
 extern GDT *gdt;
@@ -231,13 +241,22 @@ private:
 		u32 tss_ioopt; /* options and I/O offset bitmap: currently zero */
 	} TssData;
 
+	typedef struct {
+		TssData data;
+		TSS *tss;
+		u8 privateData[0];
+	} TssSegment;
+
 	SDT::Descriptor *desc;
-	TssData data;
+	TssSegment *data;
+	u32 dataSize;
 
 public:
-	TSS(void *kernelStack);
+	TSS(void *kernelStack, u32 privateDataSize = 0);
 
 	int SetActive();
+	void *GetPrivateData(u32 *size = 0);
+	static TSS *GetCurrent();
 };
 
 extern IDT *idt;

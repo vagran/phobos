@@ -282,6 +282,7 @@ private:
 	u32		flag;
 public:
 	SpinLock(int flag = 0);
+	~SpinLock() { assert(!flag); }
 	void Lock();
 	void Unlock();
 	int TryLock(); /* returns 0 if successfully locked, -1 otherwise */
@@ -299,6 +300,19 @@ public:
 	inline operator value_t() { return value; }
 };
 
+/* Mutually exclusive access between processors, recursion allowed */
+class CPUMutex : public Object {
+private:
+	SpinLock lock;
+	void *cpu;
+	u32 count;
+public:
+	CPUMutex(int flag = 0);
+	void Lock();
+	void Unlock();
+	int TryLock(); /* returns 0 if successfully locked, -1 otherwise */
+};
+
 /* Mutually exclusive access between threads */
 class Mutex : public Object {
 private:
@@ -307,6 +321,7 @@ public:
 	Mutex(int flag = 0);
 	void Lock();
 	void Unlock();
+	int TryLock(); /* returns 0 if successfully locked, -1 otherwise */
 };
 
 class CriticalSection : public Object {

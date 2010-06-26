@@ -40,7 +40,13 @@ extern Log *log;
 #define KLOG_WARNING	Log::LOG_WARNING
 #define KLOG_ERROR		Log::LOG_ERROR
 
-#define klog(level, fmt,...) { if (log) log->Write(__func__, __LINE__, level, fmt, ## __VA_ARGS__); }
-#define klogv(level, fmt, args) { if (log) log->WriteV(__func__, __LINE__, level, fmt, args); }
+void _klog(const char *func, int line, Log::Level level, const char *fmt, ...)
+	__format(printf, 4, 5);
+void _klogv(const char *func, int line, Log::Level level, const char *fmt,
+	va_list args) __format(printf, 4, 0);
+
+#define klog(level, fmt,...) _klog(__func__, __LINE__, level, fmt, ## __VA_ARGS__)
+
+#define klogv(level, fmt, args) _klogv(__func__, __LINE__, level, fmt, args)
 
 #endif /* LOG_H_ */

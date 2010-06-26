@@ -61,6 +61,64 @@ SpinLock::TryLock()
 }
 
 /*********************************************/
+/* CPUMutex */
+CPUMutex::CPUMutex(int flag) : lock(flag)
+{
+	if (flag) {
+		cpu = CPU::GetCurrent();
+		count = 1;
+	} else {
+		cpu = 0;
+		count = 0;
+	}
+}
+
+void
+CPUMutex::Lock()
+{
+	void *curCPU = CPU::GetCurrent();
+	if (lock.TryLock()) {
+		if (curCPU && cpu == curCPU) {
+			count++;
+			return;
+		}
+		lock.Lock();
+	}
+	assert(!count);
+	cpu = curCPU;
+	count++;
+}
+
+void
+CPUMutex::Unlock()
+{
+	assert((u32)count);
+	assert(!cpu || CPU::GetCurrent() == cpu);
+	--count;
+	if (!count) {
+		cpu = 0;
+		lock.Unlock();
+	}
+}
+
+int
+CPUMutex::TryLock()
+{
+	void *curCPU = CPU::GetCurrent();
+	if (lock.TryLock()) {
+			if (curCPU && cpu == curCPU) {
+				count++;
+				return 0;
+			}
+			return -1;
+	}
+	assert(!count);
+	cpu = curCPU;
+	count++;
+	return 0;
+}
+
+/*********************************************/
 /* Mutex */
 
 Mutex::Mutex(int flag) : lock(flag)
@@ -81,6 +139,12 @@ Mutex::Lock()
 			pause();
 		}
 	}
+}
+
+int
+Mutex::TryLock()
+{
+	return lock.TryLock();
 }
 
 void

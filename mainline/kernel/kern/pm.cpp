@@ -175,9 +175,30 @@ PM::ProcessEntry(void *arg)
 {
 	Thread *thrd = Thread::GetCurrent();
 	Process *proc = thrd->GetProcess();
-	(void)proc;//temp
-	//notimpl
-	return 0;
+
+	/* we are overwriting current stack bottom */
+	u32 *esp = (u32 *)(thrd->stackEntry->base + thrd->stackEntry->size);
+	/*
+	 * Prepare stack. The only argument for AppStart() and Main() functions of
+	 * an application is a pointer to App object in its gate area.
+	 */
+	*(--esp) = 0xdeadbeaf;
+	/* push fake return address for debugger */
+	*(--esp) = 0;
+	ASM (
+		"movl	%0, %%ds\n" /* switch to user data segments */
+		"movl	%0, %%es\n"
+		"xorl	%%ebp, %%ebp\n" /* zero frame base for debugger */
+		"xorl	%0, %0\n"
+		"mov	%0, %%fs\n"
+		"mov	%0, %%gs\n"
+		"sysexit\n" /* jump to user land */
+		:
+		: "r"((u32)GDT::GetSelector(GDT::SI_UDATA, GDT::PL_USER)),
+		  "d"(proc->entryPoint), "c"(esp)
+		:
+	);
+	NotReached();
 }
 
 PM::Process *
@@ -246,6 +267,9 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 	ensure(idleThread);
 	idleThread->Run();
 	cpu->pcpu.idleThread = idleThread;
+	/* perform per-CPU gate management initialization */
+	gm->InitCPU();
+	/* switch to some thread */
 	if (kernelProcEntry) {
 		kernInitThread->SwitchTo();
 	} else {
@@ -824,6 +848,7 @@ PM::Thread::Run(CPU *cpu)
 		/* XXX should balance load */
 		cpu = CPU::GetCurrent();
 	}
+	assert(cpu);
 	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
 	return rq->AddThread(this);
 }

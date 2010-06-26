@@ -178,7 +178,7 @@ Tree<key_t>::CheckTree(TreeRoot &root)
 
 /* Force compiler to compile all required versions of Tree class methods */
 
-void
+__volatile void
 TreeCompilerStub()
 {
 	/* all supported types are here */

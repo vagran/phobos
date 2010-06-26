@@ -9,6 +9,26 @@
 #include <sys.h>
 phbSource("$Id$");
 
+void
+_klogv(const char *func, int line, Log::Level level, const char *fmt, va_list args)
+{
+	if (log) {
+		log->WriteV(func, line, level, fmt, args);
+	} else {
+		printf("[%d] %s@%d: ", level, __func__, __LINE__);
+		vprintf(fmt, args);
+		printf("\n");
+	}
+}
+
+void
+_klog(const char *func, int line, Log::Level level, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	_klogv(func, line, level, fmt, args);
+}
+
 Log *log = 0;
 
 const char *Log::levelStr[] = {"DEBUG", "INFO", "WARNING", "ERROR"};

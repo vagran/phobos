@@ -23,7 +23,7 @@ SDT::SetDescriptor(Descriptor *d, u32 base, u32 limit, u32 ring, u32 system,
 		}
 		d->gran = 0;
 	} else {
-		limit = limit >> 12;
+		limit >>= 12;
 		d->gran = 1;
 	}
 	d->lolimit = limit & 0xffff;
@@ -52,6 +52,22 @@ SDT::SetGate(Gate *g, u32 offset, u16 selector, u32 type)
 	g->unused = 0;
 	g->looffset = offset & 0xffff;
 	g->hioffset = offset >> 16;
+}
+
+u32
+SDT::GetBase(Descriptor *d)
+{
+	return d->lobase | (d->hibase << 24);
+}
+
+u32
+SDT::GetLimit(Descriptor *d)
+{
+	u32 limit = d->lolimit | (d->hilimit << 16);
+	if (d->gran) {
+		limit <<= 12;
+	}
+	return limit;
 }
 
 /*************************************************************/
@@ -87,8 +103,9 @@ GDT::GDT()
 		"mov	%2, %%gs\n"
 		"lldt	%3\n"
 		:
-		:"m"(pd), "r"((u32)GetSelector(SI_KCODE, 0)), "r"((u32)GetSelector(SI_KDATA, 0)),
-		 "r"(GetSelector(SI_LDT, 0))
+		:"m"(pd), "r"((u32)GetSelector(SI_KCODE, PL_KERNEL)),
+		 "r"((u32)GetSelector(SI_KDATA, PL_KERNEL)),
+		 "r"(GetSelector(SI_LDT, PL_KERNEL))
 		: "cc"
 		);
 }
@@ -97,7 +114,7 @@ SDT::Descriptor *
 GDT::AllocateSegment()
 {
 	for (u32 idx = SI_CUSTOM; idx < GDT_SIZE; idx++) {
-		SDT::Descriptor *d = &table->null + idx;
+		SDT::Descriptor *d = GetDescriptor(idx);
 		if (!d->p) {
 			return d;
 		}
@@ -252,14 +269,17 @@ IDT::StrTrap(SysTraps trap)
 
 TSS *defTss;
 
-TSS::TSS(void *kernelStack)
+TSS::TSS(void *kernelStack, u32 privateDataSize)
 {
+	dataSize = OFFSETOF(TssSegment, privateData) + privateDataSize;
+	data = (TssSegment *)MM::malloc(dataSize, PAGE_SIZE);
 	desc = gdt->AllocateSegment();
 	ensure(desc);
-	memset(&data, 0, sizeof(data));
-	data.tss_esp0 = (u32)kernelStack;
-	data.tss_cr3 = rcr3();
-	SDT::SetDescriptor(desc, (u32)&data, sizeof(data) - 1, 0, 1, SDT::SST_TSS32, 0);
+	memset(data, 0, dataSize);
+	data->tss = this;
+	data->data.tss_esp0 = (u32)kernelStack;
+	data->data.tss_ss0 = GDT::GetSelector(GDT::SI_KDATA);
+	SDT::SetDescriptor(desc, (u32)data, dataSize - 1, 0, 1, SDT::SST_TSS32, 0);
 }
 
 int
@@ -267,4 +287,25 @@ TSS::SetActive()
 {
 	ltr(gdt->GetSelector(desc));
 	return 0;
+}
+
+void *
+TSS::GetPrivateData(u32 *size)
+{
+	if (size) {
+		*size = dataSize - OFFSETOF(TssSegment, privateData);
+	}
+	return data->privateData;
+}
+
+TSS *
+TSS::GetCurrent()
+{
+	u16 selector = str();
+	if (!selector) {
+		return 0;
+	}
+	SDT::Descriptor *desc = gdt->GetDescriptor(selector);
+	TssSegment *seg = (TssSegment *)SDT::GetBase(desc);
+	return seg->tss;
 }

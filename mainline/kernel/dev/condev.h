@@ -58,7 +58,7 @@ private:
 	} IOQueue;
 
 	ListHead outClients;
-	Mutex outClientsMtx;
+	SpinLock outClientsMtx;
 	IOQueue outQueue;
 	Handle outIrq;
 

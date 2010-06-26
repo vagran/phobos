@@ -239,7 +239,7 @@ private:
 	int Wakeup(Thread *thrd);
 	int UnsleepThread(Thread *thrd);
 	ImageLoader *GetImageLoader(VFS::File *file);
-	static int ProcessEntry(void *arg);
+	static int ProcessEntry(void *arg) __noreturn;
 public:
 	PM();
 	static inline Thread *GetCurrentThread() { return Thread::GetCurrent(); }

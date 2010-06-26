@@ -43,9 +43,9 @@ dbg_putc(u32 c)
 	/* Wait until the transmitter holding register is empty.  */
 	while (!(inb(SERIAL_PORT + SerialPort::UART_LSR) & SerialPort::UART_EMPTY_TRANSMITTER)) {
 		if (!--timeout) {
-			__asm __volatile ("nop");
 			return;
 		}
+		pause();
 	}
 	outb(SERIAL_PORT + SerialPort::UART_TX, c);
 }

@@ -66,8 +66,8 @@ TrapHandler:
 2:
 	PUSH_FRAME
 	movl	$KDATASEL, %eax
-	mov		%ax, %ds
-	mov		%ax, %es
+	movl	%eax, %ds
+	movl	%eax, %es
 	pushl	%esp /* argument for handler - frame pointer */
 	/* call high-level handler */
 	call	OnTrap
