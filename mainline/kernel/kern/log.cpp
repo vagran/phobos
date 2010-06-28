@@ -15,7 +15,7 @@ _klogv(const char *func, int line, Log::Level level, const char *fmt, va_list ar
 	if (log) {
 		log->WriteV(func, line, level, fmt, args);
 	} else {
-		printf("[%d] %s@%d: ", level, __func__, __LINE__);
+		printf("[%d] %s@%d: ", level, func, line);
 		vprintf(fmt, args);
 		printf("\n");
 	}

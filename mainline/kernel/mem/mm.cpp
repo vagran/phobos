@@ -50,6 +50,7 @@ MM::MM()
 	kmemSlabClient = 0;
 	kmemSlab = 0;
 	kmemMap = 0;
+	bufMap = 0;
 	kmemObj = 0;
 	devObj = 0;
 	kmemAlloc = 0;
@@ -69,6 +70,8 @@ MM::MM()
 	numPgActive = 0;
 	numPgInactive = 0;
 	numPgWired = 0;
+	NXE = 0;
+	noNX = 0;
 	InitAvailMem();
 	InitMM();
 }
@@ -249,7 +252,12 @@ MM::InitMM()
 	devAlloc = devEntry->CreateAllocator();
 	assert(devAlloc);
 	initState = IS_NORMAL;
-	idt->RegisterHandler(IDT::ST_PAGEFAULT, this, (IDT::TrapHandler)&MM::OnPageFault);
+
+	/* virtual space for buffers */
+	bufMap = kmemMap->CreateSubmap(BUF_SPACE_ADDRESS, BUF_SPACE_SIZE);
+
+	idt->RegisterHandler(IDT::ST_PAGEFAULT, this,
+		(IDT::TrapHandler)&MM::OnPageFault);
 }
 
 paddr_t
@@ -282,7 +290,7 @@ MM::PreInitialize(vaddr_t addr)
 	 */
 	PTE::PDEntry *pde = (PTE::PDEntry *)IdlePTD + (PTMAP_ADDRESS >> PD_SHIFT);
 	for (u32 i = 0; i < PD_PAGES; i++) {
-		pde[i].raw = (IdlePTD + i * PAGE_SIZE) | PTE::F_S | PTE::F_W | PTE::F_P;
+		pde[i].raw = (IdlePTD + i * PAGE_SIZE) | PTE::F_W | PTE::F_P;
 	}
 	FlushTLB();
 
@@ -293,6 +301,28 @@ MM::PreInitialize(vaddr_t addr)
 
 	quickMapPTE = VtoPTE(quickMap);
 	memset(quickMapPTE, 0, QUICKMAP_SIZE * sizeof(PTE::PTEntry));
+}
+
+int
+MM::AttachCPU()
+{
+	/* enable execute-disable bit in PTE if available */
+	if (!noNX) {
+		u32 edx;
+		cpuid(0x80000001, 0, 0, 0, &edx);
+		if (edx & CPUID_EFEAT_NX) {
+			u64 efer = rdmsr(MSR_IA32_EFER);
+			if (!(efer & IA32_EFER_NXE)) {
+				wrmsr(MSR_IA32_EFER, efer | IA32_EFER_NXE);
+			}
+			NXE = 1;
+		} else {
+			NXE = 0;
+			noNX = 1;
+		}
+	}
+
+	return 0;
 }
 
 paddr_t
@@ -429,7 +459,7 @@ MM::QuickMapEnter(paddr_t pa)
 	paddr_t _pa = rounddown2(pa, PAGE_SIZE);
 	for (u32 i = 0; i < QUICKMAP_SIZE; i++) {
 		if (!quickMapPTE[i].fields.present) {
-			quickMapPTE[i].raw = _pa | PTE::F_S | PTE::F_W | PTE::F_P;
+			quickMapPTE[i].raw = _pa | PTE::F_W | PTE::F_P;
 		}
 		vaddr_t va = quickMap + i * PAGE_SIZE;
 		invlpg(va);
@@ -483,7 +513,7 @@ MM::GrowMem(vaddr_t addr)
 				ptepa = _AllocPage();
 			}
 			ZeroPage(ptepa);
-			pde->raw = ptepa | PTE::F_S | PTE::F_W | PTE::F_P;
+			pde->raw = ptepa | PTE::F_U | PTE::F_W | PTE::F_P;
 		}
 		PTE::PTEntry *pte = VtoPTE(va);
 		if (!pte->fields.present) {
@@ -493,7 +523,7 @@ MM::GrowMem(vaddr_t addr)
 			} else {
 				pa = _AllocPage();
 			}
-			pte->raw = pa | PTE::F_S | PTE::F_W | PTE::F_P;
+			pte->raw = pa | PTE::F_W | PTE::F_P;
 		}
 		va += PAGE_SIZE;
 	}
@@ -571,7 +601,7 @@ MM::CreatePageDescs()
 			if (!pde->fields.present) {
 				paddr_t ptepa = _AllocPage();
 				ZeroPage(ptepa);
-				pde->raw = ptepa | PTE::F_S | PTE::F_W | PTE::F_P;
+				pde->raw = ptepa | PTE::F_U | PTE::F_W | PTE::F_P;
 				paTopMapped = ptepa;
 				pgSize = PAGE_SIZE;
 				do {
@@ -592,7 +622,7 @@ MM::CreatePageDescs()
 				} while (pgSize);
 			}
 			PTE::PTEntry *pte = VtoPTE(firstAddr);
-			pte->raw = pa | PTE::F_S | PTE::F_W | PTE::F_P;
+			pte->raw = pa | PTE::F_W | PTE::F_P;
 			firstAddr += PAGE_SIZE;
 		}
 	}
@@ -664,7 +694,7 @@ MM::UpdatePDE(Map *originator, vaddr_t va, PTE::PDEntry *pde)
 	mapsLock.Lock();
 	Map *m;
 	LIST_FOREACH(Map, list, m, maps) {
-		if (m == originator) {
+		if (m == originator->rootMap) {
 			continue;
 		}
 		m->AddPDE(va, pde);
@@ -825,6 +855,8 @@ MM::OnPageFault(Frame *frame)
 		if (isUserMode) {
 			/* send signal to process */
 			//notimpl
+			printf("Unhandled page fault in process, killing it\n");//temp
+			NotReached();
 		} else {
 			printf("Unhandled page fault in kernel mode: "
 				"at 0x%08lx accessing address 0x%08lx, code = 0x%08lx\n",
@@ -841,10 +873,74 @@ MM::OnPageFault(Frame *frame)
 int
 MM::HandlePageFault(vaddr_t va, u32 code, int isUserMode)
 {
-	printf("Processing page fault on 0x%08lx, code = 0x%08lx, userMode = %d\n",
-		va, code, isUserMode);//temp
-	//notimpl
-	return -1;
+	if (code & PFC_RSVD) {
+		/* somebody set reserved bit in PTE */
+		panic("Invalid PTE for address 0x%08lx", va);
+	}
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	if (!thrd) {
+		return -1;
+	}
+	Map *map = thrd->GetProcess()->GetMap();
+	assert(map);
+	Map::Entry *e = map->Lookup(va, 1);
+	if (!e) {
+		/* address is not in the map, fail it */
+		return -1;
+	}
+	if (!(e->protection & PROT_READ)) {
+		/* non-accessible entry */
+		return -1;
+	}
+	if (!(e->flags & Map::Entry::F_USER) && isUserMode) {
+		/* user/supervisor protection violation */
+		return -1;
+	}
+	if (!(e->protection & PROT_EXEC) && (code & PFC_I)) {
+		/* execution is not permitted */
+		return -1;
+	}
+	if (code & PFC_W) {
+		if (e->protection & PROT_COW) {
+			/* copy-on-write fault */
+			//notimpl
+			return -1;
+		}
+		if (!(e->protection & PROT_WRITE)) {
+			/* write not permitted */
+			return -1;
+		}
+	}
+	/*
+	 * Valid fault, page it in. We try to load some pages before and some pages
+	 * after the fault location.
+	 */
+	va = rounddown2(va, PAGE_SIZE);
+	assert(!(code & PFC_P));
+	assert(!map->IsMapped(va));
+	/* ... some pages before */
+	vaddr_t start_va = va;
+	for (int i = 1; i <= 3; i++) {
+		if (start_va <= e->base) {
+			break;
+		}
+		if (map->IsMapped(start_va - PAGE_SIZE)) {
+			break;
+		}
+		start_va -= PAGE_SIZE;
+	}
+	/* ... and some pages after */
+	vaddr_t end_va = va + PAGE_SIZE;
+	for (int i = 1; i <= 4; i++) {
+		if (end_va >= e->base + e->size) {
+			break;
+		}
+		if (map->IsMapped(end_va)) {
+			break;
+		}
+		end_va += PAGE_SIZE;
+	}
+	return e->Pagein(start_va, atop(end_va - start_va));
 }
 
 /*************************************************************/
@@ -967,6 +1063,30 @@ MM::Pager::~Pager()
 
 }
 
+MM::Map::Entry *
+MM::Pager::MapPages(Page **ppg, int numPages)
+{
+	Map::Entry *e;
+	if (!(e = mm->bufMap->AllocateSpace(numPages * PAGE_SIZE))) {
+		return 0;
+	}
+	vaddr_t off = e->base;
+	for (int pgIdx = 0; pgIdx < numPages; pgIdx++, off += PAGE_SIZE) {
+		e->MapPA(off, ppg[pgIdx]->pa);
+	}
+	return e;
+}
+
+int
+MM::Pager::UnmapPages(Map::Entry *e)
+{
+	for (vaddr_t off = e->base; off < e->base + e->size; off += PAGE_SIZE) {
+		e->Unmap(off);
+	}
+	mm->bufMap->Free(e);
+	return 0;
+}
+
 /*************************************************************/
 /* MM::VMObject class */
 
@@ -1083,45 +1203,59 @@ MM::VMObject::CreateDefaultPager()
 }
 
 int
-MM::VMObject::Pagein(vaddr_t offset, Page **ppg)
+MM::VMObject::Pagein(vaddr_t offset, Page **ppg, int numPages)
 {
 	offset = rounddown2(offset, PAGE_SIZE);
-	if (offset >= size) {
-		panic("Offset out of range: 0x%08lx", offset);
+	if (offset + PAGE_SIZE * numPages > size) {
+		panic("Offset out of range: 0x%08lx x%d / 0x%08lx", offset, numPages,
+			size);
 	}
+
 	if (!pager) {
 		if (CreateDefaultPager()) {
 			return -1;
 		}
 	}
-	Page *pg = mm->AllocatePage();
-	if (!pg) {
-		klog(KLOG_WARNING, "Cannot allocate page");
-		return -1;
+	vaddr_t off = offset;
+	for (int pgIdx = 0; pgIdx < numPages; pgIdx++, off += PAGE_SIZE) {
+		assert(!LookupPage(off));
+		if (!(ppg[pgIdx] = mm->AllocatePage())) {
+			klog(KLOG_WARNING, "Cannot allocate page");
+			for (int i = 0; i <= pgIdx; i++) {
+				mm->FreePage(ppg[i]);
+				ppg[i] = 0;
+			}
+			return -1;
+		}
 	}
-	if (pager->GetPage(pg, offset)) {
-		mm->FreePage(pg);
+
+	if (pager->GetPage(offset, ppg, numPages)) {
+		for (int pgIdx = 0; pgIdx < numPages; pgIdx++) {
+			mm->FreePage(ppg[pgIdx]);
+			ppg[pgIdx] = 0;
+		}
 		klog(KLOG_ERROR, "Cannot get page from pager");
 		return -1;
 	}
-	ensure(!InsertPage(pg, offset));
-	if (ppg) {
-		*ppg = pg;
+	off = offset;
+	for (int pgIdx = 0; pgIdx < numPages; pgIdx++, off += PAGE_SIZE) {
+		ensure(!InsertPage(ppg[pgIdx], off));
 	}
 	return 0;
 }
 
 int
-MM::VMObject::Pageout(vaddr_t offset, Page **ppg)
+MM::VMObject::Pageout(vaddr_t offset, Page **ppg, int numPages)
 {
 	offset = rounddown2(offset, PAGE_SIZE);
 	if (offset >= size) {
 		panic("Offset out of range: 0x%08lx", offset);
 	}
+	assert(LookupPage(offset));
 	if (CreateDefaultPager()) {
 		return -1;
 	}
-
+	//notimpl
 	return 0;
 }
 
@@ -1147,6 +1281,9 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 			if (i >= PTDPTDI && i < PTDPTDI + PD_PAGES) {
 				continue;
 			}
+			if (i >= APTDPTDI && i < APTDPTDI + PD_PAGES) {
+				continue;
+			}
 			PTE::PDEntry *pde = &ptd[i];
 			if (pde->fields.present) {
 				paddr_t ptpa = pde->raw & PG_FRAME;
@@ -1169,7 +1306,7 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 		paddr_t pa = mm->Kextract((vaddr_t)ptd + i * PAGE_SIZE);
 		pdpt[i].raw = pa | PTE::F_P;
 		/* recursive entries */
-		ptd[PTDPTDI + i].raw = pa | PTE::F_S | PTE::F_W | PTE::F_P;
+		ptd[PTDPTDI + i].raw = pa | PTE::F_W | PTE::F_P;
 	}
 }
 
@@ -1210,6 +1347,7 @@ MM::Map::Initialize()
 	parentMap = 0;
 	rootMap = this;
 	submapEntry = 0;
+	isUser = 0;
 	return 0;
 }
 
@@ -1255,6 +1393,7 @@ MM::Map::CreateSubmap(vaddr_t base, vsize_t size)
 	submap->parentMap = this;
 	submap->rootMap = this->rootMap;
 	submap->submapEntry = e;
+	e->submap = submap;
 	u16 minOrder, maxOrder;
 	alloc.GetOrders(&minOrder, &maxOrder);
 	ensure(!submap->SetRange(base, size, minOrder, maxOrder));
@@ -1368,12 +1507,15 @@ MM::Map::ReserveSpace(vaddr_t base, vsize_t size)
 }
 
 MM::Map::Entry *
-MM::Map::Lookup(vaddr_t base)
+MM::Map::Lookup(vaddr_t base, int recursive)
 {
 	Entry *e;
 	if (alloc.Lookup(base, 0, 0, (void **)&e,
 		BuddyAllocator<vaddr_t>::LUF_ALLOCATED | BuddyAllocator<vaddr_t>::LUF_RESERVED)) {
 		return 0;
+	}
+	if (recursive && (e->flags & Map::Entry::F_SUBMAP)) {
+		return e->submap->Lookup(base, 1);
 	}
 	return e;
 }
@@ -1409,14 +1551,14 @@ MM::Map::Entry *
 MM::Map::InsertObject(VMObject *obj, vaddr_t offset, vsize_t size,
 	int protection)
 {
-	return IntInsertObject(obj, 0, 0, offset, size);
+	return IntInsertObject(obj, 0, 0, offset, size, protection);
 }
 
 MM::Map::Entry *
 MM::Map::InsertObjectAt(VMObject *obj, vaddr_t base, vaddr_t offset,
 	vsize_t size, int protection)
 {
-	return IntInsertObject(obj, base, 1, offset, size);
+	return IntInsertObject(obj, base, 1, offset, size, protection);
 }
 
 int
@@ -1540,7 +1682,12 @@ MM::Map::AddPT(vaddr_t va)
 	}
 	pg->Wire();
 	ZeroPage(pg->pa);
-	pde->raw = pg->pa | PTE::F_P | PTE::F_S | PTE::F_W;
+	/*
+	 * All PDEs excluding recursive ones are created with user access rights.
+	 * It is required to allow inserting user entry in any location of the map.
+	 * System pages are protected from user access by PTEs.
+	 */
+	pde->raw = pg->pa | PTE::F_P | PTE::F_U | PTE::F_W;
 	mm->UpdatePDE(this, va, pde);
 	return 0;
 }
@@ -1565,19 +1712,7 @@ MM::Map::Pagein(vaddr_t va)
 	if (!e) {
 		return -1;
 	}
-	/* do not process space reservation entries */
-	if (e->flags & (Entry::F_SPACE | Entry::F_RESERVE)) {
-		return -1;
-	}
-	ensure(e->object);
-	Page *pg;
-	vaddr_t offset = 0;
-	ensure(!e->GetOffset(va, &offset));
-	if (e->object->Pagein(offset, &pg)) {
-		return -1;
-	}
-	ensure(!e->MapPage(rounddown2(va, PAGE_SIZE), pg));
-	return 0;
+	return e->Pagein(va);
 }
 
 /*************************************************************/
@@ -1685,7 +1820,7 @@ MM::Map::Entry::Entry(Map *map)
 	size = 0;
 	object = 0;
 	offset = 0;
-	flags = 0;
+	flags = map->isUser ? F_USER : 0;
 	alloc = 0;
 	protection = PROT_READ | PROT_WRITE;
 	map->AddEntry(this);
@@ -1722,10 +1857,16 @@ MM::Map::Entry::MapPA(vaddr_t va, paddr_t pa)
 		}
 	}
 	PTE::PTEntry *pte = map->GetPTE(va);
-	/* XXX should use entry protection */
-	pte->raw = pa | PTE::F_P | PTE::F_S | PTE::F_W |
-		((flags & F_NOCACHE) ? PTE::F_WT | PTE::F_CD : 0);
-	if (map->IsCurrent()) {
+	if (!protection & PROT_READ) {
+		pte->raw = 0;
+	} else {
+		pte->raw = pa | PTE::F_P |
+			(flags & F_USER ? PTE::F_U : 0) |
+			(protection & PROT_WRITE ? PTE::F_W : 0) |
+			((protection & PROT_EXEC) || !mm->NXE ? 0 : PTE::F_XD) |
+			((flags & F_NOCACHE) ? PTE::F_WT | PTE::F_CD : 0);
+	}
+	if (map->IsCurrent() || va >= KERNEL_ADDRESS) {
 		invlpg(va);
 	}
 	map->tablesLock.Unlock();
@@ -1760,6 +1901,34 @@ MM::Map::Entry::GetOffset(vaddr_t va, vaddr_t *offs)
 		*offs = offset + va - base;
 	}
 	return 0;
+}
+
+int
+MM::Map::Entry::Pagein(vaddr_t va, int numPages)
+{
+	if (!object) {
+		return -1;
+	}
+	/* do not process space reservation entries */
+	if (flags & (Entry::F_SPACE | Entry::F_RESERVE)) {
+		return -1;
+	}
+	int rc = 0;
+	vaddr_t offset;
+	if ((rc = GetOffset(va, &offset))) {
+		return rc;
+	}
+	Page *pg[numPages];
+	if ((rc = object->Pagein(offset, pg, numPages))) {
+		return rc;
+	}
+	for (int pgIdx = 0; pgIdx < numPages; pgIdx++) {
+		if ((rc = MapPage(va, pg[pgIdx]))) {
+			break;
+		}
+		va += PAGE_SIZE;
+	}
+	return rc;
 }
 
 int

@@ -121,6 +121,8 @@ CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 	privTSS->cpu = this;
 	tss->SetActive();
 
+	mm->AttachCPU();
+
 	/* Switch stack and jump to startup code */
 	int rc;
 	ASM (

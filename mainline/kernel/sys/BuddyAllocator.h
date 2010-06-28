@@ -23,6 +23,7 @@ class BuddyAllocator : public Object {
 public:
 	class BuddyClient : public MemAllocator {
 	public:
+		BuddyClient() {}
 		virtual int Allocate(range_t base, range_t size, void *arg = 0) = 0;
 		virtual int Free(range_t base, range_t size, void *arg = 0) = 0;
 		virtual int Reserve(range_t base, range_t size, void *arg = 0) = 0;

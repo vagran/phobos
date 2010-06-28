@@ -18,8 +18,8 @@ public:
 	virtual ~SwapPager();
 
 	virtual int HasPage(vaddr_t offset);
-	virtual int GetPage(MM::Page *pg, vaddr_t offset);
-	virtual int PutPage(MM::Page *pg, vaddr_t offset);
+	virtual int GetPage(vaddr_t offset, MM::Page **ppg, int numPages = 1);
+	virtual int PutPage(vaddr_t offset, MM::Page **ppg, int numPages = 1);
 };
 
 #endif /* SWAPPAGER_H_ */

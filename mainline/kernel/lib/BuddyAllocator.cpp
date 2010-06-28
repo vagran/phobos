@@ -222,7 +222,10 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 	if (b->order > reqOrder) {
 		SplitBlock(b, reqOrder);
 	}
-	*location = BLOCK_LOC(b);
+	range_t _location = BLOCK_LOC(b);
+	if (location) {
+		*location = _location;
+	}
 
 	/* make chain if required */
 	range_t realSize = roundup2(size, 1 << minOrder);
@@ -249,7 +252,7 @@ BuddyAllocator<range_t>::Allocate(range_t size, range_t *location, void *arg)
 		blockSize >>= 1;
 	}
 	client->Unlock();
-	client->Allocate(*location, roundup2(size, 1 << minOrder), arg);
+	client->Allocate(_location, roundup2(size, 1 << minOrder), arg);
 	return 0;
 }
 

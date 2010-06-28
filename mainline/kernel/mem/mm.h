@@ -23,7 +23,9 @@ phbSource("$Id$");
  * 		| Alt. PT map		| PD_PAGES * PT_ENTRIES * PAGE_SIZE
  * 		+-------------------+ ALTPTMAP_ADDRESS = FF000000 (KERN_MEM_END)
  * 		| Devices memory	| DEV_MEM_SIZE
- * 		+-------------------+ DEV_MEM_ADDRESS (KERN_DYN_MEM_END)
+ * 		+-------------------+ DEV_MEM_ADDRESS
+ * 		| Buffers space		| BUF_SPACE_SIZE
+ * 		+-------------------+ BUF_SPACE_ADDRESS (KERN_DYN_MEM_END)
  * 		| Kernel dynamic 	|
  * 		| memory			|
  * 		+-------------------+ firstAddr
@@ -55,7 +57,9 @@ phbSource("$Id$");
 #define KERN_MEM_END		ALTPTMAP_ADDRESS
 #define DEV_MEM_SIZE		(64 << 20)
 #define DEV_MEM_ADDRESS		(ALTPTMAP_ADDRESS - DEV_MEM_SIZE)
-#define KERN_DYN_MEM_END	DEV_MEM_ADDRESS
+#define BUF_SPACE_SIZE		(1 << 20)
+#define BUF_SPACE_ADDRESS	(DEV_MEM_ADDRESS - BUF_SPACE_SIZE)
+#define KERN_DYN_MEM_END	BUF_SPACE_ADDRESS
 #define PTDPTDI				(PTMAP_ADDRESS >> PD_SHIFT)
 #define APTDPTDI			(ALTPTMAP_ADDRESS >> PD_SHIFT)
 
@@ -105,6 +109,14 @@ public:
 		PROT_COW =		0x8,
 	};
 
+	enum PageFaultCode {
+		PFC_P =			0x1,
+		PFC_W =			0x2,
+		PFC_U =			0x4,
+		PFC_RSVD =		0x8,
+		PFC_I =			0x10,
+	};
+
 	MemChunk physMem[MEM_MAX_CHUNKS];
 	u32 physMemSize;
 	psize_t physMemTotal;
@@ -120,35 +132,7 @@ public:
 	u32 numObjects;
 
 	class Page;
-
-	class Pager : public Object {
-	public:
-		enum Type {
-			T_SWAP,
-			T_FILE,
-			T_DEVICE,
-
-			T_DEFAULT = T_SWAP
-		};
-	protected:
-		RefCount	refCount;
-		Type		type;
-		u32			size;
-		Handle		handle;
-	public:
-		Pager(Type type, vsize_t size, Handle handle = 0);
-		virtual ~Pager();
-		OBJ_ADDREF(refCount);
-		OBJ_RELEASE(refCount);
-
-		static Pager *CreatePager(Type type, vsize_t size, Handle handle = 0);
-
-		inline Type GetType() { return type; }
-
-		virtual int HasPage(vaddr_t offset) = 0;
-		virtual int GetPage(Page *pg, vaddr_t offset) = 0;
-		virtual int PutPage(Page *pg, vaddr_t offset) = 0;
-	};
+	class Pager;
 
 	class VMObject : public Object {
 	public:
@@ -190,8 +174,8 @@ public:
 		int InsertPage(Page *pg, vaddr_t offset);
 		Page *LookupPage(vaddr_t offset);
 		int CreatePager(Handle pagingHandle = 0);
-		int Pagein(vaddr_t offset, Page **ppg = 0);
-		int Pageout(vaddr_t offset, Page **ppg = 0);
+		int Pagein(vaddr_t offset, Page **ppg = 0, int numPages = 1);
+		int Pageout(vaddr_t offset, Page **ppg = 0, int numPages = 1);
 	};
 
 	VMObject *kmemObj, *devObj;
@@ -250,6 +234,7 @@ public:
 				F_RESERVE =		0x2, /* space reservation */
 				F_NOCACHE =		0x4, /* disable caching */
 				F_SUBMAP =		0x8, /* entry describes submap */
+				F_USER =		0x10, /* accessible from user mode */
 			};
 
 			typedef struct {
@@ -261,7 +246,10 @@ public:
 			Map					*map;
 			vaddr_t				base;
 			vsize_t				size;
-			VMObject			*object;
+			union {
+				VMObject		*object;
+				Map				*submap;
+			};
 			vaddr_t				offset; /* offset in object */
 			u32					flags;
 			MapEntryAllocator	*alloc;
@@ -274,6 +262,7 @@ public:
 			int MapPA(vaddr_t va, paddr_t pa);
 			int Unmap(vaddr_t va);
 			int GetOffset(vaddr_t va, vaddr_t *offs);
+			int Pagein(vaddr_t va, int numPages = 1);
 		};
 
 		ListEntry	list; /* global maps list */
@@ -293,6 +282,7 @@ public:
 		Map			*parentMap, *rootMap;
 		u32			cr3;
 		Entry		*submapEntry;
+		int			isUser; /* hint for newly created entries */
 
 		class MapEntryClient : public BuddyAllocator<vaddr_t>::BuddyClient {
 		private:
@@ -357,7 +347,7 @@ public:
 		int Free(Entry *e);
 		Entry *ReserveSpace(vaddr_t base, vsize_t size);
 		int UnReserveSpace(vaddr_t base);
-		Entry *Lookup(vaddr_t base);
+		Entry *Lookup(vaddr_t base, int recursive = 0);
 		Entry *InsertObject(VMObject *obj, vaddr_t offset = 0,
 			vsize_t size = VSIZE_MAX, int protection = PROT_READ | PROT_WRITE);
 		Entry *InsertObjectAt(VMObject *obj, vaddr_t base,
@@ -378,6 +368,39 @@ public:
 	};
 
 	Map *kmemMap; /* kernel process virtual address space */
+	Map *bufMap; /* buffers space submap */
+
+	class Pager : public Object {
+	public:
+		enum Type {
+			T_SWAP,
+			T_FILE,
+			T_DEVICE,
+
+			T_DEFAULT = T_SWAP
+		};
+	protected:
+		RefCount	refCount;
+		Type		type;
+		u32			size;
+		Handle		handle;
+
+		Map::Entry *MapPages(Page **ppg, int numPages = 1);
+		int UnmapPages(Map::Entry *e);
+	public:
+		Pager(Type type, vsize_t size, Handle handle = 0);
+		virtual ~Pager();
+		OBJ_ADDREF(refCount);
+		OBJ_RELEASE(refCount);
+
+		static Pager *CreatePager(Type type, vsize_t size, Handle handle = 0);
+
+		inline Type GetType() { return type; }
+
+		virtual int HasPage(vaddr_t offset) = 0;
+		virtual int GetPage(vaddr_t offset, Page **ppg, int numPages = 1) = 0;
+		virtual int PutPage(vaddr_t offset, Page **ppg, int numPages = 1) = 0;
+	};
 private:
 	typedef enum {
 		IS_INITIAL,
@@ -411,6 +434,8 @@ private:
 	static InitState initState;
 	Page *pages;
 	u32 pagesRange, firstPage;
+	int NXE; /* Execution disable bit in PTE available */
+	int noNX;
 
 	class KmemSlabClient : public SlabAllocator::SlabClient {
 	private:
@@ -511,6 +536,7 @@ public:
 	Map *CreateMap();
 	int DestroyMap(Map *map);
 	int UpdatePDE(Map *originator, vaddr_t va, PTE::PDEntry *pde);
+	int AttachCPU();
 };
 
 extern MM *mm;

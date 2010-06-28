@@ -142,6 +142,14 @@ typedef enum {
 	CPUID_TYPE_INVAL =		0,
 	CPUID_TYPE_SMT =		1,
 	CPUID_TYPE_CORE =		2,
+
+	/*
+	 * CPUID instruction 0x80000001 edx info.
+	 */
+	CPUID_EFEAT_SYSCALL =	(1 << 11), /* SYSCALL/SYSRET available (when in 64-bit mode */
+	CPUID_EFEAT_NX =		(1 << 20), /* Execute Disable Bit available */
+	CPUID_EFEAT_RDTSCP =	(1 << 27), /* RDTSCP and IA32_TSC_AUX are available if 1 */
+	CPUID_EFEAT_IA64 =		(1 << 29), /* Intel® 64 Architecture available if 1 */
 } CPUIDBits;
 
 /*
@@ -249,7 +257,16 @@ typedef enum {
 	MSR_MC4_STATUS =		0x411,
 	MSR_MC4_ADDR =			0x412,
 	MSR_MC4_MISC =			0x413,
+	MSR_IA32_EFER =			0xc0000080,
 } MSRRegs;
+
+/* Bits in IA32_EFER MSR */
+typedef enum {
+	IA32_EFER_SCE =			0x1, /* SysCall enable */
+	IA32_EFER_LME =			0x100, /* IA-32e mode enable */
+	IA32_EFER_LMA =			0x400, /* IA-32e mode active */
+	IA32_EFER_NXE =			0x800, /* Execute-disable bit enable */
+} IA32_EFER_Bits;
 
 typedef enum {
 	APICBASE_RESERVED =		0x0000006ffull,

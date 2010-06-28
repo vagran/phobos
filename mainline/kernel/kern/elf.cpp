@@ -114,7 +114,7 @@ ElfImageLoader::Load(MM::Map *map)
 		if (phdr->p_flags & PF_X) {
 			protection |= MM::PROT_EXEC;
 		}
-		if (!map->InsertObjectAt(obj, start_va, start_off, mem_size,
+		if (!map->InsertObjectAt(obj, start_va, start_off, file_size,
 			protection)) {
 			obj->Release();
 			FREE(phdr);

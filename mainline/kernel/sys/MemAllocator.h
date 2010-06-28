@@ -13,6 +13,7 @@ phbSource("$Id$");
 
 class MemAllocator : public Object {
 public:
+	MemAllocator() {}
 	virtual void *malloc(u32 size) = 0;
 	virtual void *malloc(u32 size, void *param) { return malloc(size); }
 	virtual void mfree(void *p) = 0;

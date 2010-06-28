@@ -39,6 +39,9 @@ public:
 	return rc; \
 }
 
+/* signature to guard against memory corruption */
+#define OBJ_GUARDSIGN		0x12345678
+
 /*
  * Most of the kernel classes are derived from this class. It allows at least
  * usage of convenient callback methods notation and advanced debugging
@@ -47,11 +50,22 @@ public:
 class Object {
 private:
 	static u32 objCount;
+#ifdef DEBUG
+	u32 guardSign;
+#endif /* DEBUG */
 protected:
 
 public:
-	inline Object() { AtomicOp::Inc(&objCount); }
-	inline ~Object() { AtomicOp::Dec(&objCount); }
+	inline Object() {
+		AtomicOp::Inc(&objCount);
+#ifdef DEBUG
+		guardSign = OBJ_GUARDSIGN;
+#endif
+	}
+	inline ~Object() {
+		AtomicOp::Dec(&objCount);
+		assert(guardSign == OBJ_GUARDSIGN);
+	}
 
 	inline u32 GetCount() { return objCount; }
 };

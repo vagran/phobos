@@ -204,7 +204,7 @@ static void *
 bsQuickMapEnter(paddr_t pa)
 {
 	pa = rounddown2(pa, PAGE_SIZE);
-	bsQuickMapPTE->raw = pa | PTE::F_S | PTE::F_W | PTE::F_P;
+	bsQuickMapPTE->raw = pa | PTE::F_W | PTE::F_P;
 	invlpg(pa);
 	return (void *)bsQuickMap;
 }
@@ -223,10 +223,10 @@ AddPT(paddr_t pa)
 		if (!pde->fields.present) {
 			wasAdded = 1;
 			pte = (PTE::PTEntry *)bs_malloc(PAGE_SIZE, PAGE_SIZE);
-			pde->raw = (paddr_t)pte | PTE::F_S | PTE::F_W | PTE::F_P;
+			pde->raw = (paddr_t)pte | PTE::F_U | PTE::F_W | PTE::F_P;
 			/* map to both low and high memory */
 			pde = &bsIdlePTD[(bsMapped - LOAD_ADDRESS + KERNEL_ADDRESS) >> PD_SHIFT];
-			pde->raw = (paddr_t)pte | PTE::F_S | PTE::F_W | PTE::F_P;
+			pde->raw = (paddr_t)pte | PTE::F_W | PTE::F_P;
 			if (bsPagingEnabled) {
 				pte = (PTE::PTEntry *)bsQuickMapEnter((paddr_t)pte);
 			}
@@ -234,7 +234,7 @@ AddPT(paddr_t pa)
 		} else {
 			pte = (PTE::PTEntry *)(pde->raw & PG_FRAME);
 		}
-		pte[(bsMapped & PT_MASK) >> PT_SHIFT].raw = bsMapped | PTE::F_S | PTE::F_W | PTE::F_P;
+		pte[(bsMapped & PT_MASK) >> PT_SHIFT].raw = bsMapped | PTE::F_W | PTE::F_P;
 		bsMapped += PAGE_SIZE;
 	}
 	return wasAdded;
@@ -261,7 +261,8 @@ CreateInitialMapping()
 	bsQuickMap = (paddr_t)bs_malloc(MM::QUICKMAP_SIZE * PAGE_SIZE, PAGE_SIZE);
 	BSMAPMEM(); /* map all used memory */
 	PTE::PDEntry *pde = &bsIdlePTD[bsQuickMap >> PD_SHIFT];
-	bsQuickMapPTE = (PTE::PTEntry *)(pde->raw & PG_FRAME) + ((bsQuickMap & PT_MASK) >> PT_SHIFT);
+	bsQuickMapPTE = (PTE::PTEntry *)(pde->raw & PG_FRAME) +
+		((bsQuickMap & PT_MASK) >> PT_SHIFT);
 }
 
 static void
@@ -280,7 +281,7 @@ CreateInitialStack()
 	}
 	/* stack is located below KERNEL_ADDRESS */
 	PTE::PDEntry *pde = &bsIdlePTD[(KERNEL_ADDRESS - PAGE_SIZE) >> PD_SHIFT];
-	pde->raw = (paddr_t)pte | PTE::F_S | PTE::F_W | PTE::F_P;
+	pde->raw = (paddr_t)pte | PTE::F_U | PTE::F_W | PTE::F_P;
 
 	/* copy old stack content to new stack and switch stack pointer */
 	__asm __volatile (

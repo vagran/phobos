@@ -688,11 +688,13 @@ PM::Process::Initialize(u32 priority, int isKernelProc)
 		if (!gateMap) {
 			return -1;
 		}
+		gateMap->isUser = 1;
 	}
 	userMap = map->CreateSubmap(0, GATE_AREA_ADDRESS);
 	if (!userMap) {
 		return -1;
 	}
+	userMap->isUser = 1;
 	return 0;
 }
 

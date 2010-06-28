@@ -135,10 +135,24 @@ wcr4(u32 x)
 static __inline void
 cpuid(u32 op, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 {
+	u32 _eax, _ebx, _ecx, _edx;
 	ASM (
-		"cpuid" :
-		"=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) :
-		"a"(op));
+		"cpuid"
+		: "=a"(_eax), "=b"(_ebx), "=c"(_ecx), "=d"(_edx)
+		: "a"(op)
+	);
+	if (eax) {
+		*eax = _eax;
+	}
+	if (ebx) {
+		*ebx = _ebx;
+	}
+	if (ecx) {
+		*ecx = _ecx;
+	}
+	if (edx) {
+		*edx = _edx;
+	}
 }
 
 static __inline u64

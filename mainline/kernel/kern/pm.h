@@ -160,6 +160,7 @@ public:
 		int TerminateThread(Thread *thrd);
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 		Thread *GetThread();
+		inline MM::Map *GetMap() { return map; }
 	};
 
 	class Runqueue : public Object {

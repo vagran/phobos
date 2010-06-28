@@ -30,14 +30,14 @@ SwapPager::HasPage(vaddr_t offset)
 }
 
 int
-SwapPager::GetPage(MM::Page *pg, vaddr_t offset)
+SwapPager::GetPage(vaddr_t offset, MM::Page **ppg, int numPages)
 {
 	//notimpl
 	return 0;
 }
 
 int
-SwapPager::PutPage(MM::Page *pg, vaddr_t offset)
+SwapPager::PutPage(vaddr_t offset, MM::Page **ppg, int numPages)
 {
 	//notimpl
 	return 0;

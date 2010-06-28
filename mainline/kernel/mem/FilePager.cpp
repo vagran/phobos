@@ -27,18 +27,24 @@ int
 FilePager::HasPage(vaddr_t offset)
 {
 	//notimpl
-	return 0;
+	return 1;
 }
 
 int
-FilePager::GetPage(MM::Page *pg, vaddr_t offset)
+FilePager::GetPage(vaddr_t offset, MM::Page **ppg, int numPages)
 {
-	//notimpl
-	return 0;
+	MM::Map::Entry *buf = MapPages(ppg, numPages);
+	if (!buf) {
+		return -1;
+	}
+	u32 size = numPages * PAGE_SIZE;
+	int rc = file->Read(offset, (void *)buf->base, size) == size ? 0 : -1;
+	UnmapPages(buf);
+	return rc;
 }
 
 int
-FilePager::PutPage(MM::Page *pg, vaddr_t offset)
+FilePager::PutPage(vaddr_t offset, MM::Page **ppg, int numPages)
 {
 	//notimpl
 	return 0;
