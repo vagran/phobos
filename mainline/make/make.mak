@@ -6,7 +6,7 @@
 
 include $(PHOBOS_ROOT)/make/makevar.mak
 
-COMPILE_FLAGS = -pipe -Werror -Wall -fno-stack-protector -fno-default-inline
+COMPILE_FLAGS = -pipe -Werror -Wall -fno-stack-protector -fno-default-inline -fno-builtin
 
 COMPILE_FLAGS_CXX = -fno-exceptions -fno-rtti
 COMPILE_FLAGS_C =
@@ -14,6 +14,11 @@ COMPILE_FLAGS_ASM = -DASSEMBLER
 # XXX -static is temporal
 LINK_FLAGS = -static -nodefaultlibs -nostartfiles -nostdinc -nostdinc++ \
 	--no-omagic -z common-page-size=0x1000
+
+#TARGET variable must be either DEBUG or RELEASE
+ifndef TARGET
+export TARGET = RELEASE
+endif
 
 ifdef APP
 LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.app.ld
@@ -41,11 +46,6 @@ endif
 
 ifdef BINARY_NAME
 BINARY = $(OBJ_DIR)/$(BINARY_NAME)
-endif
-
-#TARGET variable must be either DEBUG or RELEASE
-ifndef TARGET
-export TARGET = RELEASE
 endif
 
 ifeq ($(TARGET),RELEASE)

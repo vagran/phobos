@@ -18,10 +18,10 @@ extern int argc;
 #define construct(location, type,...)	new(location) type(__VA_ARGS__)
 void *operator new(size_t size, void *location);
 
-ASMCALL void *memset(void *dst, u8 fill, u32 size);
-ASMCALL void *memcpy(void *dst, const void *src, u32 size);
-ASMCALL void *memmove(void *dst, const void *src, u32 size);
-ASMCALL int memcmp(const void *ptr1, const void *ptr2, u32 size);
+#define memset		__builtin_memset
+#define memcpy		__builtin_memcpy
+#define memmove		__builtin_memmove
+#define memcmp		__builtin_memcmp
 
 ASMCALL int toupper(int c);
 ASMCALL int tolower(int c);

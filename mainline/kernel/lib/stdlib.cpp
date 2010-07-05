@@ -21,6 +21,9 @@ operator new(size_t size, void *location)
 	return location;
 }
 
+#ifdef memset
+#undef memset
+#endif /* memset */
 ASMCALL void *
 memset(void *dst, u8 fill, u32 size)
 {
@@ -33,6 +36,9 @@ memset(void *dst, u8 fill, u32 size)
 	return ret;
 }
 
+#ifdef memcpy
+#undef memcpy
+#endif /* memcpy */
 ASMCALL void *
 memcpy(void *dst, const void *src, u32 size)
 {
@@ -46,6 +52,9 @@ memcpy(void *dst, const void *src, u32 size)
 	return ret;
 }
 
+#ifdef memmove
+#undef memmove
+#endif /* memmove */
 ASMCALL void *
 memmove(void *dst, const void *src, u32 size)
 {
@@ -70,6 +79,9 @@ memmove(void *dst, const void *src, u32 size)
 	return ret;
 }
 
+#ifdef memcmp
+#undef memcmp
+#endif /* memcmp */
 ASMCALL int
 memcmp(const void *ptr1, const void *ptr2, u32 size)
 {
