@@ -17,7 +17,7 @@ phbSource("$Id$");
 
 /*
  * Virtual memory map:
- * 		--------------------- FFFFFFFF
+ * 		+-------------------+ FFFFFFFF
  * 		| PT map			| PD_PAGES * PT_ENTRIES * PAGE_SIZE
  * 		+-------------------+ PTMAP_ADDRESS = FF800000
  * 		| Alt. PT map		| PD_PAGES * PT_ENTRIES * PAGE_SIZE
@@ -34,11 +34,15 @@ phbSource("$Id$");
  * 		+-------------------+ KERNEL_ADDRESS
  * 		| Gate objects		| GATE_AREA_SIZE
  * 		+-------------------+ GATE_AREA_ADDRESS
- * 		| Stack				|
- * 		|					|
- * 		.....................
- * 		| Process dynamic	|
- * 		| memory			|
+ * 		| Stacks objects	|
+ * 		| of process		|
+ * 		| threads, heap 	|
+ * 		| objects, memory 	|
+ * 		| mappings.			|
+ * 		+-------------------+
+ * 		| Initial heap		|
+ * 		| object			|
+ * 		| (includes BSS)	|
  * 		+-------------------+
  * 		| Process data		|
  * 		+-------------------+
@@ -64,6 +68,13 @@ phbSource("$Id$");
 #define APTDPTDI			(ALTPTMAP_ADDRESS >> PD_SHIFT)
 
 #define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
+#define ZALLOC(type,  count)	({ \
+	type *p = ALLOC(type, count); \
+	if (p) { \
+		memset(p, 0, sizeof(type) * (count)); \
+	} \
+	p; \
+})
 #define FREE(p)					MM::mfree(p)
 
 #ifndef DEBUG_MALLOC
