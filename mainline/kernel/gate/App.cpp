@@ -1,5 +1,5 @@
 /*
- * /phobos/lib/startup/AppStartup.cpp
+ * /phobos/kernel/gate/App.cpp
  * $Id$
  *
  * This file is a part of PhobOS operating system.
@@ -9,13 +9,21 @@
 #include <sys.h>
 phbSource("$Id$");
 
-extern int Main(GApp *app);
+#include <gate/gate.h>
 
-extern "C" int AppStart(GApp *app);
+DEFINE_GCLASS(GApp);
 
-int
-AppStart(GApp *app)
+GApp::GApp()
 {
-	int rc = Main(app);
-	return rc;
+}
+
+GApp::~GApp()
+{
+
+}
+
+PM::pid_t
+GApp::GetPID()
+{
+	return proc->GetID();
 }

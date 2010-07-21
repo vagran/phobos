@@ -18,6 +18,10 @@ public:
 	typedef u16 pid_t;
 	typedef u32 waitid_t;
 
+	enum ProcessFault {
+		PFLT_GATEOBJ, /* Invalid gate object passed to system call */
+	};
+
 	enum {
 		MAX_PROCESSES =		65536,
 		NUM_PRIORITIES =	128,
@@ -146,6 +150,7 @@ public:
 		MM::Map *map, *userMap, *gateMap;
 		u32 priority;
 		vaddr_t entryPoint;
+		GM::GateArea *gateArea;
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
@@ -153,14 +158,22 @@ public:
 		Process();
 		~Process();
 
-		int Initialize(u32 priority, int isKernelProc = 0);
+		static inline Process *GetCurrent() {
+			Thread *thrd = Thread::GetCurrent();
+			return thrd ? thrd->GetProcess() : 0;
+		}
 
+		int Initialize(u32 priority, int isKernelProc = 0);
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
 		int TerminateThread(Thread *thrd);
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 		Thread *GetThread();
 		inline MM::Map *GetMap() { return map; }
+		inline MM::Map *GetUserMap() { return userMap; }
+		inline MM::Map *GetGateMap() { return gateMap; }
+		inline GM::GateArea *GetGateArea() { return gateArea; }
+		int Fault(ProcessFault flt);
 	};
 
 	class Runqueue : public Object {

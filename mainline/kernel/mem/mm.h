@@ -152,6 +152,7 @@ public:
 			F_NOTPAGEABLE =	0x2,
 			F_STACK =		0x4,
 			F_HEAP =		0x8,
+			F_GATE =		0x10,
 		};
 
 		ListEntry	list; /* list of all objects */
@@ -177,13 +178,14 @@ public:
 	public:
 
 		VMObject(vsize_t size, u32 flags = 0);
-		~VMObject();
+		virtual ~VMObject();
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
 		int SetSize(vsize_t size);
 		inline vsize_t GetSize() { return size; }
 		int InsertPage(Page *pg, vaddr_t offset);
 		Page *LookupPage(vaddr_t offset);
+		int RemovePage(Page *pg);
 		int CreatePager(Handle pagingHandle = 0);
 		int Pagein(vaddr_t offset, Page **ppg = 0, int numPages = 1);
 		int Pageout(vaddr_t offset, Page **ppg = 0, int numPages = 1);
@@ -228,6 +230,7 @@ public:
 		int Unqueue(); /* must be called with pages queues locked */
 		int Activate();
 		int Wire();
+		int Unwire();
 	};
 
 	ListHead pagesFree[NUM_ZONES], pagesCache[NUM_ZONES], pagesActive, pagesInactive;
@@ -337,7 +340,7 @@ public:
 
 		int Initialize();
 		Entry *IntInsertObject(VMObject *obj, vaddr_t base = 0, int fixed = 0,
-			vaddr_t offset = 0, vsize_t size = VSIZE_MAX,
+			int autoOfs = 0, vaddr_t offset = 0, vsize_t size = VSIZE_MAX,
 			int protection = PROT_READ | PROT_WRITE);
 		int FreeSubmaps(ListHead *submaps);
 		int AddEntry(Entry *e);
@@ -364,6 +367,8 @@ public:
 		Entry *InsertObjectAt(VMObject *obj, vaddr_t base,
 			vaddr_t offset = 0, vsize_t size = VSIZE_MAX,
 			int protection = PROT_READ | PROT_WRITE);
+		Entry *InsertObjectOffs(VMObject *obj, vsize_t size,
+			vaddr_t offset = 0, int protection = PROT_READ | PROT_WRITE);
 		PTE::PDEntry *GetPDE(vaddr_t va);
 		PTE::PTEntry *GetPTE(vaddr_t va);
 		int IsMapped(vaddr_t va);

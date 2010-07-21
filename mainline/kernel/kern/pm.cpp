@@ -9,6 +9,8 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#include <gate/gate.h>
+
 PM *pm;
 
 ListHead PM::imageLoaders;
@@ -180,9 +182,12 @@ PM::ProcessEntry(void *arg)
 	u32 *esp = (u32 *)(thrd->stackEntry->base + thrd->stackEntry->size);
 	/*
 	 * Prepare stack. The only argument for AppStart() and Main() functions of
-	 * an application is a pointer to App object in its gate area.
+	 * an application is a pointer to GApp object in its gate area.
 	 */
-	*(--esp) = 0xdeadbeaf;
+	proc->gateArea->Initialize();
+	GApp *app = proc->gateArea->GetApp();
+	app->AddRef(); /* bump user reference counter */
+	*(--esp) = (u32)app;
 	/* push fake return address for debugger */
 	*(--esp) = 0;
 	ASM (
@@ -593,6 +598,7 @@ PM::Process::Process()
 	map = 0;
 	userMap = 0;
 	gateMap = 0;
+	gateArea = 0;
 }
 
 PM::Process::~Process()
@@ -609,6 +615,9 @@ PM::Process::~Process()
 		numThreads--;
 		thrdListLock.Unlock();
 		DeleteThread(t);
+	}
+	if (gateArea) {
+		DELETE(gateArea);
 	}
 	if (map) {
 		mm->DestroyMap(map);
@@ -672,6 +681,13 @@ PM::Process::GetThread()
 }
 
 int
+PM::Process::Fault(ProcessFault flt)
+{
+	//notimpl
+	return 0;
+}
+
+int
 PM::Process::Initialize(u32 priority, int isKernelProc)
 {
 	if (isKernelProc) {
@@ -695,6 +711,9 @@ PM::Process::Initialize(u32 priority, int isKernelProc)
 		return -1;
 	}
 	userMap->isUser = 1;
+	if (!isKernelProc) {
+		gateArea = gm->CreateGateArea(this);
+	}
 	return 0;
 }
 

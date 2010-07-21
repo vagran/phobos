@@ -15,19 +15,20 @@ phbSource("$Id$");
 extern char *argv[MAX_CMDLINE_PARAMS + 1];
 extern int argc;
 
-#define construct(location, type,...)	new(location) type(__VA_ARGS__)
+/* initialize object at predefined location */
+#define construct(location, type, ...)	new(location) type(__VA_ARGS__)
 void *operator new(size_t size, void *location);
 
 #define memset		__builtin_memset
 #define memcpy		__builtin_memcpy
 #define memmove		__builtin_memmove
 #define memcmp		__builtin_memcmp
+#define strlen		__builtin_strlen
+#define strcpy		__builtin_strcpy
 
 ASMCALL int toupper(int c);
 ASMCALL int tolower(int c);
 
-ASMCALL u32 strlen(const char *str);
-ASMCALL char *strcpy(char *dst, const char *src);
 ASMCALL char *strncpy(char *dst, const char *src, u32 len);
 ASMCALL int strcmp(const char *s1, const char *s2);
 ASMCALL int strncmp(const char *s1, const char *s2, u32 len);

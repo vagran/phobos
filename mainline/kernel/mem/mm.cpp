@@ -877,11 +877,11 @@ MM::HandlePageFault(vaddr_t va, u32 code, int isUserMode)
 		/* somebody set reserved bit in PTE */
 		panic("Invalid PTE for address 0x%08lx", va);
 	}
-	PM::Thread *thrd = PM::Thread::GetCurrent();
-	if (!thrd) {
+	PM::Process *proc = PM::Process::GetCurrent();
+	if (!proc) {
 		return -1;
 	}
-	Map *map = thrd->GetProcess()->GetMap();
+	Map *map = proc->GetMap();
 	assert(map);
 	Map::Entry *e = map->Lookup(va, 1);
 	if (!e) {
@@ -906,7 +906,11 @@ MM::HandlePageFault(vaddr_t va, u32 code, int isUserMode)
 			//notimpl
 			return -1;
 		}
-		if (!(e->protection & PROT_WRITE)) {
+		/*
+		 * We permit kernel to write in read-only maps in order to support
+		 * gating concept.
+		 */
+		if (isUserMode && !(e->protection & PROT_WRITE)) {
 			/* write not permitted */
 			return -1;
 		}
@@ -972,7 +976,7 @@ MM::Page::GetZone()
 int
 MM::Page::Unqueue()
 {
-	int rc = 0;
+	assert(!wireCount);
 	PageZone zone = GetZone();
 	if (flags & F_FREE) {
 		mm->numPgFree--;
@@ -991,9 +995,9 @@ MM::Page::Unqueue()
 		LIST_DELETE(queue, this, mm->pagesInactive);
 		flags &= ~F_INACTIVE;
 	} else {
-		rc = 1;
+		panic("Page not queued");
 	}
-	return rc;
+	return 0;
 }
 
 int
@@ -1020,10 +1024,17 @@ MM::Page::Activate()
 int
 MM::Page::Wire()
 {
-	if (flags & (F_FREE | F_ACTIVE | F_INACTIVE | F_CACHE)) {
-		return -1;
-	}
+	ensure(!(flags & (F_FREE | F_ACTIVE | F_INACTIVE | F_CACHE)));
 	AtomicOp::Inc(&wireCount);
+	return 0;
+}
+
+int
+MM::Page::Unwire()
+{
+	assert(wireCount);
+	ensure(!(flags & (F_FREE | F_ACTIVE | F_INACTIVE | F_CACHE)));
+	AtomicOp::Dec(&wireCount);
 	return 0;
 }
 
@@ -1109,6 +1120,12 @@ MM::VMObject::~VMObject()
 	if (pager) {
 		pager->Release();
 	}
+	Page *pg;
+	while ((pg = TREE_ROOT(Page, objEntry, pages))) {
+		RemovePage(pg);
+		mm->FreePage(pg);
+	}
+	assert(!numPages);
 }
 
 int
@@ -1147,6 +1164,23 @@ MM::VMObject::InsertPage(Page *pg, vaddr_t offset)
 	TREE_ADD(objEntry, pg, pages, offset >> PAGE_SHIFT);
 	numPages++;
 	lock.Unlock();
+	return 0;
+}
+
+int
+MM::VMObject::RemovePage(Page *pg)
+{
+	assert(pg->object == this);
+	lock.Lock();
+	assert(TREE_FIND(pg->offset, Page, objEntry, pages) == pg);
+	TREE_DELETE(objEntry, pg, pages);
+	numPages--;
+	lock.Unlock();
+	if (flags & F_NOTPAGEABLE) {
+		pg->Unwire();
+	} else {
+		pg->Unqueue();
+	}
 	return 0;
 }
 
@@ -1216,30 +1250,62 @@ MM::VMObject::Pagein(vaddr_t offset, Page **ppg, int numPages)
 			return -1;
 		}
 	}
+
+	Page *_ppg[numPages];
+	if (!ppg) {
+		ppg = _ppg;
+	}
+
 	vaddr_t off = offset;
+	int pagesValid[numPages];
 	for (int pgIdx = 0; pgIdx < numPages; pgIdx++, off += PAGE_SIZE) {
-		assert(!LookupPage(off));
-		if (!(ppg[pgIdx] = mm->AllocatePage())) {
-			klog(KLOG_WARNING, "Cannot allocate page");
-			for (int i = 0; i <= pgIdx; i++) {
-				mm->FreePage(ppg[i]);
-				ppg[i] = 0;
+		if ((ppg[pgIdx] = LookupPage(off))) {
+			pagesValid[pgIdx] = 1;
+		} else {
+			pagesValid[pgIdx] = 0;
+			if (!(ppg[pgIdx] = mm->AllocatePage())) {
+				klog(KLOG_WARNING, "Cannot allocate page");
+				for (int i = 0; i <= pgIdx; i++) {
+					if (!pagesValid[i]) {
+						mm->FreePage(ppg[i]);
+					}
+					ppg[i] = 0;
+				}
+				return -1;
 			}
-			return -1;
 		}
 	}
 
-	if (pager->GetPage(offset, ppg, numPages)) {
-		for (int pgIdx = 0; pgIdx < numPages; pgIdx++) {
-			mm->FreePage(ppg[pgIdx]);
-			ppg[pgIdx] = 0;
+	for (int pgIdx = 0, startIdx = -1; pgIdx < numPages; pgIdx++) {
+		int endIdx;
+		if (startIdx == -1) {
+			if (pagesValid[pgIdx]) {
+				continue;
+			}
+			startIdx = pgIdx;
 		}
-		klog(KLOG_ERROR, "Cannot get page from pager");
-		return -1;
-	}
-	off = offset;
-	for (int pgIdx = 0; pgIdx < numPages; pgIdx++, off += PAGE_SIZE) {
-		ensure(!InsertPage(ppg[pgIdx], off));
+		if (pgIdx == numPages - 1) {
+			endIdx = numPages;
+		} else {
+			if (!pagesValid[pgIdx]) {
+				continue;
+			}
+			endIdx = pgIdx;
+		}
+
+		if (pager->GetPage(offset + startIdx * PAGE_SIZE, &ppg[startIdx],
+			endIdx - startIdx)) {
+			for (int i = startIdx; i < endIdx; i++) {
+				mm->FreePage(ppg[i]);
+				ppg[i] = 0;
+			}
+			klog(KLOG_ERROR, "Cannot get page from pager");
+			return -1;
+		}
+		off = offset + startIdx * PAGE_SIZE;
+		for (int i = startIdx; i < endIdx; i++, off += PAGE_SIZE) {
+			ensure(!InsertPage(ppg[i], off));
+		}
 	}
 	return 0;
 }
@@ -1522,7 +1588,7 @@ MM::Map::Lookup(vaddr_t base, int recursive)
 
 MM::Map::Entry *
 MM::Map::IntInsertObject(VMObject *obj, vaddr_t base, int fixed,
-			vaddr_t offset, vsize_t size, int protection)
+			int autoOfs, vaddr_t offset, vsize_t size, int protection)
 {
 	if (offset & (PAGE_SIZE - 1)) {
 		return 0;
@@ -1530,10 +1596,10 @@ MM::Map::IntInsertObject(VMObject *obj, vaddr_t base, int fixed,
 	if (size != VSIZE_MAX) {
 		size = roundup2(size, PAGE_SIZE);
 	}
-	if (offset >= obj->size || !size) {
+	if ((!autoOfs && offset >= obj->size) || !size) {
 		return 0;
 	}
-	if (size == VSIZE_MAX) {
+	if (!autoOfs && size == VSIZE_MAX) {
 		size = obj->size - offset;
 	}
 	Entry *e = Allocate(size, &base, fixed);
@@ -1542,7 +1608,11 @@ MM::Map::IntInsertObject(VMObject *obj, vaddr_t base, int fixed,
 	}
 	obj->AddRef();
 	e->object = obj;
-	e->offset = offset;
+	if (autoOfs) {
+		e->offset = e->base - this->base + offset;
+	} else {
+		e->offset = offset;
+	}
 	e->protection = protection;
 	return e;
 }
@@ -1551,14 +1621,21 @@ MM::Map::Entry *
 MM::Map::InsertObject(VMObject *obj, vaddr_t offset, vsize_t size,
 	int protection)
 {
-	return IntInsertObject(obj, 0, 0, offset, size, protection);
+	return IntInsertObject(obj, 0, 0, 0, offset, size, protection);
 }
 
 MM::Map::Entry *
 MM::Map::InsertObjectAt(VMObject *obj, vaddr_t base, vaddr_t offset,
 	vsize_t size, int protection)
 {
-	return IntInsertObject(obj, base, 1, offset, size, protection);
+	return IntInsertObject(obj, base, 1, 0, offset, size, protection);
+}
+
+MM::Map::Entry *
+MM::Map::InsertObjectOffs(VMObject *obj, vsize_t size, vaddr_t offset,
+	int protection)
+{
+	return IntInsertObject(obj, 0, 0, 1, offset, size, protection);
 }
 
 int

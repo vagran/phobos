@@ -17,13 +17,11 @@ phbSource("$Id$");
 #define atop(x)			((x) >> PAGE_SHIFT)
 #define ptoa(x)			((x) << PAGE_SHIFT)
 
-#define tracec(c) ASM ("movl $0x3f8, %%edx; outb %%al, %%dx;" \
-	: : "a"(c) : "edx")
-
 #ifndef ASSEMBLER
 #include <types.h>
 #include <error.h>
 #include <queue.h>
+#include <gcc.h>
 #include <specialreg.h>
 #include <frame.h>
 #include <stdlib.h>
@@ -34,7 +32,7 @@ phbSource("$Id$");
  * The condition in assert is not evaluated in non-DEBUG versions, so
  * be careful when using functions results in conditions.
  */
-#define ASSERT(x)	{if (!(x)) __assert(__FILE__, __LINE__, __STR(x));}
+#define ASSERT(x)	{if (unlikely(!(x))) __assert(__FILE__, __LINE__, __STR(x));}
 #ifdef DEBUG
 #define assert(x)	ASSERT(x)
 #else /* DEBUG */
@@ -91,6 +89,10 @@ void inline printf(const char *fmt,...)
 	va_start(va, fmt);
 	vprintf(fmt, va);
 }
+
+#else /* KERNEL */
+
+#include <gate/gate.h>
 
 #endif /* KERNEL */
 

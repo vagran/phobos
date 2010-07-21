@@ -12,7 +12,7 @@ phbSource("$Id$");
 int myGlobalBSS, myGlobalInit = 237;
 
 int
-Main(void *arg)
+Main(GApp *app)
 {
-	return 237;
+	return app->GetPID();//temp
 }

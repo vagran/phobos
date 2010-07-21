@@ -20,17 +20,11 @@
 
 #define __UID(str)			__CONCAT(str, __COUNTER__)
 
-/*
- * Use trick with 1 offset to allow this macro usage for classes, perhaps compiler
- * will optimize this to single constant. Keep in mind that struc_name for classes
- * should always be class name in which field is defined, i.e. do not use parent
- * or derived classes. They can be casted to necessary class if required.
- */
-#define OFFSETOF(struc_name, field_name) (((unsigned int)&((struc_name *)1)->field_name) - 1)
+#define OFFSETOF(struc_name, field_name) ((unsigned int)&((struc_name *)0)->field_name)
 
-#define TYPEOF(struc_name, field_name) typeof(((struc_name *)1)->field_name)
+#define TYPEOF(struc_name, field_name) typeof(((struc_name *)0)->field_name)
 
-#define SIZEOF(struc_name, field_name) sizeof(((struc_name *)1)->field_name)
+#define SIZEOF(struc_name, field_name) sizeof(((struc_name *)0)->field_name)
 
 #define BIN(x) ((x & 0x1) | ((x & 0x10) ? 0x2 : 0) | \
 	((x & 0x100) ? 0x4 : 0) | ((x & 0x1000) ? 0x8 : 0) | \
@@ -60,6 +54,9 @@
 
 #define roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
 #define rounddown2(size, balign)	((size) & (~((balign) - 1)))
+
+#define likely(condition)		__builtin_expect((condition), 1)
+#define unlikely(condition)		__builtin_expect((condition), 0)
 
 #if !defined(ASSEMBLER) && defined(KERNEL)
 /*

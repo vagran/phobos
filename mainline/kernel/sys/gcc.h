@@ -11,6 +11,21 @@
 #include <sys.h>
 phbSource("$Id$");
 
+/* pointer to class method in GCC */
+typedef struct {
+	enum FnFlags {
+		FF_VIRTUAL =	0x1,
+	};
+
+	union {
+		FUNC_PTR ptr; /* function pointer */
+		u32 vOffs; /* offset in virtual methods table and flags */
+	} fn;
+	u32 offs;
+} ClassMethodPtr;
+
+#define VTABLE(obj)		(*(FUNC_PTR **)(obj))
+
 extern "C" void *__dso_handle;
 
 class CXA {

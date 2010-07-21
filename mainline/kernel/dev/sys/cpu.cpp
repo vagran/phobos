@@ -121,6 +121,9 @@ CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 	privTSS->cpu = this;
 	tss->SetActive();
 
+	/* kernel initial stack for system calls */
+	wrmsr(MSR_SYSENTER_ESP_MSR, (u64)initialStack + stackSize);
+
 	mm->AttachCPU();
 
 	/* Switch stack and jump to startup code */
@@ -154,6 +157,7 @@ CPU *
 CPU::GetCurrent()
 {
 	CPU *cpu;
+	/* use private CPU segment referenced by %fs selector */
 	ASM (
 		"xorl	%0, %0\n"
 		"movl	%%fs, %0\n"
@@ -162,7 +166,7 @@ CPU::GetCurrent()
 		"movl	%%fs:%1, %0\n"
 		"1:\n"
 		: "=&r"(cpu)
-		: "m"(*(u32 *)OFFSETOF(PrivSegment, cpu))
+		: "m"(*(u32 *)(void *)OFFSETOF(PrivSegment, cpu))
 		: "cc"
 	);
 	return cpu;

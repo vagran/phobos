@@ -167,9 +167,6 @@ int
 SlabAllocator::Free(void *p, u32 size)
 {
 	size = roundup2(size, BLOCK_GRAN);
-#ifdef DEBUG
-	memset(p, 0xfe, size);
-#endif /* DEBUG */
 	Block *b = (Block *)(((u8 *)p) - OFFSETOF(Block, data));
 	if (b->type == BT_INITIAL) {
 		return 0;
@@ -184,6 +181,9 @@ SlabAllocator::Free(void *p, u32 size)
 	if (size && slab->blockSize < size) {
 		return -1;
 	}
+#ifdef DEBUG
+	memset(p, 0xfe, slab->blockSize);
+#endif /* DEBUG */
 	SlabGroup *g = slab->group;
 	LIST_ADD(list, b, slab->freeBlocks);
 	assert(slab->usedBlocks);

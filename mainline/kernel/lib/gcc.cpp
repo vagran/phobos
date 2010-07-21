@@ -9,8 +9,6 @@
 #include <sys.h>
 phbSource("$Id$");
 
-#include <gcc.h>
-
 void *__dso_handle;
 
 extern "C" CXA::CallbackList _CTOR_LIST, _DTOR_LIST;

@@ -14,10 +14,21 @@
  * we cannot include standard library files in unit tests sources.
  */
 
+#ifndef strlen
 #define strlen __builtin_strlen
+#endif
+#ifndef strcpy
 #define strcpy __builtin_strcpy
+#endif
+#ifndef memset
 #define memset __builtin_memset
-#define memcpy __builtin_memcmp
+#endif
+#ifndef memcpy
+#define memcpy __builtin_memcpy
+#endif
+#ifndef memcmp
+#define memcmp __builtin_memcmp
+#endif
 
 void
 ut_printf(const char *fmt,...);

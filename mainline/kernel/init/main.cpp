@@ -10,7 +10,6 @@
 phbSource("$Id$");
 
 #include <boot.h>
-#include <gcc.h>
 #include <kdb/debugger.h>
 
 MBInfo *pMBInfo;

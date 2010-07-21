@@ -60,10 +60,12 @@ private:
 	} BlockType;
 
 	typedef struct {
+		/* for free block */
 		union {
 			Slab *slab;
 			BlockType type;
 		};
+		/* for allocated block */
 		union {
 			struct {
 				ListEntry list;

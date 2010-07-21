@@ -64,6 +64,8 @@ typedef __SIZE_TYPE__ size_t;
 
 typedef void *Handle;
 
+typedef void (*FUNC_PTR)();
+
 /* variable arguments */
 typedef u8* va_list;
 

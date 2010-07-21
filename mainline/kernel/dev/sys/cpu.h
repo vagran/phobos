@@ -45,10 +45,12 @@ private:
 	u32 intrNesting;
 	u32 intrServiced;
 
+	/* private per-CPU segment referenced by %fs selector */
 	typedef struct {
 		CPU *cpu;
 	} PrivSegment;
 
+	/* private data in tail of CPU private TSS segment */
 	typedef struct {
 		CPU *cpu;
 	} PrivTSS;
