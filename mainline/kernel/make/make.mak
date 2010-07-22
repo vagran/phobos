@@ -7,7 +7,7 @@
 include $(PHOBOS_ROOT)/make/makevar.mak
 
 COMPILE_FLAGS = -pipe -Werror -Wall -Wno-invalid-offsetof \
-	-pipe -DKERNEL -fno-stack-protector -fno-default-inline -fno-builtin \
+	-DKERNEL -fno-stack-protector -fno-default-inline -fno-builtin \
 	-DLOAD_ADDRESS=$(LOAD_ADDRESS) \
 	-DKERNEL_ADDRESS=$(KERNEL_ADDRESS)
 COMPILE_FLAGS_CXX = -fno-exceptions -fno-rtti

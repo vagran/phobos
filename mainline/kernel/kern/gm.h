@@ -173,6 +173,12 @@ public:
 	int KAddRef();
 	int KRelease();
 	static int Validate(GateObject *obj); /* return 0 if valid */
+	inline FUNC_PTR GetOrigMethod(u32 idx) {
+		if (idx >= vtableSize) {
+			return 0;
+		}
+		return origVtable[idx];
+	}
 
 	virtual ~GateObject();
 	virtual int AddRef();
@@ -180,5 +186,7 @@ public:
 
 	DECLARE_GCLASS_IMP(GateObject);
 };
+
+ASMCALL FUNC_PTR GateObjGetOrigMethod(GateObject *obj, u32 idx);
 
 #endif /* GM_H_ */

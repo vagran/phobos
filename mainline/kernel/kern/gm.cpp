@@ -15,15 +15,13 @@ GM *gm;
 
 GM::GM()
 {
-	gateEntrySize = roundup2((u32)&GateEntryEnd - (u32)&GateEntryStart, 4);
+	gateEntrySize = roundup2((u32)&GateEntryEnd - (u32)&GateEntryStart, 0x10);
 	/* create dispatch tables backing object */
 	u32 dispatchSize = gateEntrySize * GateArea::MAX_GATE_METHODS +
 		sizeof(FUNC_PTR) * (GateArea::MAX_GATE_METHODS + 1);
 	dispatchSize = roundup2(dispatchSize, PAGE_SIZE);
 	dispatchObj = NEW(MM::VMObject, dispatchSize, MM::VMObject::F_GATE);
 	assert(dispatchObj);
-	/* make all pages resident */
-	dispatchObj->Pagein(0, 0, dispatchSize / PAGE_SIZE);
 	dispatchInitialized = 0;
 }
 
@@ -369,4 +367,10 @@ GateObject::Initialize()
 	VTABLE(this) = gateArea->GetVtable();;
 	isInitialized = 1;
 	return 0;
+}
+
+ASMCALL FUNC_PTR
+GateObjGetOrigMethod(GateObject *obj, u32 idx)
+{
+	return obj->GetOrigMethod(idx);
 }

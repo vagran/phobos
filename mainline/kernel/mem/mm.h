@@ -12,8 +12,10 @@
 phbSource("$Id$");
 
 #include <boot.h>
+#ifndef ASSEMBLER
 #include <SlabAllocator.h>
 #include <BuddyAllocator.h>
+#endif /* ASSEMBLER */
 
 /*
  * Virtual memory map:
@@ -66,6 +68,8 @@ phbSource("$Id$");
 #define KERN_DYN_MEM_END	BUF_SPACE_ADDRESS
 #define PTDPTDI				(PTMAP_ADDRESS >> PD_SHIFT)
 #define APTDPTDI			(ALTPTMAP_ADDRESS >> PD_SHIFT)
+
+#ifndef ASSEMBLER
 
 #define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
 #define ZALLOC(type,  count)	({ \
@@ -556,5 +560,7 @@ public:
 };
 
 extern MM *mm;
+
+#endif /* ASSEMBLER */
 
 #endif /* MM_H_ */
