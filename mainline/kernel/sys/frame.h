@@ -41,6 +41,12 @@ phbSource("$Id$");
 #define FRAME_ESP		64
 #define FRAME_SS		68
 
+/* can not use symbolic names since these macros are used in assembler */
+#define KCODESEL		(1 << 3) /* SI_KCODE */
+#define KDATASEL		(2 << 3) /* SI_KDATA */
+#define UCODESEL		((3 << 3) | 3) /* SI_UCODE */
+#define UDATASEL		((4 << 3) | 3) /* SI_UDATA */
+
 #ifndef ASSEMBLER
 
 typedef struct {

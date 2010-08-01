@@ -19,7 +19,10 @@ public:
 	typedef u32 waitid_t;
 
 	enum ProcessFault {
-		PFLT_GATEOBJ, /* Invalid gate object passed to system call */
+		PFLT_GATE_OBJ, /* Invalid gate object passed to system call */
+		PFLT_GATE_METHOD, /* Invalid gate method called */
+		PFTL_GATE_STACK, /* Invalid stack pointer when called gate method */
+		PFLT_GATE_METHOD_RESTICTED, /* Restricted gate method called */
 	};
 
 	enum {
@@ -136,6 +139,10 @@ public:
 		inline Process *GetProcess() { return proc; }
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 		int MapKernelStack(vaddr_t esp);
+		inline int IsValidSP(vaddr_t esp) {
+			return esp > stackEntry->base &&
+				esp <= stackEntry->base + stackEntry->size;
+		}
 	};
 
 	class Process : public Object {

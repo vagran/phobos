@@ -9,6 +9,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#include <frame.h>
 #include <mem/mm.h>
 
 /* unified gate entry, gate objects' dispatch tables consist of these entries */
@@ -29,7 +30,7 @@ GateEntryEnd:
 
 #define GATE_ENTRY_SIZE roundup2(GateEntryEnd - GateEntryStart, 0x10)
 
-/* entry point for kernel mode calls */
+/* Entry point for kernel mode calls */
 GateKernEntry:
 	subl	$GATE_AREA_ADDRESS, %eax
 	xorl	%edx, %edx
@@ -44,8 +45,69 @@ GateKernEntry:
 	call	*%eax
 	addl	$4, %esp
 	ret
-/* Kernel system calls entry point */
 
+/* Kernel system calls entry point */
 .globl GateSysEntry
 GateSysEntry:
-	movl	$0xed, %eax
+	movl	$KDATASEL, %ecx
+	movl	%ecx, %ds
+	movl	%ecx, %es
+	pushl	%edx /* original stack pointer */
+	subl	$GATE_AREA_ADDRESS, %eax
+	xorl	%edx, %edx
+	movl	$GATE_ENTRY_SIZE, %ecx
+	idivl	%ecx		/* method index in %eax now */
+	movl	(%esp), %edx /* original stack pointer */
+
+	/* validate parameters and get method address */
+	pushl	%edx
+	pushl	%eax
+	call	GateObjValidateCall
+	addl	$0x8, %esp
+	testl	%eax, %eax
+	je		CallFail
+
+	popl	%edx /* original stack pointer */
+	movl	%edx, %esp /* switch stack */
+	popl	%edx /* return address */
+	movl	(%esp), %ecx /* object pointer */
+	pushl	%eax /* method address */
+
+	pushl	%edx /* return address */
+	pushl	%ecx /* object pointer */
+	call	GateObjSetReturnAddress
+	addl	$0x8, %esp
+
+	popl	%eax /* method address */
+	call	*%eax
+	pushl	%eax /* return value */
+
+	call	OnUserRet
+
+	movl	4(%esp), %ecx /* object pointer */
+	pushl	%ecx
+	call	GateObjGetReturnAddress
+	movl	%eax, %edx /* return address */
+	movl	4(%esp), %eax /* return value */
+	movl	%edx, 4(%esp) /* restore return address in user stack */
+	lea		8(%esp), %ecx /* user stack pointer */
+
+	/* restore user segments selectors */
+	movl	$UDATASEL, %ebx
+	movl	%ebx, %ds
+	movl	%ebx, %es
+	xorl	%ebx, %ebx
+	movl	%ebx, %fs
+	movl	%ebx, %gs
+
+	sysexit /* %edx - user %eip, %ecx - user %esp */
+
+CallFailFile: .asciz __FILE__
+CallFailMsg: .asciz "Gate call failed, OnUserRet returned"
+CallFail:
+	call	OnUserRet /* should not return */
+	/* something wrong if it returned */
+	pushl	$CallFailMsg
+	pushl	$__LINE__
+	pushl	$CallFailFile
+	call	_panic

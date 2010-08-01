@@ -161,12 +161,21 @@ private:
 	int ClearUserRef(); /* return last reference counter value */
 	int Initialize();
 protected:
+	typedef struct {
+		u64 numKernCalls, numUserCalls;
+	} CallStatEntry;
+
 	/* we have separate reference counters for user space and kernel */
 	AtomicInt<u32> refCount, krefCount;
 	PM::Process *proc;
 	GM::GateArea *gateArea;
 	u32 vtableSize;
 	FUNC_PTR *origVtable;
+	FUNC_PTR retAddr;
+	u32 lastMethod;
+	int userMode;
+	CallStatEntry *callStats;
+	u64 numKernCalls, numUserCalls;
 public:
 	void operator delete(void *obj);
 	GateObject();
@@ -179,6 +188,9 @@ public:
 		}
 		return origVtable[idx];
 	}
+	void UpdateCallStat(u32 methodIdx, int userMode);
+	inline void SetReturnAddress(FUNC_PTR retAddr) { this->retAddr = retAddr; }
+	inline FUNC_PTR GetReturnAddress() { return retAddr; }
 
 	virtual ~GateObject();
 	virtual int AddRef();
@@ -188,5 +200,11 @@ public:
 };
 
 ASMCALL FUNC_PTR GateObjGetOrigMethod(GateObject *obj, u32 idx);
+
+ASMCALL FUNC_PTR GateObjValidateCall(u32 idx, vaddr_t esp);
+
+ASMCALL void GateObjSetReturnAddress(GateObject *obj, FUNC_PTR retAddr);
+
+ASMCALL FUNC_PTR GateObjGetReturnAddress(GateObject *obj);
 
 #endif /* GM_H_ */

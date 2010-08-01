@@ -266,11 +266,24 @@ GateObject::GateObject()
 	isInitialized = 0;
 	signature = GATE_OBJ_SIGNATURE;
 	thisPtr = this;
+	numKernCalls = 0;
+	numUserCalls = 0;
+	userMode = 0;
+	callStats = 0;
 }
 
 GateObject::~GateObject()
 {
 	/* destructor should never be called from user-land */
+	if (!userMode) {
+		PM::Process::GetCurrent()->Fault(PM::PFLT_GATE_METHOD_RESTICTED);
+		return;
+	}
+
+	if (callStats) {
+		MM::mfree(callStats);
+		callStats = 0;
+	}
 
 	if (isInitialized) {
 		gateArea->UnregisterObject(this);
@@ -338,7 +351,7 @@ GateObject::Validate(GateObject *obj)
 			return -1;
 		}
 	}
-	return obj->signature == GATE_OBJ_SIGNATURE && obj->thisPtr == obj;
+	return !(obj->signature == GATE_OBJ_SIGNATURE && obj->thisPtr == obj);
 }
 
 int
@@ -349,12 +362,32 @@ GateObject::ClearUserRef()
 	return rc;
 }
 
+void
+GateObject::UpdateCallStat(u32 methodIdx, int userMode)
+{
+	lastMethod = methodIdx;
+	this->userMode = userMode;
+	if (callStats) {
+		CallStatEntry *e = &callStats[methodIdx];
+		if (userMode) {
+			e->numUserCalls++;
+		} else {
+			e->numKernCalls++;
+		}
+	}
+	if (userMode) {
+		numUserCalls++;
+	} else {
+		numKernCalls++;
+	}
+}
+
 ASMCALL int
 GateEntry(void *entryAddr, GateObject *obj)
 {
 	/* entered in user mode */
 	if (GateObject::Validate(obj)) {
-		PM::Process::GetCurrent()->Fault(PM::PFLT_GATEOBJ);
+		PM::Process::GetCurrent()->Fault(PM::PFLT_GATE_OBJ);
 	}
 	return 0;
 }
@@ -364,13 +397,64 @@ GateObject::Initialize()
 {
 	CalculateVtableSize();
 	origVtable = VTABLE(this);
-	VTABLE(this) = gateArea->GetVtable();;
+	VTABLE(this) = gateArea->GetVtable();
+	callStats = (CallStatEntry *)MM::malloc(sizeof(CallStatEntry) * vtableSize);
+	if (callStats) {
+		memset(callStats, 0, sizeof(CallStatEntry) * vtableSize);
+	}
 	isInitialized = 1;
 	return 0;
 }
 
+/* called on kernel invocation */
 ASMCALL FUNC_PTR
 GateObjGetOrigMethod(GateObject *obj, u32 idx)
 {
-	return obj->GetOrigMethod(idx);
+	FUNC_PTR method = obj->GetOrigMethod(idx);
+	if (method) {
+		obj->UpdateCallStat(idx, 0);
+	}
+	return method;
+}
+
+/* called on user invocation */
+ASMCALL FUNC_PTR
+GateObjValidateCall(u32 idx, vaddr_t esp)
+{
+	CPU::RestoreSelector(); /* restore per-CPU segment selector */
+	PM::Process *proc = PM::Process::GetCurrent();
+	assert(proc);
+
+	/* validate stack */
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	assert(thrd);
+	if (!thrd->IsValidSP(esp) || thrd->MapKernelStack(esp)) {
+		proc->Fault(PM::PFTL_GATE_STACK);
+		return 0;
+	}
+
+	GateObject *obj = ((GateObject **)esp)[1];
+	if (GateObject::Validate(obj)) {
+		proc->Fault(PM::PFLT_GATE_OBJ);
+		return 0;
+	}
+	FUNC_PTR method = GateObjGetOrigMethod(obj, idx);
+	if (!method) {
+		proc->Fault(PM::PFLT_GATE_METHOD);
+		return 0;
+	}
+	obj->UpdateCallStat(idx, 1);
+	return method;
+}
+
+ASMCALL void
+GateObjSetReturnAddress(GateObject *obj, FUNC_PTR retAddr)
+{
+	obj->SetReturnAddress(retAddr);
+}
+
+ASMCALL FUNC_PTR
+GateObjGetReturnAddress(GateObject *obj)
+{
+	return obj->GetReturnAddress();
 }

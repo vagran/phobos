@@ -11,7 +11,7 @@ phbSource("$Id$");
 
 /* called before returning to ring 3 from interrupt/exception or system call */
 ASMCALL void
-OnUserRet(Frame *frame)
+OnUserRet()
 {
 	if (im) {
 		im->Poll(1);

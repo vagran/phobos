@@ -1002,16 +1002,19 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority
 int
 PM::Thread::MapKernelStack(vaddr_t esp)
 {
-	assert(esp > stackEntry->base && esp <= stackEntry->base + stackEntry->size);
+	assert(IsValidSP(esp));
 	vaddr_t startVa = rounddown2(esp - CPU::DEF_KERNEL_STACK_SIZE, PAGE_SIZE);
-	ensure(startVa >= stackEntry->base);
+	if (startVa < stackEntry->base) {
+		return -1;
+	}
 	vaddr_t endVa = rounddown2(esp, PAGE_SIZE);
 	for (vaddr_t va = startVa; va < endVa; va += PAGE_SIZE) {
 		if (proc->userMap->IsMapped(va)) {
-			/* assume that stack is continuously mapped from the bottom */
-			break;
+			continue;
 		}
-		ensure(!proc->userMap->Pagein(va));
+		if (proc->userMap->Pagein(va)) {
+			return -1;
+		}
 	}
 	return 0;
 }

@@ -711,7 +711,7 @@ MM::GetPage(paddr_t pa)
 	if (pgIdx < firstPage || pgIdx >= firstPage + pagesRange) {
 		return 0;
 	}
-	return &pages[pgIdx];
+	return &pages[pgIdx - firstPage];
 }
 
 MM::Page *

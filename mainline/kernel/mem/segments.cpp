@@ -74,6 +74,11 @@ SDT::GetLimit(Descriptor *d)
 
 GDT::GDT()
 {
+	assert(KCODESEL == GetSelector(SI_KCODE, PL_KERNEL));
+	assert(KDATASEL == GetSelector(SI_KDATA, PL_KERNEL));
+	assert(UCODESEL == GetSelector(SI_UCODE, PL_USER));
+	assert(UDATASEL == GetSelector(SI_UDATA, PL_USER));
+
 	ldt = (ldtTable *)MM::malloc(sizeof(ldtTable), sizeof(SDT::Descriptor));
 	memset(ldt, 0 ,sizeof(*ldt));
 	table = (Table *)MM::malloc(sizeof(SDT::Descriptor) * GDT_SIZE, sizeof(SDT::Descriptor));

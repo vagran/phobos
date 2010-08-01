@@ -13,9 +13,6 @@ phbSource("$Id$");
 
 #include <frame.h>
 
-#define KCODESEL	(1 << 3)
-#define KDATASEL	(2 << 3)
-
 .data
 .globl TrapTable
 TrapTable:
@@ -74,9 +71,7 @@ TrapHandler:
 	addl	$4, %esp
 	testl	$3, FRAME_CS(%esp) /* check RPL of code selector */
 	je		1f
-	pushl	%esp
 	call	OnUserRet
-	addl	$4, %esp
 1:	POP_FRAME
 	addl	$8, %esp /* vector index and error code */
 	iret

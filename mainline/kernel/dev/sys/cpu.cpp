@@ -251,6 +251,7 @@ CPU::UninstallTrampoline(vaddr_t va)
 		paddr_t pa = mm->Kextract(va);
 		mm->UnmapPhys(va);
 		MM::Page *pg = mm->GetPage(pa);
+		assert(pg);
 		mm->FreePage(pg);
 		va += PAGE_SIZE;
 	}

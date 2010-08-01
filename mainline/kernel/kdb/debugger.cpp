@@ -24,7 +24,7 @@ RunDebugger(const char *fmt,...)
 	sysDebugger->Break();
 }
 
-void
+ASMCALL void
 _panic(const char *fileName, int line, const char *fmt,...)
 {
 	cli();
