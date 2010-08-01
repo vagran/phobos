@@ -4,6 +4,375 @@
 Here is briefly logged the history of the project development.
 
 ===== Revisions history =====
+r137 | vagran | 2010-08-01 14:05:29 EEST
+Changed paths:
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/gate/gate.S
+	M /mainline/kernel/kern/gm.cpp
+	M /mainline/kernel/sys/frame.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/kern/gm.h
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/kern/trap.S
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+System calls concept implemented. Gate methods can be called both from kernel and user mode.
+
+//Probably the most tricky thing in the system...//
+----------------------------------------------------------------------------
+r136 | vagran | 2010-07-22 22:58:29 EEST
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/gate/gate.S
+	M /mainline/kernel/kern/gm.cpp
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/kern/gm.h
+
+Implementing system calls concept.
+Gate objects methods calls from kernel mode support implemented.
+No bug in memory manager - unexpected behavior caused by inconsistent build.
+----------------------------------------------------------------------------
+r135 | vagran | 2010-07-21 23:39:17 EEST
+Changed paths:
+	M /mainline/kernel/sys/gcc.h
+	M /mainline/lib/startup/AppStartup.cpp
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/make/make.mak
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/Makefile
+	M /mainline/bin/init/init.cpp
+	A /mainline/kernel/gate/gate.h
+	M /mainline/kernel/sys/SlabAllocator.h
+	A /mainline/kernel/gate
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/unit_test/CTest.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+	A /mainline/kernel/gate/Makefile
+	M /mainline/kernel/kern/pm.h
+	A /mainline/kernel/gate/App.cpp
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/gcc.cpp
+	A /mainline/kernel/gate/gate.S
+	M /mainline/kernel/kern/gm.cpp
+	A /mainline/kernel/gate/App.h
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/kern/gm.h
+	M /mainline/kernel/sys/stdlib.h
+	M /mainline/kernel/lib/SlabAllocator.cpp
+
+Implementing system calls concept.
+Current state well disclose memory manager bug: 'gm' object is overlapped by 'Ramdisk' class instance. Should be fixed ASAP.
+----------------------------------------------------------------------------
+r134 | vagran | 2010-07-12 15:10:50 EEST
+Changed paths:
+	M /mainline/kernel/mem/mm.h
+
+ZALLOC macro added.
+----------------------------------------------------------------------------
+r133 | vagran | 2010-07-05 18:01:50 EEST
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/make/make.mak
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/sys/stdlib.h
+
+mem-family functions defined as built-ins. -fno-builtin option added to compiler in order to avoid conficts with built-in functions prototypes.
+----------------------------------------------------------------------------
+r132 | vagran | 2010-06-28 10:41:47 EEST
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/mem/pte.h
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/mem/FilePager.cpp
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/mem/FilePager.h
+	M /mainline/kernel/mem/SwapPager.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+	M /mainline/kernel/mem/SwapPager.h
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/sys/MemAllocator.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/sys/specialreg.h
+	M /mainline/kernel/kern/elf.cpp
+	M /mainline/kernel/sys/object.h
+	M /mainline/kernel/kern/log.cpp
+
+All PDEs are created with user access rights in order to allow user entries creating in any location. System pages are protected by PTEs.
+Execution-disable feature support added for Intel processors.
+Buffers space map added to kernel virtual memory layout.
+FilePager now able to load pages in memory from files.
+The system now is able to successfully transfer control to user mode application (transfer to kernel from user-land is not yet implemented).
+
+// Yeah, I finally have process in user space which is running code from ELF binary. The next step is to implement tricky [[components:kernel:syscalls|syscalls interface]]. I'm not yet sure about how it could be exactly done. But I hope it is possible :)//
+----------------------------------------------------------------------------
+r131 | vagran | 2010-06-27 00:50:32 EEST
+Changed paths:
+	M /mainline/lib/startup/AppStartup.cpp
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/dev/condev.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/make/link.app.ld
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/trap.S
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+	M /mainline/kernel/lib/common/Tree.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/mem/segments.h
+	A /mainline/kernel/kern/gm.cpp
+	A /mainline/kernel/kern/gm.h
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/sys/log.h
+	M /mainline/kernel/kern/log.cpp
+
+Implementing transition to user mode. SYSEXIT instruction utilized to jump to an application entry point.
+Bug fixed: when returning to user mode by iret instruction all segments selectors which are invalid for user mode are zeroed in segment registers. It means that we lose private per-CPU segment selector in %fs register (also it is cannot be assured that an application will not modify this register). To solve the problem TSS class now is able to store system private data in TSS segment. Now pointer to CPU object is stored there and is used to restore %fs content when returned to kernel from user mode.
+----------------------------------------------------------------------------
+r130 | vagran | 2010-06-25 14:31:54 EEST
+Changed paths:
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/sys/error.h
+	M /mainline/mfs
+	D /mainline/kernel/.project
+	M /mainline/kernel/unit_test/Makefile
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/vfs/vfs.cpp
+	A /mainline/kernel/kern/object.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/sys/types.h
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/kern/elf.cpp
+	M /mainline/kernel/sys/object.h
+	M /mainline/kernel/sys/stdlib.h
+
+ELF executable binaries loading implemented. Still need to implement file objects page-in's and transferring control between kernel and user space.
+stdlib improved: strtol, strtoq, strtouq and sscanf functions added.
+----------------------------------------------------------------------------
+r129 | vagran | 2010-06-23 23:45:21 EEST
+Changed paths:
+	M /mainline/kernel/sys/gcc.h
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/kern/tm.cpp
+	M /mainline/kernel/fs/fs.h
+	M /mainline/kernel/kern/tm.h
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/dev/sys/pit.cpp
+	M /mainline/kernel/sys/object.h
+	M /mainline/kernel/dev/sys/pit.h
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/dev/sys/rtc.cpp
+	M /mainline
+	M /mainline/kernel/sys/stdlib.h
+	M /mainline/kernel/dev/sys/rtc.h
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/kdb/debugger.h
+	M /mainline/kernel/dev/condev.cpp
+	M /mainline/kernel/dev/condev.h
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/sys/Bitmap.h
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/sys/MemAllocator.h
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/gcc.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/mem/segments.h
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/sys/log.h
+
+'Object' class added. Most of all kernel derived from 'Object' class. Most callback functions replaced by Object methods.
+----------------------------------------------------------------------------
+r128 | vagran | 2010-06-23 15:06:53 EEST
+Changed paths:
+	M /mainline/kernel/sys/BuddyAllocator.h
+	M /mainline/kernel/kern/pm.h
+	M /mainline/mfs/Makefile
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/make/makevar.mak
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Processes and threads destruction verified. Buddy allocator frees all busy and reserved blocks when destructed. Maps destruction verified.
+----------------------------------------------------------------------------
+r127 | vagran | 2010-06-23 01:43:15 EEST
+Changed paths:
+	A /mainline/kernel/sys/error.h
+	A /mainline/kernel/mem/FilePager.cpp
+	M /mainline/kernel/lib/BuddyAllocator.cpp
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/sys/elf_common.h
+	M /mainline/kernel/sys/sys.h
+	A /mainline/kernel/mem/FilePager.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/mem/SwapPager.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/lib/common/Tree.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/kern/elf.cpp
+	M /mainline/kernel/lib/SlabAllocator.cpp
+
+Fixed bug in memory manager: alternative address space mapping must be invalidated if corresponding map destroyed.
+
+//It was really hard to find this bug. The system just was reseting CPU, the problem was not reproducible under debugger. Two days spent in code revising and debugging, qemu logs and memory dumps analysis.//
+----------------------------------------------------------------------------
+r126 | vagran | 2010-06-21 13:25:43 EEST
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/make/make.mak
+
+Duplicated -pipe option removed from GCC parameters.
+----------------------------------------------------------------------------
+r125 | vagran | 2010-06-13 14:27:25 EEST
+Changed paths:
+	M /mainline/doc/pages/components/kernel/mm.txt
+	M /mainline/doc/pages/components/kernel/kernel.txt
+
+Documentation update: memory manager description updated.
+
+----------------------------------------------------------------------------
+r124 | vagran | 2010-06-13 14:25:55 EEST
+Changed paths:
+	A /mainline/doc/media/components/kernel/mem_layout.png
+
+Memory layout picture added in dicumentation.
+
+----------------------------------------------------------------------------
+r123 | vagran | 2010-06-13 14:24:33 EEST
+Changed paths:
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/sys/SlabAllocator.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/mem/mm.cpp
+
+Implementing ELF image loading. Just small fixes and improvements in this commit.
+----------------------------------------------------------------------------
+r122 | vagran | 2010-06-12 15:20:23 EEST
+Changed paths:
+	M /mainline/doc/pages/diary.txt
+	M /mainline/doc/pages/components/kernel/devices/blockdevices.txt
+	M /mainline/doc/pages/components/kernel/im.txt
+	M /mainline/doc/pages/components/kernel/vfs.txt
+	M /mainline/doc/pages/start.txt
+	M /mainline/doc/pages/components/kernel/ramdisk.txt
+
+Documentation update.
+
+----------------------------------------------------------------------------
+r121 | vagran | 2010-06-12 15:19:16 EEST
+Changed paths:
+	M /mainline/doc/pages/components/kernel/devices/blockdevices.txt
+
+Documentation update.
+----------------------------------------------------------------------------
+r120 | vagran | 2010-06-06 00:02:02 EEST
+Changed paths:
+	M /mainline/doc/pages/diary.txt
+	M /mainline/doc/pages/components/kernel/vfs.txt
+	A /mainline/eclipse/gdbinit
+	M /mainline/kernel/sys/SlabAllocator.h
+	M /mainline/kernel/lib/SlabAllocator.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/doc/pages/components/kernel/ramdisk.txt
+
+Slab allocations optimized - using indexed array instead of list for slab groups.
+----------------------------------------------------------------------------
+r119 | vagran | 2010-06-05 13:37:05 EEST
+Changed paths:
+	A /mainline/doc/pages/diary.txt
+	A /mainline/doc/pages/components/kernel/devices/blockdevices.txt
+	M /mainline/doc/pages/components/kernel/im.txt
+	A /mainline/doc/pages/components/kernel/vfs.txt
+	M /mainline/doc/pages/components/kernel/kernel.txt
+	M /mainline/doc/pages/components/kernel/pm.txt
+	A /mainline/doc/pages/components/kernel/devices
+	M /mainline/doc/pages/start.txt
+	A /mainline/doc/pages/components/kernel/ramdisk.txt
+
+Documentation updated.
+
+----------------------------------------------------------------------------
+r118 | vagran | 2010-06-04 10:50:15 EEST
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/init/init.cpp
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/segments.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+
+Control code clobbering fixed in inline assembler. New ASM macro added.
+----------------------------------------------------------------------------
+r117 | vagran | 2010-03-05 17:00:51 EET
+Changed paths:
+	M /mainline/make/link.app.ld
+
+stab section fixed in application linker script.
+----------------------------------------------------------------------------
+r116 | vagran | 2010-03-04 22:14:53 EET
+Changed paths:
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/kernel/sys/elf.h
+	M /mainline/kernel/kern/elf.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/vfs/vfs.cpp
+
+Implementing ELF files execution.
+----------------------------------------------------------------------------
+r115 | vagran | 2010-03-03 22:29:09 EET
+Changed paths:
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/sys/elf.h
+	A /mainline/kernel/kern/elf.cpp
+	M /mainline/kernel/kern/pm.cpp
+
+Implementing ELF files execution.
+----------------------------------------------------------------------------
+r114 | vagran | 2010-03-03 18:22:37 EET
+Changed paths:
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/make/make.mak
+	M /mainline/kernel/sys/elf_common.h
+	M /mainline/kernel/sys/elf32.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+
+--no-omagic option added to user-space linker script to align section by page size in output files.
+----------------------------------------------------------------------------
 
 r113 | vagran | 2010-03-02 22:06:49 EET
 Changed paths:

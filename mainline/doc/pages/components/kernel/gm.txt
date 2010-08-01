@@ -1,0 +1,4 @@
+---//$Id$//
+
+====== Gating manager ======
+The gating manager is a components which is responsible for communications between kernel and user space.

@@ -10,3 +10,10 @@ Main functionality of memory manager is implemented in MM class. This class cons
 
 ^ Virtual memory layout ^
 | {{components:kernel:mem_layout.png|Phobos memory layout}} |
+
+===== Pagers =====
+Memory objects can be backed by pagers. However an can have no pager associated with it - in such case all its pages are always resident in memory. Pager is represented by ''MM::Pager'' base class. The class is an abstraction layer between backing storage object (file or swap) and a memory object. The memory object has ''pagerOffset'' member which identifies position of the object projection to backing storage object. It can be either some direct offset value (e.g. in case of file mapping) or some abstract identifier which is interpreted by the corresponding pager implementation. The following common methods are used for interfacing with a pager:
+  * ''HasPage'' -- return ''TRUE'' if the page is present in the pager backing storage object.
+  * ''GetPage'' -- load page from the pager backing storage object to the provided memory page.
+  * ''PutPage'' -- save the provided memory page to the pager backing storage object.
+

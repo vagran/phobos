@@ -6,16 +6,17 @@
   * [[components:kernel:im|Interrupts manager]]
   * [[components:kernel:tm|Time manager]]
   * [[components:kernel:pm|Processes manager]]
+  * [[components:kernel:gm|Gating manager]] 
   * [[components:kernel:devicemanager|Devices manager]]
   * [[components:kernel:devices:blockdevices|Block devices]]
   * [[components:kernel:ramdisk|RAM disk]]
   * [[components:kernel:vfs|Virtual File System]] 
  
  ====== Multiprocessors support ======
-PhobOS supports unlimited number of CPUs.
+PhobOS supports almost unlimited number of CPUs. Each CPU is represented by ''CPU'' class object. Current CPU can be retrieved by ''CPU::GetCurrent'' static method. It uses private segment in GDT to store per-CPU private data. The selector for this segment is stored %fs segment register. Also pointer to CPU object is stored in CPU private TSS. %fs register is restored from there after each return to kernel from user mode.
 
 ====== Stack ======
-Unlike the most other operating systems PhobOS doesn't have private kernel stack for each process. Kernel uses the user space stack. Such approach allows passing unlimited number of arguments to the kernel system calls through the stack. This feature is also required for the concept of PhobOS [[components:kernel:syscalls|system calls interface]]. 
+Unlike the most other operating systems PhobOS doesn't have private kernel stack for each process. Kernel uses the user space stack. Such approach allows passing unlimited number of arguments to the kernel system calls through the stack with direct access to them by called methods. This feature is also required for the concept of PhobOS [[components:kernel:syscalls|system calls interface]].
 
 However, x86 processors require separate stack when entering privileged ring from user mode. For this purpose each CPU has its own preallocated stack space which is used on early stage of system calls. After the call the kernel verifies that user %esp points to a valid stack location, map some amount of pages on top of this stack to assure the kernel will have enough amount of stack space and switches to it. Also these per CPU stacks used when servicing interrupts while in user mode. Since the private stacks are required for each CPU only (not for each process) so they can have large enough size to use them freely assuming they have almost unlimited size.
 
@@ -26,6 +27,6 @@ The system uses ELF executable files format. The system loads all segments descr
   * ''.text'' mapped with executable and reading permissions;
   * ''.rodata'' mapped with reading permissions;
   * ''.data'' mapped with read-write permission;
-  * ''.bss'' section is not mapped to file (even it contains some data in a file). It is backed by swap, initialized with zeros and is preceding the heap (actually it is included in the beginning of heap object). So it must be the last section.
+  * ''.bss'' section is not mapped to file (even if it contains some data in a file). It is backed by swap, initialized with zeros and is preceding the heap (actually it is included in the beginning of heap object). So it must be the last section.
  
 All the rest sections are mapped according to their attributes in section header. The default layout of the PhoboOS executable file is created by ''/make/link.app.ld'' linker script which should be used for PhobOS applications linking.
