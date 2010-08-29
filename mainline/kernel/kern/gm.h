@@ -191,6 +191,7 @@ public:
 	void UpdateCallStat(u32 methodIdx, int userMode);
 	inline void SetReturnAddress(FUNC_PTR retAddr) { this->retAddr = retAddr; }
 	inline FUNC_PTR GetReturnAddress() { return retAddr; }
+	inline const char *GetClassName() { return 0; } //notimpl
 
 	virtual ~GateObject();
 	virtual int AddRef();

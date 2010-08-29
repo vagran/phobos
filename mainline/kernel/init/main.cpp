@@ -237,7 +237,7 @@ StartupProc(void *arg)
 	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));
 	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(5000), (void *)"one-shot 5s");
 
-	pm->CreateProcess(MyProcess, (void *)"process 1");
+	pm->CreateProcess(MyProcess, (void *)"process 1", "process 1");
 
 	while (1) {
 		//pm->Wakeup(&proc2);

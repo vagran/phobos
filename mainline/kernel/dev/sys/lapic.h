@@ -43,6 +43,13 @@ public:
 		TM_EDGE =			0x0,
 		TM_LEVEL =			0x1,
 	} TriggerMode;
+
+	typedef enum {
+		IPI_VECTOR =				0x80,
+		IPI_DEACTIVATE_THREAD =		0,
+
+		IPI_MAX
+	} IPIType;
 private:
 	enum {
 		MEM_SIZE =		4096,

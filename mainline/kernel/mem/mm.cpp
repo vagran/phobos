@@ -813,6 +813,18 @@ MM::mfree(void *p)
 	mm->kmemAlloc->mfree(p);
 }
 
+void *
+MM::mrealloc(void *p, u32 size, u32 align, PageZone zone)
+{
+	//XXX
+	void *pNew = malloc(size, align, zone);
+	if (pNew) {
+		memcpy(pNew, p, size);
+	}
+	mfree(p);
+	return pNew;
+}
+
 int
 MM::KmemMapClient::Allocate(vaddr_t base, vaddr_t size, void *arg)
 {
@@ -853,10 +865,14 @@ MM::OnPageFault(Frame *frame)
 	int isUserMode = GDT::GetRPL(frame->cs) == GDT::PL_USER;
 	if (HandlePageFault(va, frame->code, isUserMode)) {
 		if (isUserMode) {
-			/* send signal to process */
-			//notimpl
-			printf("Unhandled page fault in process, killing it\n");//temp
-			NotReached();
+			/* fail the thread */
+			PM::Thread *thrd = PM::Thread::GetCurrent();
+			assert(thrd);
+			thrd->Fault(PM::PFLT_PAGE_FAULT,
+				"Access to address 0x%08lx, code = 0x%lx (%s in %s mode, %s)",
+				va, frame->code, frame->code & PFC_W ? "Write" : "Read",
+				frame->code & PFC_U ? "user" : "kernel",
+				frame->code & PFC_P ? "protection violation" : "page not present");
 		} else {
 			printf("Unhandled page fault in kernel mode: "
 				"at 0x%08lx accessing address 0x%08lx, code = 0x%08lx\n",

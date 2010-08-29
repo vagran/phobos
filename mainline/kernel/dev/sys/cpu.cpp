@@ -25,13 +25,18 @@ SpinLock CPU::startupLock;
 
 ListHead CPU::allCpus;
 
+int CPU::dthRegistered = 0;
+
 CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 {
 	smpGDT = 0;
 	initialStack = 0;
 	intrNesting = 0;
 	intrServiced = 0;
+	trapNesting = 0;
+	trapsHandled = 0;
 	tss = 0;
+	setAST = 0;
 	memset(&pcpu, 0, sizeof(pcpu));
 	LIST_ADD(list, this, allCpus);
 
@@ -71,6 +76,13 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 		"mov	%0, %%fs"
 		:
 		: "r"(privSegSel));
+
+	if (!dthRegistered) {
+		idt->RegisterHandler(LAPIC::IPI_VECTOR + LAPIC::IPI_DEACTIVATE_THREAD,
+			this, (IDT::TrapHandler)&CPU::DeactivateThreadHandler);
+		dthRegistered = 1;
+	}
+
 	devState = S_UP;
 }
 
@@ -84,6 +96,48 @@ CPU::NestInterrupt(int nestIn)
 		assert(intrNesting);
 		intrNesting--;
 	}
+}
+
+void
+CPU::NestTrap(int nestIn)
+{
+	if (nestIn) {
+		trapNesting++;
+		trapsHandled++;
+	} else {
+		assert(trapNesting);
+		trapNesting--;
+	}
+}
+
+int
+CPU::SendIPI(LAPIC::IPIType type)
+{
+	if (type >= LAPIC::IPI_MAX) {
+		return -1;
+	}
+	CPU *currentCpu = GetCurrent();
+	LAPIC *curLapic = currentCpu->GetLapic();
+	return curLapic->SendIPI(LAPIC::DM_FIXED, LAPIC::DST_SPECIFIC, 0,
+		LAPIC::IPI_VECTOR + type, GetID());
+}
+
+int
+CPU::DeactivateThread()
+{
+	/*
+	 * Thread state should be changed to actual value. We send IPI to required
+	 * CPU and it will deactivate the thread in PM::CheckStatus method.
+	 */
+	return SendIPI(LAPIC::IPI_DEACTIVATE_THREAD);
+}
+
+int
+CPU::DeactivateThreadHandler(Frame *frame)
+{
+	/* call OnUserRet before return from trap */
+	SetAST();
+	return 0;
 }
 
 /* Restore private segment selector from private TSS */

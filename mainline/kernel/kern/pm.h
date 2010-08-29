@@ -20,9 +20,11 @@ public:
 
 	enum ProcessFault {
 		PFLT_GATE_OBJ, /* Invalid gate object passed to system call */
+		PFLT_GATE_OBJ_RELEASE, /* Gate object release called without matching AddRef() */
 		PFLT_GATE_METHOD, /* Invalid gate method called */
-		PFTL_GATE_STACK, /* Invalid stack pointer when called gate method */
+		PFLT_GATE_STACK, /* Invalid stack pointer when called gate method */
 		PFLT_GATE_METHOD_RESTICTED, /* Restricted gate method called */
+		PFLT_PAGE_FAULT, /* Page fault */
 	};
 
 	enum {
@@ -84,6 +86,7 @@ public:
 			S_RUNNING,
 			S_SLEEP,
 			S_TERMINATED,
+			S_STOPPED,
 		};
 
 		typedef int (*ThreadEntry)(void *arg);
@@ -117,7 +120,8 @@ public:
 		int wakenByTimeout:1;
 		void *rqQueue; /* active or expired queue */
 		State state;
-
+		String faultStr;
+		int isActive; /* currently running on some CPU */
 	public:
 		Thread(Process *proc);
 		~Thread();
@@ -143,9 +147,16 @@ public:
 			return esp > stackEntry->base &&
 				esp <= stackEntry->base + stackEntry->size;
 		}
+		int Fault(ProcessFault flt, const char *msg = 0, ...) __format(printf, 3, 4);
 	};
 
 	class Process : public Object {
+	public:
+		enum State {
+			S_RUNNING,
+			S_STOPPED,
+			S_TERMINATED,
+		};
 	private:
 		friend class PM;
 
@@ -158,6 +169,9 @@ public:
 		u32 priority;
 		vaddr_t entryPoint;
 		GM::GateArea *gateArea;
+		String faultStr;
+		State state;
+		String name;
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
@@ -170,7 +184,7 @@ public:
 			return thrd ? thrd->GetProcess() : 0;
 		}
 
-		int Initialize(u32 priority, int isKernelProc = 0);
+		int Initialize(u32 priority, const char *name = 0, int isKernelProc = 0);
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
 		int TerminateThread(Thread *thrd);
@@ -180,7 +194,9 @@ public:
 		inline MM::Map *GetUserMap() { return userMap; }
 		inline MM::Map *GetGateMap() { return gateMap; }
 		inline GM::GateArea *GetGateArea() { return gateArea; }
-		int Fault(ProcessFault flt);
+		int Stop();
+		int Resume();
+		int Fault(ProcessFault flt, const char *msg = 0, ...) __format(printf, 3, 4);
 	};
 
 	class Runqueue : public Object {
@@ -250,7 +266,7 @@ private:
 	static int IdleThread(void *arg);
 	void IdleThread() __noreturn;
 	Process *IntCreateProcess(Thread::ThreadEntry entry, void *arg = 0,
-		int priority = DEF_PRIORITY, int isKernelProc = 0, int runIt = 1);
+		const char *name = 0, int priority = DEF_PRIORITY, int isKernelProc = 0, int runIt = 1);
 	SleepEntry *GetSleepEntry(waitid_t id); /* must be called with tqLock */
 	SleepEntry *CreateSleepEntry(waitid_t id); /* must be called with tqLock */
 	void FreeSleepEntry(SleepEntry *p); /* must be called with tqLock */
@@ -264,8 +280,10 @@ private:
 public:
 	PM();
 	static inline Thread *GetCurrentThread() { return Thread::GetCurrent(); }
-	Process *CreateProcess(Thread::ThreadEntry entry, void *arg = 0, int priority = DEF_PRIORITY);
-	Process *CreateProcess(const char *path, int priority = DEF_PRIORITY);
+	Process *CreateProcess(Thread::ThreadEntry entry, void *arg = 0,
+		const char *name = 0, int priority = DEF_PRIORITY);
+	Process *CreateProcess(const char *path, const char *name = 0,
+		int priority = DEF_PRIORITY);
 	int DestroyProcess(Process *proc);
 	void AttachCPU(Thread::ThreadEntry kernelProcEntry = 0, void *arg = 0) __noreturn;
 	inline Process *GetKernelProc() { return kernelProc; }
@@ -281,6 +299,10 @@ public:
 	int FreeSleepChannel(waitid_t channelID); /* do not need to be called if Sleep() was called */
 	int Wakeup(waitid_t channelID);
 	int Wakeup(void *channelID);
+
+	int ValidateState();
+	CPU *SelectCPU(); /* select the most suitable CPU for new task */
+	static const char *StrProcessFault(ProcessFault flt);
 };
 
 extern PM *pm;

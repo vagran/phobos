@@ -52,6 +52,7 @@ GateSysEntry:
 	movl	$KDATASEL, %ecx
 	movl	%ecx, %ds
 	movl	%ecx, %es
+	sti					/* sysenter clears IF */
 	pushl	%edx /* original stack pointer */
 	subl	$GATE_AREA_ADDRESS, %eax
 	xorl	%edx, %edx

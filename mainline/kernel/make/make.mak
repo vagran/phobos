@@ -73,11 +73,11 @@ endif
 
 ifeq ($(DO_RAMDISK),1)
 $(RAMDISK_FILE):
-	$(MAKE) -C $(PHOBOS_ROOT)/mfs all
+	@$(MAKE) -C $(PHOBOS_ROOT)/mfs all
 endif
 
 $(SUBDIRS_TARGET):
-	$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)
+	@$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)
 
 $(COMPILE_DIR):
 	if [ ! -d $@ ]; then mkdir $@; fi

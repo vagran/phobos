@@ -23,6 +23,7 @@ TrapTable:
 /* unified trap/exception/interrupt entry */
 .globl TrapEntry
 TrapEntry:
+	cli
 	pushl	%eax
 	movl	$TrapHandler, %eax
 	call	*%eax
@@ -65,13 +66,14 @@ TrapHandler:
 	movl	$KDATASEL, %eax
 	movl	%eax, %ds
 	movl	%eax, %es
-	pushl	%esp /* argument for handler - frame pointer */
+	movl	%esp, %eax
+	pushl	%eax /* argument for OnTrapRet - frame pointer */
+	pushl	%eax /* argument for trap handler - frame pointer */
 	/* call high-level handler */
 	call	OnTrap
 	addl	$4, %esp
-	testl	$3, FRAME_CS(%esp) /* check RPL of code selector */
-	je		1f
-	call	OnUserRet
-1:	POP_FRAME
+	call	OnTrapRet
+	addl	$4, %esp
+	POP_FRAME
 	addl	$8, %esp /* vector index and error code */
 	iret

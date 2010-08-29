@@ -81,6 +81,7 @@ PM::IdleThread()
 	assert(cpu);
 	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
 	assert(rq);
+	sti();
 	while (1) {
 		Thread *thrd = rq->SelectThread();
 		assert(thrd);
@@ -120,7 +121,7 @@ PM::FreeSleepEntry(SleepEntry *p)
 }
 
 PM::Process *
-PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg,
+PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg, const char *name,
 		int priority, int isKernelProc, int runIt)
 {
 	pid_t pid = AllocatePID();
@@ -133,7 +134,7 @@ PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg,
 		ReleasePID(pid);
 		return 0;
 	}
-	if (proc->Initialize(priority, isKernelProc)) {
+	if (proc->Initialize(priority, name, isKernelProc)) {
 		DELETE(proc);
 		ReleasePID(pid);
 		klog(KLOG_WARNING, "Failed to initialize new process");
@@ -167,9 +168,10 @@ PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg,
 }
 
 PM::Process *
-PM::CreateProcess(Thread::ThreadEntry entry, void *arg, int priority)
+PM::CreateProcess(Thread::ThreadEntry entry, void *arg, const char *name,
+	int priority)
 {
-	return IntCreateProcess(entry, arg, priority);
+	return IntCreateProcess(entry, arg, name, priority);
 }
 
 int
@@ -207,7 +209,7 @@ PM::ProcessEntry(void *arg)
 }
 
 PM::Process *
-PM::CreateProcess(const char *path, int priority)
+PM::CreateProcess(const char *path, const char *name, int priority)
 {
 	VFS::File *file = vfs->CreateFile(path);
 	if (!file) {
@@ -217,7 +219,10 @@ PM::CreateProcess(const char *path, int priority)
 	if (!il) {
 		return 0;
 	}
-	Process *proc = IntCreateProcess(ProcessEntry, 0, priority, 0, 0);
+	if (!name) {
+		name = path;
+	}
+	Process *proc = IntCreateProcess(ProcessEntry, 0, name, priority, 0, 0);
 	if (!proc) {
 		il->Release();
 		return 0;
@@ -263,7 +268,8 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 	assert((!kernelProc && kernelProcEntry) || (kernelProc && !kernelProcEntry));
 	if (kernelProcEntry) {
 		/* create kernel process */
-		kernelProc = IntCreateProcess(kernelProcEntry, arg, KERNEL_PRIORITY, 1);
+		kernelProc = IntCreateProcess(kernelProcEntry, arg, "[kernel]",
+			KERNEL_PRIORITY, 1);
 	}
 	ensure(kernelProc);
 	/* create idle thread */
@@ -281,6 +287,51 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 		idleThread->SwitchTo();
 	}
 	NotReached();
+}
+
+int
+PM::ValidateState()
+{
+	Thread *thrd = Thread::GetCurrent();
+	if (thrd->state != Thread::S_RUNNING) {
+		/* Currently active thread should be stopped, switch to another one */
+		CPU *cpu = CPU::GetCurrent();
+		assert(cpu);
+		Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
+		assert(rq);
+		Thread *nextThrd = rq->SelectThread();
+		/* at least idle thread should be there */
+		assert(nextThrd);
+		nextThrd->SwitchTo();
+	}
+	return 0;
+}
+
+CPU *
+PM::SelectCPU()
+{
+	/* XXX should implement load balancing */
+	return CPU::GetCurrent();
+}
+
+const char *
+PM::StrProcessFault(ProcessFault flt)
+{
+	switch (flt) {
+	case PFLT_GATE_OBJ:
+		return "Invalid gate object passed to system call";
+	case PFLT_GATE_OBJ_RELEASE:
+		return "Gate object release called without matching AddRef()";
+	case PFLT_GATE_METHOD:
+		return "Invalid gate method called";
+	case PFLT_GATE_STACK:
+		return "Invalid stack pointer when called gate method";
+	case PFLT_GATE_METHOD_RESTICTED:
+		return "Restricted gate method called";
+	case PFLT_PAGE_FAULT:
+		return "Page fault";
+	}
+	return "Unknown fault";
 }
 
 int
@@ -599,6 +650,7 @@ PM::Process::Process()
 	userMap = 0;
 	gateMap = 0;
 	gateArea = 0;
+	state = S_STOPPED;
 }
 
 PM::Process::~Process()
@@ -681,15 +733,58 @@ PM::Process::GetThread()
 }
 
 int
-PM::Process::Fault(ProcessFault flt)
+PM::Process::Stop()
 {
-	//notimpl
+	Thread *thrd;
+	thrdListLock.Lock();
+	LIST_FOREACH(Thread, list, thrd, threads) {
+		if (thrd->state != Thread::S_TERMINATED) {
+			thrd->Stop();
+		}
+	}
+	thrdListLock.Unlock();
+	state = S_STOPPED;
 	return 0;
 }
 
 int
-PM::Process::Initialize(u32 priority, int isKernelProc)
+PM::Process::Resume()
 {
+	if (state != S_STOPPED) {
+		return -1;
+	}
+	state = S_RUNNING;
+	Thread *thrd;
+	thrdListLock.Lock();
+	LIST_FOREACH(Thread, list, thrd, threads) {
+		if (thrd->state != Thread::S_TERMINATED) {
+			thrd->Run();
+		}
+	}
+	thrdListLock.Unlock();
+	state = S_STOPPED;
+	return 0;
+}
+
+int
+PM::Process::Fault(ProcessFault flt, const char *msg, ...)
+{
+	if (msg) {
+		va_list args;
+		va_start(args, msg);
+		faultStr.FormatV(msg, args);
+	}
+	Stop();
+	state = S_TERMINATED;
+	klog(KLOG_WARNING, "Process %u (%s) failed: %s", GetID(), name.GetBuffer(),
+		faultStr.GetBuffer());
+	return 0;
+}
+
+int
+PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
+{
+	this->name = name;
 	if (isKernelProc) {
 		this->priority = KERNEL_PRIORITY;
 		map = mm->kmemMap;
@@ -714,6 +809,7 @@ PM::Process::Initialize(u32 priority, int isKernelProc)
 	if (!isKernelProc) {
 		gateArea = gm->CreateGateArea(this);
 	}
+	state = S_RUNNING;
 	return 0;
 }
 
@@ -749,6 +845,7 @@ PM::Thread::Thread(Process *proc)
 	stackObj = 0;
 	stackEntry = 0;
 	cpu = 0;
+	isActive = 1;
 	memset(&ctx, 0, sizeof(ctx));
 	priority = DEF_PRIORITY;
 	waitEntry = 0;
@@ -864,10 +961,10 @@ PM::Thread::GetCurrent()
 int
 PM::Thread::Run(CPU *cpu)
 {
-	assert(state == S_NONE);
+	assert(state == S_NONE || state == S_STOPPED);
 	if (!cpu) {
-		/* XXX should balance load */
-		cpu = CPU::GetCurrent();
+		/* do load balancing */
+		cpu = pm->SelectCPU();
 	}
 	assert(cpu);
 	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
@@ -877,12 +974,28 @@ PM::Thread::Run(CPU *cpu)
 int
 PM::Thread::Stop()
 {
-	if (state != S_RUNNING) {
-		return -1;
+	if (state == S_STOPPED) {
+		return 0;
 	}
-	Runqueue *rq = GetRunqueue();
-	assert(rq);
-	rq->RemoveThread(this);
+	if (state == S_SLEEP) {
+		pm->tqLock.Lock();
+		pm->UnsleepThread(this);
+		pm->tqLock.Unlock();
+		Unsleep();
+	} else {
+		assert(state == S_RUNNING);
+		Runqueue *rq = GetRunqueue();
+		assert(rq);
+		CPU *cpu = this->cpu;
+		rq->RemoveThread(this); /* state is S_NONE now */
+		if (isActive) {
+			if (this != rq->GetCurrentThread()) {
+				/* Thread is currently active on some another CPU */
+				cpu->DeactivateThread();
+			}
+		}
+	}
+	state = S_STOPPED;
 	return 0;
 }
 
@@ -940,6 +1053,7 @@ PM::Thread::SwitchTo()
 {
 	assert(state == S_RUNNING);
 	assert(cpu == CPU::GetCurrent());
+
 	Thread *prev = GetCurrent();
 	/* switch address space if it is another process */
 	u32 asRoot;
@@ -949,6 +1063,7 @@ PM::Thread::SwitchTo()
 		asRoot = 0;
 	}
 	if (prev) {
+		prev->isActive = 0;
 		if (prev->SaveContext(&prev->ctx)) {
 			/* switched to this thread */
 			return;
@@ -956,6 +1071,7 @@ PM::Thread::SwitchTo()
 	}
 	Runqueue *rq = GetRunqueue();
 	rq->curThread = this;
+	isActive = 1;
 	RestoreContext(&ctx, asRoot);
 }
 
@@ -1029,4 +1145,22 @@ PM::Thread::~Thread()
 	if (stackObj) {
 		stackObj->Release();
 	}
+}
+
+int
+PM::Thread::Fault(ProcessFault flt, const char *msg, ...)
+{
+	if (msg) {
+		va_list args;
+		va_start(args, msg);
+		faultStr.FormatV(msg, args);
+	}
+	klog(KLOG_WARNING, "Thread %u (process %u) failed: %s: %s", GetID(),
+		proc->GetID(), PM::StrProcessFault(flt), faultStr.GetBuffer());
+	switch (flt) {
+	default:
+		proc->Fault(flt, "Fault \"%s\" occurred in thread %u",
+			PM::StrProcessFault(flt), GetID());
+	}
+	return 0;
 }

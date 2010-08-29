@@ -215,7 +215,9 @@ sprintf(char *buf, const char *fmt,...)
 	va_list va;
 	va_start(va, fmt);
 	int len = kvprintf(fmt, 0, buf, 10, va);
-	buf[len] = 0;
+	if (buf) {
+		buf[len] = 0;
+	}
 	return len;
 }
 
@@ -225,7 +227,7 @@ snprintf(char *buf, int bufSize, const char *fmt,...)
 	va_list va;
 	va_start(va, fmt);
 	int len = kvprintf(fmt, 0, buf, 10, va, bufSize);
-	if (bufSize) {
+	if (buf && bufSize) {
 		buf[len] = 0;
 	}
 	return len;
@@ -235,7 +237,9 @@ int
 vsprintf(char *buf, const char *fmt, va_list arg)
 {
 	int len = kvprintf(fmt, 0, buf, 10, arg);
-	buf[len] = 0;
+	if (buf) {
+		buf[len] = 0;
+	}
 	return len;
 }
 
@@ -243,7 +247,7 @@ int
 vsnprintf(char *buf, int bufSize, const char *fmt, va_list arg)
 {
 	int len = kvprintf(fmt, 0, buf, 10, arg, bufSize);
-	if (bufSize) {
+	if (buf && bufSize) {
 		buf[len] = 0;
 	}
 	return len;
@@ -285,7 +289,7 @@ kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap, int m
 	if (maxOut) { \
 		int cc=(c); \
 		if (func) (*func)(cc, arg); \
-		else *d++ = cc; \
+		else if (d) *d++ = cc; \
 		retval++; \
 		if (maxOut != -1) maxOut--; \
 	} else stop = 1; \
@@ -689,7 +693,7 @@ u32 hashtable[256] = {
 u32
 gethash(const char *s)
 {
-	u32 hash = 0x5a5a5a5a;
+	u32 hash = 0x5a5aa5a5;
 	while (*s) {
 		u8 c = *(u8 *)s++;
 		hash += hashtable[c];
@@ -702,7 +706,7 @@ gethash(const char *s)
 u32
 gethash(u8 *data, u32 size)
 {
-	u32 hash = 0x5a5a5a5a;
+	u32 hash = 0x5a5aa5a5;
 	while (size) {
 		u8 c = *data++;
 		hash += hashtable[c];
@@ -716,7 +720,7 @@ gethash(u8 *data, u32 size)
 u64
 gethash64(const char *s)
 {
-	u64 hash = 0x5a5a5a5aa5a5a5a5ull;
+	u64 hash = 0x5a5aa5a5a5a55a5aull;
 	while (*s) {
 		u8 c = *(u8 *)s++;
 		hash += (u64)hashtable[c] | ((u64)hashtable[c * (c + 5)] << 32);
@@ -731,7 +735,7 @@ gethash64(const char *s)
 u64
 gethash64(u8 *data, u32 size)
 {
-	u64 hash = 0x5a5a5a5aa5a5a5a5ull;
+	u64 hash = 0x5a5aa5a5a5a55a5aull;
 	while (size) {
 		u8 c = *data++;
 		hash += (u64)hashtable[c] | ((u64)hashtable[c * (c + 5)] << 32);
@@ -1215,8 +1219,8 @@ vsscanf(const char *inp, char const *fmt0, va_list ap)
 	nassigned = 0;
 	nconversions = 0;
 	nread = 0;
-	base = 0;		/* XXX just to keep gcc happy */
-	ccfn = 0;		/* XXX just to keep gcc happy */
+	base = 0;
+	ccfn = 0;
 	for (;;) {
 		c = *fmt++;
 		if (c == 0)

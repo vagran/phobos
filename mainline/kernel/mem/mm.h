@@ -538,6 +538,7 @@ public:
 	static inline void OpDelete(void *p);
 	static void *malloc(u32 size, u32 align = 4, PageZone zone = ZONE_REST);
 	static void mfree(void *p);
+	static void *mrealloc(void *p, u32 size, u32 align = 4, PageZone zone = ZONE_REST);
 	static void *QuickMapEnter(paddr_t pa);
 	static void QuickMapRemove(vaddr_t va);
 	static void ZeroPage(paddr_t pa);

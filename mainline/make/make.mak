@@ -86,7 +86,7 @@ $(OBJ_DIR)/%.o: %.S
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -o $@ $<
 
 $(SUBDIRS_TARGET):
-	$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)
+	@$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)
 
 $(COMPILE_DIR):
 	if [ ! -d $@ ]; then mkdir $@; fi
@@ -103,7 +103,7 @@ endif
 
 ifdef REQUIRE_RUNTIME_LIB
 $(APP_RUNTIME_LIB):
-	$(MAKE) -C $(PHOBOS_ROOT)/lib/startup
+	@$(MAKE) -C $(PHOBOS_ROOT)/lib/startup
 endif
 
 ifdef INSTALL_DIR

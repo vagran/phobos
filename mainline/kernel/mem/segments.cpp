@@ -199,7 +199,7 @@ IDT::HandleTrap(Frame *frame)
 	if (!p->handler) {
 		if (!utHandler.handler) {
 			u32 esp;
-			if (((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
+			if (GDT::GetRPL(frame->cs) == GDT::PL_USER) {
 				esp = frame->esp;
 			} else {
 				esp = (u32)&frame->esp;

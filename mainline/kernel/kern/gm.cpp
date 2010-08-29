@@ -276,7 +276,8 @@ GateObject::~GateObject()
 {
 	/* destructor should never be called from user-land */
 	if (!userMode) {
-		PM::Process::GetCurrent()->Fault(PM::PFLT_GATE_METHOD_RESTICTED);
+		PM::Thread::GetCurrent()->Fault(PM::PFLT_GATE_METHOD_RESTICTED,
+			"Destructor called from user-land");
 		return;
 	}
 
@@ -307,7 +308,7 @@ int
 GateObject::Release()
 {
 	if (!refCount) {
-		/* XXX send signal */
+		PM::Thread::GetCurrent()->Fault(PM::PFLT_GATE_OBJ_RELEASE);
 		return -1;
 	}
 	int rc = --refCount;
@@ -387,7 +388,7 @@ GateEntry(void *entryAddr, GateObject *obj)
 {
 	/* entered in user mode */
 	if (GateObject::Validate(obj)) {
-		PM::Process::GetCurrent()->Fault(PM::PFLT_GATE_OBJ);
+		PM::Thread::GetCurrent()->Fault(PM::PFLT_GATE_OBJ);
 	}
 	return 0;
 }
@@ -422,25 +423,25 @@ ASMCALL FUNC_PTR
 GateObjValidateCall(u32 idx, vaddr_t esp)
 {
 	CPU::RestoreSelector(); /* restore per-CPU segment selector */
-	PM::Process *proc = PM::Process::GetCurrent();
-	assert(proc);
 
 	/* validate stack */
 	PM::Thread *thrd = PM::Thread::GetCurrent();
 	assert(thrd);
 	if (!thrd->IsValidSP(esp) || thrd->MapKernelStack(esp)) {
-		proc->Fault(PM::PFTL_GATE_STACK);
+		thrd->Fault(PM::PFLT_GATE_STACK, "Not valid stack pointer: 0x%08lx", esp);
 		return 0;
 	}
 
 	GateObject *obj = ((GateObject **)esp)[1];
 	if (GateObject::Validate(obj)) {
-		proc->Fault(PM::PFLT_GATE_OBJ);
+		thrd->Fault(PM::PFLT_GATE_OBJ, "Not valid object: 0x%08lx", (u32)obj);
 		return 0;
 	}
 	FUNC_PTR method = GateObjGetOrigMethod(obj, idx);
 	if (!method) {
-		proc->Fault(PM::PFLT_GATE_METHOD);
+		thrd->Fault(PM::PFLT_GATE_METHOD,
+			"Invalid method index (%lu) for object 0x%08lx (%s)",
+			idx, (u32)obj, obj->GetClassName());
 		return 0;
 	}
 	obj->UpdateCallStat(idx, 1);

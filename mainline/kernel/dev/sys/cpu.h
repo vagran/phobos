@@ -43,7 +43,8 @@ private:
 	u32 version, ebx1;
 	u32 feat1, feat2;
 	u32 intrNesting;
-	u32 intrServiced;
+	u32 trapNesting;
+	u64 intrServiced, trapsHandled;
 
 	/* private per-CPU segment referenced by %fs selector */
 	typedef struct {
@@ -61,11 +62,14 @@ private:
 	vaddr_t smpGDT;
 	u8 *initialStack;
 	TSS *tss;
+	static int dthRegistered; /* DeactivateThreadHandler registered */
+	int setAST;
 
 	int GetInfo();
 	int StartAPs(u32 vector);
 	vaddr_t InstallTrampoline();
 	void UninstallTrampoline(vaddr_t va);
+	int DeactivateThreadHandler(Frame *frame);
 public:
 	DeclareDevFactory();
 	CPU(Type type, u32 unit, u32 classID);
@@ -81,6 +85,14 @@ public:
 	LAPIC *GetLapic();
 	int Activate(StartupFunc func, void *arg = 0, u32 stackSize = DEF_KERNEL_STACK_SIZE);
 	void NestInterrupt(int nestIn = 1); /* nestIn zero for nest out */
+	void NestTrap(int nestIn = 1); /* nestIn zero for nest out */
+	int SendIPI(LAPIC::IPIType type);
+	int DeactivateThread(); /* Deactivate currently active thread */
+	/* Asynchronous System Trap, call OnUserRet when returning from trap */
+	inline void SetAST() { setAST = 1; }
+	inline int IsSetAST() { return setAST; }
+	inline void ClearAST() { setAST = 0; }
+	inline int GetTrapNesting() { return trapNesting; }
 };
 
 extern "C" u8 APBootEntry, APBootEntryEnd, APstack;
