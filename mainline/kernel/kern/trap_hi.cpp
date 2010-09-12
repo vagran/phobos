@@ -54,7 +54,9 @@ OnTrap(Frame *frame)
 		cpu->NestTrap();
 	}
 	if (frame->eflags & EFLAGS_IF) {
-		sti();
+		if (cpu && cpu->GetTrapNesting() < CPU::MAX_TRAP_NESTING) {
+			sti();
+		}
 	}
 	if (idt) {
 		return idt->HandleTrap(frame);

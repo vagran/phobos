@@ -11,11 +11,11 @@ phbSource("$Id$");
 
 extern int Main(GApp *app);
 
-extern "C" int AppStart(GApp *app);
+extern "C" void AppStart(GApp *app);
 
-int
+void
 AppStart(GApp *app)
 {
-	int rc = Main(app);
-	return rc;
+	app->ExitThread(Main(app));
+	/* NOT REACHED */
 }

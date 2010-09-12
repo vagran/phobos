@@ -164,11 +164,23 @@ rdtsc()
 	return x;
 }
 
-#define hlt() ASM ("hlt")
+static inline void
+hlt()
+{
+	ASM("hlt");
+}
 
-#define cli() ASM ("cli")
+static inline void
+cli()
+{
+	ASM("cli");
+}
 
-#define sti() ASM ("sti")
+static inline void
+sti()
+{
+	ASM("sti");
+}
 
 static __inline void
 lgdt(void *p)

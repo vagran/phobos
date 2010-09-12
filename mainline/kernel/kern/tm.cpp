@@ -189,22 +189,22 @@ TM::AddTimer(Timers *timers, Timer *t)
 	u64 x = im->SetPL(IM::IP_TIMER);
 	timers->lock.Lock();
 	t->timers = timers;
-	u64 delta = t->nextRun - timers->nextRun;
-	if (delta > 0xffffffffull) {
-		klog(KLOG_WARNING, "Too big timeout specified, reducing to maximal allowed: %llu",
+	i64 delta = t->nextRun - timers->nextRun;
+	if (delta > 0xffffffffll) {
+		klog(KLOG_WARNING, "Too big timeout specified, reducing to maximal allowed: %lld",
 			delta);
 		delta = 0xffffffffull;
 		t->nextRun = timers->nextRun + delta;
 	}
 	ListHead *head = 0;
-	if ((i64)delta < 0) {
+	if (delta < 0) {
 		/* Timer expires in the past. Schedule him now. */
 		head = &timers->qRoot[timers->nextRun & ((1 << TIMER_HASHBITS_ROOT) - 1)];
 	} else if (delta < (1 << TIMER_HASHBITS_ROOT)) {
 		head = &timers->qRoot[t->nextRun & ((1 << TIMER_HASHBITS_ROOT) - 1)];
 	} else {
 		for (int qn = 1; qn < TIMER_HASH_NODES; qn++) {
-			if (delta < (1ull << (TIMER_HASHBITS_ROOT + qn * TIMER_HASHBITS_NODE))) {
+			if (delta < (1ll << (TIMER_HASHBITS_ROOT + qn * TIMER_HASHBITS_NODE))) {
 				head = &timers->qNodes[qn - 1].head[(t->nextRun >>
 					(TIMER_HASHBITS_ROOT + (qn - 1) * TIMER_HASHBITS_NODE)) &
 					((1 << TIMER_HASHBITS_NODE) - 1)];

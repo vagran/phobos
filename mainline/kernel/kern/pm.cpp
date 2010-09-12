@@ -686,10 +686,10 @@ PM::Process::DeleteThread(Thread *t)
 }
 
 int
-PM::Process::TerminateThread(Thread *thrd)
+PM::Process::TerminateThread(Thread *thrd, u32 exitCode)
 {
 	assert(thrd->GetProcess() == this);
-	thrd->Terminate();
+	thrd->Terminate(exitCode);
 	thrdListLock.Lock();
 	numAliveThreads--;
 	thrdListLock.Unlock();
@@ -874,10 +874,10 @@ ASM (
 extern "C" void _OnThreadExit();
 
 void
-PM::Thread::Exit(u32 exitCode)
+PM::Thread::Exit(int exitCode)
 {
 	assert(GetCurrent() == this);
-	proc->TerminateThread(this);
+	proc->TerminateThread(this, exitCode);
 	/* switch to another thread */
 	CPU *cpu = CPU::GetCurrent();
 	assert(cpu);
@@ -1000,10 +1000,11 @@ PM::Thread::Stop()
 }
 
 int
-PM::Thread::Terminate()
+PM::Thread::Terminate(int exitCode)
 {
 	Dequeue();
 	state = S_TERMINATED;
+	this->exitCode = exitCode;
 	proc->userMap->Free(stackEntry);
 	stackEntry = 0;
 	stackObj->Release();

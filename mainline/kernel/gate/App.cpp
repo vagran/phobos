@@ -27,3 +27,15 @@ GApp::GetPID()
 {
 	return proc->GetID();
 }
+
+PM::pid_t
+GApp::GetThreadID()
+{
+	return PM::Thread::GetCurrent()->GetID();
+}
+
+void
+GApp::ExitThread(int exitCode)
+{
+	PM::Thread::GetCurrent()->Exit(exitCode);
+}

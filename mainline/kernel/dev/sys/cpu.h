@@ -19,6 +19,7 @@ class CPU : public Device {
 public:
 	enum {
 		DEF_KERNEL_STACK_SIZE = 128 * 1024,
+		MAX_TRAP_NESTING = 16,
 	};
 
 	typedef int (*StartupFunc)(void *arg);

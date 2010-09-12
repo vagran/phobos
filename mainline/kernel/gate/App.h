@@ -21,6 +21,8 @@ public:
 	virtual ~GApp();
 
 	virtual PM::pid_t GetPID();
+	virtual PM::pid_t GetThreadID();
+	virtual void ExitThread(int exitCode = 0) __noreturn;
 
 	DECLARE_GCLASS_IMP(GApp);
 };

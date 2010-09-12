@@ -412,7 +412,9 @@ Debugger::GetLine()
 	lbSize = 0;
 	while (1) {
 		u8 c;
-		while (con->Getc(&c) != Device::IOS_OK);
+		while (con->Getc(&c) != Device::IOS_OK) {
+			pause();
+		}
 		switch (c) {
 		case '\n':
 		case '\r':

@@ -377,6 +377,9 @@ IM::CallClient(IrqClient *ic, int stiEnabled)
 	CPU *cpu = CPU::GetCurrent();
 	if (cpu) {
 		cpu->NestInterrupt();
+		if (cpu->GetTrapNesting() >= CPU::MAX_TRAP_NESTING) {
+			stiEnabled = 0;
+		}
 	}
 
 	/* disable requested interrupts */

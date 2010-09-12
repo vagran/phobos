@@ -120,6 +120,7 @@ public:
 		int wakenByTimeout:1;
 		void *rqQueue; /* active or expired queue */
 		State state;
+		int exitCode;
 		String faultStr;
 		int isActive; /* currently running on some CPU */
 	public:
@@ -128,7 +129,7 @@ public:
 
 		int Initialize(ThreadEntry entry, void *arg = 0,
 			u32 stackSize = DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
-		void Exit(u32 exitCode) __noreturn;
+		void Exit(int exitCode) __noreturn;
 		int SaveContext(Context *ctx); /* return 0 for caller, 1 for restored thread */
 		void RestoreContext(Context *ctx, u32 asRoot = 0); /* jump to SaveContext */
 		void SwitchTo(); /* thread must be in same CPU runqueue with the current thread */
@@ -137,7 +138,7 @@ public:
 		int Stop();
 		int Sleep(void *waitEntry, const char *waitString, Handle waitTimeout = 0);
 		int Unsleep();
-		int Terminate();
+		int Terminate(int exitCode = 0);
 		int Dequeue();
 		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
 		inline Process *GetProcess() { return proc; }
@@ -187,7 +188,7 @@ public:
 		int Initialize(u32 priority, const char *name = 0, int isKernelProc = 0);
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
-		int TerminateThread(Thread *thrd);
+		int TerminateThread(Thread *thrd, u32 exitCode = 0);
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 		Thread *GetThread();
 		inline MM::Map *GetMap() { return map; }
