@@ -318,6 +318,8 @@ const char *
 PM::StrProcessFault(ProcessFault flt)
 {
 	switch (flt) {
+	case PFLT_NONE:
+		return "No fault";
 	case PFLT_GATE_OBJ:
 		return "Invalid gate object passed to system call";
 	case PFLT_GATE_OBJ_RELEASE:
@@ -650,6 +652,7 @@ PM::Process::Process()
 	userMap = 0;
 	gateMap = 0;
 	gateArea = 0;
+	fault = PFLT_NONE;
 	state = S_STOPPED;
 }
 
@@ -680,19 +683,23 @@ int
 PM::Process::DeleteThread(Thread *t)
 {
 	assert(t != Thread::GetCurrent());
-	t->Dequeue();
+	t->Stop();
 	DELETE(t);
 	return 0;
 }
 
 int
-PM::Process::TerminateThread(Thread *thrd, u32 exitCode)
+PM::Process::TerminateThread(Thread *thrd, int exitCode)
 {
 	assert(thrd->GetProcess() == this);
 	thrd->Terminate(exitCode);
 	thrdListLock.Lock();
 	numAliveThreads--;
 	thrdListLock.Unlock();
+	if (!numAliveThreads) {
+		Stop();
+		state = S_TERMINATED;
+	}
 	return 0;
 }
 
@@ -769,6 +776,7 @@ PM::Process::Resume()
 int
 PM::Process::Fault(ProcessFault flt, const char *msg, ...)
 {
+	fault = flt;
 	if (msg) {
 		va_list args;
 		va_start(args, msg);
@@ -846,6 +854,8 @@ PM::Thread::Thread(Process *proc)
 	stackEntry = 0;
 	cpu = 0;
 	isActive = 1;
+	exitCode = 0;
+	fault = PFLT_NONE;
 	memset(&ctx, 0, sizeof(ctx));
 	priority = DEF_PRIORITY;
 	waitEntry = 0;
@@ -878,6 +888,7 @@ PM::Thread::Exit(int exitCode)
 {
 	assert(GetCurrent() == this);
 	proc->TerminateThread(this, exitCode);
+
 	/* switch to another thread */
 	CPU *cpu = CPU::GetCurrent();
 	assert(cpu);
@@ -1002,13 +1013,9 @@ PM::Thread::Stop()
 int
 PM::Thread::Terminate(int exitCode)
 {
-	Dequeue();
+	Stop();
 	state = S_TERMINATED;
 	this->exitCode = exitCode;
-	proc->userMap->Free(stackEntry);
-	stackEntry = 0;
-	stackObj->Release();
-	stackObj = 0;
 	return 0;
 }
 
@@ -1031,20 +1038,6 @@ PM::Thread::Unsleep()
 	waitEntry = 0;
 	waitString = 0;
 	waitTimeout = 0;
-	return 0;
-}
-
-int
-PM::Thread::Dequeue()
-{
-	if (state == S_RUNNING) {
-		Stop();
-	} else if (state == S_SLEEP) {
-		pm->tqLock.Lock();
-		pm->UnsleepThread(this);
-		pm->tqLock.Unlock();
-		Unsleep();
-	}
 	return 0;
 }
 
@@ -1143,14 +1136,21 @@ PM::Thread::~Thread()
 	pm->procListLock.Unlock();
 	pm->ReleasePID(GetID());
 
+	if (stackEntry) {
+		proc->userMap->Free(stackEntry);
+		stackEntry = 0;
+	}
+
 	if (stackObj) {
 		stackObj->Release();
+		stackObj = 0;
 	}
 }
 
 int
 PM::Thread::Fault(ProcessFault flt, const char *msg, ...)
 {
+	fault = flt;
 	if (msg) {
 		va_list args;
 		va_start(args, msg);

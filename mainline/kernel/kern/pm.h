@@ -19,6 +19,7 @@ public:
 	typedef u32 waitid_t;
 
 	enum ProcessFault {
+		PFLT_NONE,
 		PFLT_GATE_OBJ, /* Invalid gate object passed to system call */
 		PFLT_GATE_OBJ_RELEASE, /* Gate object release called without matching AddRef() */
 		PFLT_GATE_METHOD, /* Invalid gate method called */
@@ -121,6 +122,7 @@ public:
 		void *rqQueue; /* active or expired queue */
 		State state;
 		int exitCode;
+		ProcessFault fault;
 		String faultStr;
 		int isActive; /* currently running on some CPU */
 	public:
@@ -139,7 +141,6 @@ public:
 		int Sleep(void *waitEntry, const char *waitString, Handle waitTimeout = 0);
 		int Unsleep();
 		int Terminate(int exitCode = 0);
-		int Dequeue();
 		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
 		inline Process *GetProcess() { return proc; }
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
@@ -172,6 +173,7 @@ public:
 		GM::GateArea *gateArea;
 		String faultStr;
 		State state;
+		ProcessFault fault;
 		String name;
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
@@ -188,7 +190,7 @@ public:
 		int Initialize(u32 priority, const char *name = 0, int isKernelProc = 0);
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
-		int TerminateThread(Thread *thrd, u32 exitCode = 0);
+		int TerminateThread(Thread *thrd, int exitCode = 0);
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 		Thread *GetThread();
 		inline MM::Map *GetMap() { return map; }

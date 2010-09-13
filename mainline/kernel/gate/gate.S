@@ -37,14 +37,11 @@ GateKernEntry:
 	movl	$GATE_ENTRY_SIZE, %ecx
 	idivl	%ecx		/* method index in %eax now */
 	movl	4(%esp), %edx /* pointer to object */
-	pushl	%edx
 	pushl	%eax
 	pushl	%edx
 	call	GateObjGetOrigMethod
 	addl	$8, %esp
-	call	*%eax
-	addl	$4, %esp
-	ret
+	jmp		*%eax
 
 /* Kernel system calls entry point */
 .globl GateSysEntry
@@ -94,12 +91,14 @@ GateSysEntry:
 	lea		8(%esp), %ecx /* user stack pointer */
 
 	/* restore user segments selectors */
+	pushl	%ebx
 	movl	$UDATASEL, %ebx
 	movl	%ebx, %ds
 	movl	%ebx, %es
 	xorl	%ebx, %ebx
 	movl	%ebx, %fs
 	movl	%ebx, %gs
+	popl	%ebx
 
 	sysexit /* %edx - user %eip, %ecx - user %esp */
 
