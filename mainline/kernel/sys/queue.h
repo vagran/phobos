@@ -165,7 +165,7 @@ public:
 	} TreeRoot;
 
 	static TreeEntry *FindNode(TreeRoot &root, key_t key) __noinline;
-	static void AddNode(TreeRoot &root, TreeEntry *node) __noinline; /* key must be set in 'node' */
+	static TreeEntry *AddNode(TreeRoot &root, TreeEntry *node) __noinline; /* key must be set in 'node' */
 	static void DeleteNode(TreeRoot &root, TreeEntry *node) __noinline;
 	static TreeEntry *GetNextNode(TreeRoot &root, TreeEntry *node) __noinline;
 	static int CheckTree(TreeRoot &root) __noinline;
@@ -195,9 +195,32 @@ public:
 		TREE_DATA(type, entry, __Xp); \
 	})
 
-#define TREE_ADD(entry, var, root, keyValue) { \
+#define TREE_ADD(entry, var, root, keyValue) ({ \
 	(var)->entry.key = keyValue; \
 	Tree<typeof ((var)->entry.key)>::AddNode((root), &(var)->entry); \
+})
+
+#define TREE_REPLACE(entry, var, root, newvar) { \
+	(newvar)->entry.key = (var)->entry.key; \
+	(newvar)->entry.mask = (var)->entry.mask; \
+	if ((var)->entry.parent) { \
+		if ((var)->entry.parent->right == &(var)->entry) { \
+			(var)->entry.parent->right = &(newvar)->entry; \
+		} else { \
+			assert((var)->entry.parent->left == &(var)->entry); \
+			(var)->entry.parent->left = &(newvar)->entry; \
+		} \
+	} \
+	(newvar)->entry.right = (var)->entry.right; \
+	if ((var)->entry.right) { \
+		assert((var)->entry.right->parent == &(var)->entry); \
+		(var)->entry.right->parent = &(newvar)->entry; \
+	} \
+	(newvar)->entry.left = (var)->entry.left; \
+	if ((var)->entry.left) { \
+		assert((var)->entry.left->parent == &(var)->entry); \
+		(var)->entry.left->parent = &(newvar)->entry; \
+	} \
 }
 
 #define TREE_DELETE(entry, var, root) Tree<typeof ((var)->entry.key)>::DeleteNode((root), &(var)->entry)
@@ -212,5 +235,87 @@ public:
 	(var) = TREE_FIRST(type, entry, root); \
 	(var); \
 	(var) = TREE_NEXT(type, entry, var, root))
+
+/*
+ * String trees
+ *
+ */
+
+template <typename char_t>
+class StringTree {
+public:
+	typedef u32 hash_t;
+
+	struct _TreeEntry;
+	typedef struct _TreeEntry TreeEntry;
+	struct _TreeEntry {
+		char_t *key;
+		int keyLen; /* number of characters in the key */
+		Tree<hash_t>::TreeEntry tree;/* string hash in key */
+		TreeEntry *prev, *next;
+	};
+
+	typedef struct {
+		Tree<hash_t>::TreeRoot rootnode;
+	} TreeRoot;
+
+	static inline int KeyCompare(char_t *key1, int len1, char_t *key2, int len2) {
+		if (len1 != len2) {
+			return 1;
+		}
+		while (len1) {
+			if (*key1 != *key2) {
+				return 1;
+			}
+			key1++;
+			key2++;
+			len1--;
+		}
+		return 0;
+	}
+
+	static TreeEntry *FindNode(TreeRoot &root, char_t *key, int keyLen = -1) __noinline;
+	static void AddNode(TreeRoot &root, TreeEntry *node, char_t *key,
+		int keyLen = -1) __noinline;
+	static void DeleteNode(TreeRoot &root, TreeEntry *node) __noinline;
+	static TreeEntry *GetNextNode(TreeRoot &root, TreeEntry *node) __noinline;
+
+	static __volatile void CompilerStub(); /* do not call it! It is for internal magic. */
+};
+
+#define STREE_INIT(root)	TREE_INIT(root.rootnode)
+
+#define STREE_ISEMPTY(root)	(!(root).rootnode)
+
+#define STREE_DATA(type, entry, value) ((value) ? ((type *)(((u8 *)(value)) - OFFSETOF(type, entry))) : 0)
+
+#define STREE_KEY(entry, var)	((var)->entry.key)
+
+#define STREE_KEYLEN(entry, var)	((var)->entry.keyLen)
+
+#define STREE_ROOT(type, entry, root) STREE_DATA(type, entry, (root).rootnode)
+
+#define STREE_FIND(type, entry, root, keyValue, ...) \
+	({ \
+		void *__Xp = StringTree<typeof (*((type *)1)->entry.key)>::FindNode(root, keyValue, ## __VA_ARGS__); \
+		STREE_DATA(type, entry, __Xp); \
+	})
+
+#define STREE_ADD(entry, var, root, keyValue, ...) ({ \
+	StringTree<typeof (*(var)->entry.key)>::AddNode((root), &(var)->entry, keyValue, ## __VA_ARGS__); \
+})
+
+#define STREE_DELETE(entry, var, root) StringTree<typeof (*(var)->entry.key)>::DeleteNode((root), &(var)->entry)
+
+#define STREE_FIRST(type, entry, root) STREE_DATA(type, entry, \
+	StringTree<typeof (*((type *)1)->entry.key)>::GetNextNode(root, 0))
+
+#define STREE_NEXT(type, entry, var, root) STREE_DATA(type, entry, \
+	StringTree<typeof (*(var)->entry.key)>::GetNextNode(root, &(var)->entry))
+
+#define STREE_FOREACH(type, entry, var, root) for ( \
+	(var) = STREE_FIRST(type, entry, root); \
+	(var); \
+	(var) = STREE_NEXT(type, entry, var, root))
 
 #endif /* QUEUE_H_ */

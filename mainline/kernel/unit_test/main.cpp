@@ -117,6 +117,15 @@ ut_printf(const char *fmt,...)
 	va_end(va);
 }
 
+void
+ut_snprintf(char *buf, int size, const char *fmt, ...)
+{
+	va_list va;
+	va_start(va, fmt);
+	vsnprintf(buf, size, fmt, va);
+	va_end(va);
+}
+
 void *
 ut_malloc(int size, const char *file, int line)
 {

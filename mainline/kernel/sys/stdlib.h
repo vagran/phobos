@@ -56,9 +56,7 @@ ASMCALL i64 strtoq(const char *nptr, char **endptr, int base);
 ASMCALL u64 strtouq(const char *nptr, char **endptr, int base);
 
 u32 gethash(const char *s);
-u32 gethash(u8 *data, u32 size);
-u64 gethash64(const char *s);
-u64 gethash64(u8 *data, u32 size);
+u32 gethash(const u8 *data, u32 size);
 
 typedef void (*PutcFunc)(int c, void *arg);
 int kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap,

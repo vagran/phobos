@@ -320,3 +320,165 @@ TreeTest::Run()
 }
 
 MAKETEST(TreeTest, "Binary trees", "Binary trees verification test");
+
+/********************************************************************************/
+
+class StringTreeTest : public CTest {
+public:
+	StringTreeTest(const char *name, const char *desc);
+	virtual int Run();
+};
+
+StringTreeTest::StringTreeTest(const char *name, const char *desc) : CTest(name, desc)
+{
+}
+
+int
+StringTreeTest::Run()
+{
+	static const int numItems = 128 * 1024;
+	static int buf[numItems];
+	typedef struct
+	{
+		StringTree<char>::TreeEntry tree;
+		int data;
+		char key[32];
+	} Item;
+	static Item items[numItems];
+	Item *p;
+	StringTree<char>::TreeRoot root;
+
+	STREE_INIT(root);
+
+	ut_memset(buf, 0, sizeof(buf));
+	int numLeft = numItems;
+	while (numLeft) {
+		int idx = (int)((u64)ut_rand() * (numItems - 1) / UT_RAND_MAX);
+		int idx1 = idx;
+		while (1) {
+			if (!buf[idx]) {
+				buf[idx] = 1;
+				break;
+			}
+			idx++;
+			if (idx >= numItems) idx = 0;
+			if (idx == idx1) {
+				ut_printf("Can't find free item, %d should be left\n",
+					numLeft);
+				return -1;
+			}
+		}
+		items[idx].data = idx;
+		ut_snprintf(items[idx].key, sizeof(items[idx].key), "%x", idx);
+		STREE_ADD(tree, &items[idx], root, items[idx].key);
+		numLeft--;
+	}
+
+	ut_printf("Verifying tree searching...\n");
+	int numFound = 0, numValid = 0;
+	for (int i = 0; i < numItems; i++) {
+		char str[32];
+		ut_snprintf(str, sizeof(str), "%x", i);
+		p = STREE_FIND(Item, tree, root, str);
+		if (!p) {
+			ut_printf("Item not found, index=%d\n", i);
+			continue;
+		}
+		numFound++;
+		if (p->data != i) {
+			ut_printf("Invalid item found, data=%d, should be %d\n",
+				p->data, i);
+			continue;
+		}
+		numValid++;
+	}
+	ut_printf("%d found, %d valid, %d total\n", numFound, numValid, numItems);
+
+	ut_printf("Verifying tree walking...\n");
+	ut_memset(buf, 0, sizeof(buf));
+	int numDup = 0;
+	STREE_FOREACH(Item, tree, p, root) {
+		if (buf[p->data]) {
+			ut_printf("Duplicated enumeration, index=%d\n", p->data);
+			numDup++;
+		}
+		buf[p->data]++;
+	}
+	int numNonwalked = 0;
+	for (int i = 0; i < numItems; i++) {
+		if (!buf[i]) {
+			ut_printf("Non-enumerated item, index=%d\n", i);
+			numNonwalked++;
+		}
+	}
+	ut_printf(
+		"%d items enumerated more than once, %d items not enumerated\n",
+		numDup, numNonwalked);
+
+	ut_printf("Verifying deleting node...\n");
+	ut_memset(buf, 0, sizeof(buf));
+	for (int i = 0; i < 256; i++) {
+		int iDel = (int)((u64)ut_rand() * numItems / UT_RAND_MAX);
+		while (buf[iDel]) {
+			iDel++;
+			if (iDel >= numItems) iDel = 0;
+		}
+		buf[iDel] = 1;
+		STREE_DELETE(tree, &items[iDel], root);
+	}
+	/* searching should fail */
+	int numDelFound = 0;
+	for (int i = 0; i < numItems; i++) {
+		if (buf[i]) {
+			char str[32];
+			ut_snprintf(str, sizeof(str), "%x", i);
+			p = STREE_FIND(Item, tree, root, str);
+			if (p) {
+				ut_printf("Deleted node found, index=%d\n", p->data);
+				numDelFound++;
+			}
+		}
+	}
+	ut_printf("%d deleted nodes found\n", numDelFound);
+	int numDelDup = 0, numDelEnumed = 0;
+	STREE_FOREACH(Item, tree, p, root) {
+		if (buf[p->data] & 2) {
+			ut_printf("Duplicated enumeration, index=%d\n", p->data);
+			numDelDup++;
+		}
+		buf[p->data]|=2;
+		if (buf[p->data] & 1) {
+			ut_printf("Deleted node enumerated, index=%d\n", p->data);
+			numDelEnumed++;
+		}
+	}
+	ut_printf(
+		"%d deleted nodes found, %d deleted nodes enumerated, %d duplicated enumerations\n",
+		numDelFound, numDelEnumed, numDelDup);
+
+	int numDelNonwalked = 0, numDelNotFound = 0;
+	for (int i = 0; i < numItems; i++) {
+		if (!(buf[i] & 1)) {
+			if (!(buf[i] & 2)) {
+				ut_printf("Non-enumerated not deleted item, index=%d\n", i);
+				numDelNonwalked++;
+			}
+			char str[32];
+			ut_snprintf(str, sizeof(str), "%x", i);
+			p = STREE_FIND(Item, tree, root, str);
+			if (!p) {
+				ut_printf("Not found not deleted item, index=%d\n", i);
+				numDelNotFound++;
+			}
+		}
+	}
+	ut_printf(
+		"%d not deleted items not enumerated, %d not deleted items not found\n",
+		numDelNonwalked, numDelNotFound);
+
+	return (!numDelNotFound && !numDelNonwalked && !numDelEnumed && !numDelDup
+		&& !numDup && !numDelFound && numFound
+		== numItems && numValid == numItems && !numNonwalked) ? 0 : -1;
+}
+
+MAKETEST(StringTreeTest, "String trees", "String trees verification test");

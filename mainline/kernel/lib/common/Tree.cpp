@@ -10,7 +10,7 @@
 phbSource("$Id$");
 
 template <typename key_t>
-void
+typename Tree<key_t>::TreeEntry *
 Tree<key_t>::AddNode(TreeRoot &root, TreeEntry *node)
 {
 	if (!root.rootnode) {
@@ -19,13 +19,12 @@ Tree<key_t>::AddNode(TreeRoot &root, TreeEntry *node)
 		node->parent = 0;
 		node->mask = 1;
 		root.rootnode = node;
-		return;
+		return node;
 	}
 	TreeEntry *p = root.rootnode;
 	while (1) {
 		if (p->key == node->key) {
-			assert(p == node);
-			return;
+			return p;
 		}
 		if (node->key & p->mask) {
 			if (!p->right) {
@@ -45,6 +44,7 @@ Tree<key_t>::AddNode(TreeRoot &root, TreeEntry *node)
 	node->right = 0;
 	node->parent = p;
 	node->mask = p->mask << 1;
+	return node;
 }
 
 template <typename key_t>

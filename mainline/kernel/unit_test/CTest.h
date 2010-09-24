@@ -33,6 +33,9 @@
 void
 ut_printf(const char *fmt,...);
 
+void
+ut_snprintf(char *buf, int size, const char *fmt, ...);
+
 void *
 ut_malloc(int size, const char *file, int line);
 

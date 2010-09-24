@@ -9,12 +9,6 @@
 #include <sys.h>
 phbSource("$Id$");
 
-void
-__assert(const char *file, u32 line, const char *cond)
-{
-	panic("Assert failed at %s:%lu: '%s'", file, line, cond);
-}
-
 void *
 operator new(size_t size, void *location)
 {
@@ -111,6 +105,9 @@ tolower(int c)
 	return c;
 }
 
+#ifdef strlen
+#undef strlen
+#endif /* strlen */
 ASMCALL u32
 strlen(const char *str)
 {
@@ -120,6 +117,9 @@ strlen(const char *str)
 	return(s - str);
 }
 
+#ifdef strcpy
+#undef strcpy
+#endif /* strcpy */
 ASMCALL char *
 strcpy(char *dst, const char *src)
 {
@@ -182,6 +182,7 @@ strncmp(const char *s1, const char *s2, u32 len)
 	return *s2 - *s1;
 }
 
+#ifdef KERNEL
 ASMCALL char *
 strdup(const char *str)
 {
@@ -196,6 +197,7 @@ strdup(const char *str)
 	memcpy(p, str, len);
 	return p;
 }
+#endif /* KERNEL */
 
 ASMCALL char *
 strchr(const char *str, int c)
@@ -693,57 +695,39 @@ u32 hashtable[256] = {
 u32
 gethash(const char *s)
 {
-	u32 hash = 0x5a5aa5a5;
-	while (*s) {
-		u8 c = *(u8 *)s++;
-		hash += hashtable[c];
-		hash ^= hashtable[(c * (c + 13)) & 0xff] +
-			(c + 1) * (c + 17) * (c + 31) * (c + 41);
-	}
-	return hash;
+	u32 len = strlen(s);
+	return gethash((const u8 *)s, len);
 }
 
 u32
-gethash(u8 *data, u32 size)
+gethash(const u8 *data, u32 size)
 {
 	u32 hash = 0x5a5aa5a5;
-	while (size) {
-		u8 c = *data++;
-		hash += hashtable[c];
-		hash ^= hashtable[(c * (c + 13)) & 0xff] +
-			(c + 1) * (c + 17) * (c + 31) * (c + 41);
-		size--;
-	}
-	return hash;
-}
 
-u64
-gethash64(const char *s)
-{
-	u64 hash = 0x5a5aa5a5a5a55a5aull;
-	while (*s) {
-		u8 c = *(u8 *)s++;
-		hash += (u64)hashtable[c] | ((u64)hashtable[c * (c + 5)] << 32);
-		hash ^= (u64)hashtable[(c * (c + 13)) & 0xff] +
-			((u64)hashtable[(c * (c + 17)) & 0xff] << 32) +
-			(c + 1) * (c + 17) * (c + 31) * (c + 41) *
-			(c + 89) * (c + 113) * (c + 181) * (c + 277);
-	}
-	return hash;
-}
-
-u64
-gethash64(u8 *data, u32 size)
-{
-	u64 hash = 0x5a5aa5a5a5a55a5aull;
 	while (size) {
-		u8 c = *data++;
-		hash += (u64)hashtable[c] | ((u64)hashtable[c * (c + 5)] << 32);
-		hash ^= (u64)hashtable[(c * (c + 13)) & 0xff] +
-			((u64)hashtable[(c * (c + 17)) & 0xff] << 32) +
-			(c + 1) * (c + 17) * (c + 31) * (c + 41) *
-			(c + 89) * (c + 113) * (c + 181) * (c + 277);
-		size--;
+		u32 c;
+		if (size >= 4) {
+			c = *(u32 *)data;
+			size -= 4;
+		} else {
+			if (size == 1) {
+				c = *data;
+			} else if (size == 2) {
+				c = *(u16 *)data;
+			} else {
+				c = *(u16 *)data;
+				c |= data[2] << 16;
+			}
+			c ^= hashtable[(c ^ hash) & 0xff];
+			size = 0;
+		}
+		u32 idx = c + (c >> 16);
+		idx += idx >> 8;
+		hash ^= hashtable[(idx ^ hash) & 0xff] + c;
+		data += 4;
+	}
+	if (!hash) {
+		return 1;
 	}
 	return hash;
 }

@@ -43,6 +43,12 @@ _panic(const char *fileName, int line, const char *fmt,...)
 	}
 }
 
+void
+__assert(const char *file, u32 line, const char *cond)
+{
+	panic("Assert failed at %s:%lu: '%s'", file, line, cond);
+}
+
 /*************************************************************/
 
 Debugger::CmdDesc Debugger::cmds[] = {
