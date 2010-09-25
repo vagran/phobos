@@ -6,9 +6,11 @@
 
 include $(PHOBOS_ROOT)/make/makevar.mak
 
-.PHONY: all system_install
+.PHONY: all install system_install
 
 all: $(MFS_IMAGE)
+
+install:
 
 MFS_MOUNT = mfs_mount
 

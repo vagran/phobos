@@ -176,31 +176,8 @@ Tree<key_t>::CheckTree(TreeRoot &root)
 	return 0;
 }
 
-/* Force compiler to compile all required versions of Tree class methods */
-
-__volatile void
-TreeCompilerStub()
-{
-	/* all supported types are here */
-	Tree<u8>::CompilerStub();
-	Tree<u16>::CompilerStub();
-	Tree<u32>::CompilerStub();
-	Tree<u64>::CompilerStub();
-}
-
-template <typename key_t>
-__volatile void
-Tree<key_t>::CompilerStub()
-{
-	TreeRoot root;
-	TREE_INIT(root);
-	TreeEntry node;
-	memset(&node, 0, sizeof(node));
-	key_t key = 0;
-
-	Tree<key_t>::AddNode(root, &node);
-	Tree<key_t>::DeleteNode(root, &node);
-	Tree<key_t>::FindNode(root, key);
-	Tree<key_t>::GetNextNode(root, &node);
-	Tree<key_t>::CheckTree(root);
-}
+/* Instantiate with common types */
+template class Tree<u8>;
+template class Tree<u16>;
+template class Tree<u32>;
+template class Tree<u64>;

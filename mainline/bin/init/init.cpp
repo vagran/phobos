@@ -14,5 +14,10 @@ int myGlobalBSS, myGlobalInit = 237;
 int
 Main(GApp *app)
 {
-	return app->GetPID();//temp
+	GProcess *proc = app->GetProcess();
+	CString str(GETSTR(proc, GProcess::GetName));
+	str += ' ';
+	str += GETSTR(proc, GProcess::GetName);
+	str.GetBuffer();
+	return proc->GetPID();//temp
 }

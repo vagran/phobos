@@ -9,12 +9,11 @@
 #include <sys.h>
 phbSource("$Id$");
 
-#include <gate/gate.h>
-
 DEFINE_GCLASS(GApp);
 
 GApp::GApp()
 {
+	gproc = GNEW(gateArea, GProcess);
 }
 
 GApp::~GApp()
@@ -22,20 +21,21 @@ GApp::~GApp()
 
 }
 
-PM::pid_t
-GApp::GetPID()
-{
-	return proc->GetID();
-}
-
-PM::pid_t
-GApp::GetThreadID()
-{
-	return PM::Thread::GetCurrent()->GetID();
-}
-
 void
 GApp::ExitThread(int exitCode)
 {
 	PM::Thread::GetCurrent()->Exit(exitCode);
+}
+
+GStream *
+GApp::GetStream(char *name)
+{
+	//notimpl
+	return 0;
+}
+
+GProcess *
+GApp::GetProcess()
+{
+	return gproc;
 }

@@ -17,6 +17,14 @@ public:
 	virtual void *malloc(u32 size) = 0;
 	virtual void *malloc(u32 size, void *param) { return malloc(size); }
 	virtual void mfree(void *p) = 0;
+	virtual void *mrealloc(void *p, u32 size) {
+		void *pNew = malloc(size);
+		if (pNew) {
+			memcpy(pNew, p, size);
+		}
+		mfree(p);
+		return pNew;
+	}
 	virtual void *AllocateStruct(u32 size) {return malloc(size);}
 	virtual void FreeStruct(void *p, u32 size = 0) {return mfree(p);}
 };

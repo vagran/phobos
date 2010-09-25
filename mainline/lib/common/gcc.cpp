@@ -22,7 +22,11 @@ __cxa_atexit(void (*func)(void *), void * arg, void *dso_handle)
 ASMCALL void
 __cxa_pure_virtual()
 {
+#ifdef KERNEL
     panic("Pure virtual function called");
+#else
+    //notimpl
+#endif
 }
 
 ASMCALL void

@@ -4,6 +4,6 @@
 # This file is a part of PhobOS operating system.
 # Copyright ©AST 2009. Written by Artemy Lebedev.
 
-SUBDIRS = common
+SUBDIRS = $(COMMON_LIB_DIR)
 
 include ${KERNROOT}/make/make.mak

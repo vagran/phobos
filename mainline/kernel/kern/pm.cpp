@@ -227,7 +227,7 @@ PM::CreateProcess(const char *path, const char *name, int priority)
 		il->Release();
 		return 0;
 	}
-	if (il->Load(proc->userMap)) {
+	if (il->Load(proc->userMap, proc->heapObj)) {
 		DestroyProcess(proc);
 		il->Release();
 		return 0;
@@ -652,6 +652,7 @@ PM::Process::Process()
 	userMap = 0;
 	gateMap = 0;
 	gateArea = 0;
+	heapObj = 0;
 	fault = PFLT_NONE;
 	state = S_STOPPED;
 }
@@ -673,6 +674,9 @@ PM::Process::~Process()
 	}
 	if (gateArea) {
 		DELETE(gateArea);
+	}
+	if (heapObj) {
+		heapObj->Release();
 	}
 	if (map) {
 		mm->DestroyMap(map);
@@ -814,6 +818,10 @@ PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
 		return -1;
 	}
 	userMap->isUser = 1;
+	heapObj = NEW(MM::VMObject, GATE_AREA_ADDRESS, MM::VMObject::F_HEAP);
+	if (!heapObj) {
+		return -1;
+	}
 	if (!isKernelProc) {
 		gateArea = gm->CreateGateArea(this);
 	}

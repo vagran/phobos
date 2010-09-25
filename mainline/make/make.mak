@@ -26,13 +26,20 @@ LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.app.ld
 BINARY_NAME = $(APP)
 export PROFILE_NAME = APP
 IS_PROFILE_ROOT = 1
-LINK_FILES += $(APP_RUNTIME_LIB)
+LINK_FILES += $(APP_RUNTIME_LIB) $(COMMON_LIB) $(USER_LIB)
 REQUIRE_RUNTIME_LIB = 1
 else ifdef OBJ
 BINARY_NAME = $(OBJ)
 export PROFILE_NAME = OBJ
 IS_PROFILE_ROOT = 1
 LINK_FLAGS += -r
+else ifdef LIB
+BINARY_NAME = lib$(LIB).a
+export PROFILE_NAME = LIB
+IS_PROFILE_ROOT = 1
+LINK_FLAGS += -r
+else ifndef SUBDIRS
+$(error Build profile not specified)
 endif
 
 ifdef IS_PROFILE_ROOT
@@ -73,8 +80,11 @@ all: $(BINARY) $(SUBDIRS_TARGET) $(OBJ_DIR) $(OBJS)
 
 ifdef BINARY
 $(BINARY): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) $(LINK_FILES) $(OBJS)
-	$(LD) $(LINK_FLAGS) $(LINK_FILES) -o $@ $(wildcard $(OBJ_DIR)/*.o)
+	$(LD) $(LINK_FLAGS) $(LINK_FILES) -o $@ $(OBJS)
 endif
+
+$(filter %.a, $(LINK_FILES)):
+	$(MAKE) -C $(abspath $(dir $@)/../..)
 
 $(OBJ_DIR)/%.o: %.c
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) -o $@ $<

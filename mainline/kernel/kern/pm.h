@@ -50,7 +50,7 @@ public:
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
 
-		virtual int Load(MM::Map *map) = 0;
+		virtual int Load(MM::Map *map, MM::VMObject *bssObj) = 0;
 		virtual vaddr_t GetEntryPoint() = 0;
 	};
 
@@ -123,7 +123,7 @@ public:
 		State state;
 		int exitCode;
 		ProcessFault fault;
-		String faultStr;
+		KString faultStr;
 		int isActive; /* currently running on some CPU */
 	public:
 		Thread(Process *proc);
@@ -168,13 +168,14 @@ public:
 		u32 numThreads, numAliveThreads;
 		SpinLock thrdListLock;
 		MM::Map *map, *userMap, *gateMap;
+		MM::VMObject *heapObj;
 		u32 priority;
 		vaddr_t entryPoint;
 		GM::GateArea *gateArea;
-		String faultStr;
+		KString faultStr;
 		State state;
 		ProcessFault fault;
-		String name;
+		KString name;
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
@@ -192,6 +193,7 @@ public:
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
 		int TerminateThread(Thread *thrd, int exitCode = 0);
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
+		inline KString *GetName() { return &name; }
 		Thread *GetThread();
 		inline MM::Map *GetMap() { return map; }
 		inline MM::Map *GetUserMap() { return userMap; }

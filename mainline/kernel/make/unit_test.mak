@@ -4,18 +4,11 @@
 # This file is a part of PhobOS operating system.
 # Copyright ©AST 2009. Written by Artemy Lebedev.
 
-export NAT_CC = gcc
-export NAT_LD = gcc
+include $(PHOBOS_ROOT)/make/makevar.mak
 
 EXECUTABLE = utrun
 
-INCLUDE_DIRS = $(KERNROOT) $(KERNROOT)/sys
-INCLUDE_FLAGS = $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
-
-NAT_INCLUDE_DIRS = /usr/include
-NAT_INCLUDE_FLAGS = $(foreach dir,$(NAT_INCLUDE_DIRS),-I$(dir))
-
-COMPILE_FLAGS = -Werror -Wall -pipe -fno-default-inline
+COMPILE_FLAGS = -Werror -Wall -pipe -fno-default-inline -DUNIT_TEST
 
 ifeq ($(TARGET),RELEASE)
 COMPILE_FLAGS += -O2
@@ -25,7 +18,7 @@ else
 $(error Target not supported: $(TARGET))
 endif
 
-LIBS= -lstdc++
+LIBS = -lstdc++
 
 COMPILE_FLAGS_CXX = -fno-rtti -fno-exceptions
 COMPILE_FLAGS_C =
@@ -41,9 +34,10 @@ SRCS = $(wildcard *.S *.c *.cpp)
 OBJS_LOCAL = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(SRCS))))
 OBJS = $(foreach obj,$(OBJS_LOCAL),$(OBJ_DIR)/$(obj))
 
-UNIT_SRCS_LOCAL = $(foreach src,$(UNIT_SRCS),../$(src))
-UNIT_SRCS_DIRS = $(dir $(UNIT_SRCS_LOCAL))
-UNIT_OBJS_ROOT = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(UNIT_SRCS))))
+UNIT_SRCS_GLOBAL = $(abspath $(foreach src,$(UNIT_SRCS),../$(src)))
+UNIT_SRCS_GLOBAL += $(filter-out %gcc.cpp, $(wildcard $(COMMON_LIB_DIR)/*.cpp))
+UNIT_SRCS_DIRS = $(sort $(dir $(UNIT_SRCS_GLOBAL)))
+UNIT_OBJS_ROOT = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(UNIT_SRCS_GLOBAL))))
 UNIT_OBJS = $(foreach obj,$(UNIT_OBJS_ROOT),$(UNIT_OBJ_DIR)/$(notdir $(obj)))
 
 .PHONY: all clean

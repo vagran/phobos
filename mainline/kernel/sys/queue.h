@@ -169,8 +169,6 @@ public:
 	static void DeleteNode(TreeRoot &root, TreeEntry *node) __noinline;
 	static TreeEntry *GetNextNode(TreeRoot &root, TreeEntry *node) __noinline;
 	static int CheckTree(TreeRoot &root) __noinline;
-
-	static __volatile void CompilerStub(); /* do not call it! It is for internal magic. */
 };
 
 #define TREE_INIT(root) {(root).rootnode = 0;}
@@ -279,8 +277,6 @@ public:
 		int keyLen = -1) __noinline;
 	static void DeleteNode(TreeRoot &root, TreeEntry *node) __noinline;
 	static TreeEntry *GetNextNode(TreeRoot &root, TreeEntry *node) __noinline;
-
-	static __volatile void CompilerStub(); /* do not call it! It is for internal magic. */
 };
 
 #define STREE_INIT(root)	TREE_INIT(root.rootnode)

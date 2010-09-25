@@ -1,5 +1,5 @@
 /*
- * /kernel/lib/stdlib.cpp
+ * /phobos/lib/user/mem.cpp
  * $Id$
  *
  * This file is a part of PhobOS operating system.
@@ -8,3 +8,4 @@
 
 #include <sys.h>
 phbSource("$Id$");
+

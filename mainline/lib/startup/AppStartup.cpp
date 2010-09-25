@@ -16,6 +16,11 @@ extern "C" void AppStart(GApp *app);
 void
 AppStart(GApp *app)
 {
+	/* zero BSS */
+	memset(&_edata, 0, (u32)&_end - (u32)&_edata);
+	/* call global constructors */
+	CXA::ConstructStaticObjects();
+	/* call Main() function */
 	app->ExitThread(Main(app));
 	/* NOT REACHED */
 }

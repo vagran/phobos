@@ -21,13 +21,28 @@ export SUDO_ASKPASS = /usr/bin/ssh-askpass
 export SUDO = sudo
 export MKE2FS = mke2fs
 
+export NAT_CC = gcc
+export NAT_LD = gcc
+
 export APP_RUNTIME_LIB_NAME = crt.o
-export APP_RUNTIME_LIB = $(PHOBOS_ROOT)/lib/startup/build/$(TARGET)/$(APP_RUNTIME_LIB_NAME)
+export APP_RUNTIME_LIB_DIR = $(PHOBOS_ROOT)/lib/startup
+export APP_RUNTIME_LIB = $(APP_RUNTIME_LIB_DIR)/build/$(TARGET)/$(APP_RUNTIME_LIB_NAME)
+
+export COMMON_LIB_DIR = $(PHOBOS_ROOT)/lib/common
+export COMMON_LIB_NAME = common
+export COMMON_LIB = $(COMMON_LIB_DIR)/build/$(TARGET)/lib$(COMMON_LIB_NAME).a
+
+export USER_LIB_DIR = $(PHOBOS_ROOT)/lib/user
+export USER_LIB_NAME = user
+export USER_LIB = $(USER_LIB_DIR)/build/$(TARGET)/lib$(USER_LIB_NAME).a
 
 export INSTALL_ROOT = $(PHOBOS_ROOT)/install
 
 INCLUDE_DIRS = $(PHOBOS_ROOT)/kernel $(PHOBOS_ROOT)/kernel/sys $(PHOBOS_ROOT)/include
 INCLUDE_FLAGS = $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
+
+NAT_INCLUDE_DIRS = /usr/include
+NAT_INCLUDE_FLAGS = $(foreach dir,$(NAT_INCLUDE_DIRS),-I$(dir))
 
 MFS_IMAGE_NAME = mfs_image
 MFS_IMAGE = $(PHOBOS_ROOT)/mfs/image/$(TARGET)/$(MFS_IMAGE_NAME)

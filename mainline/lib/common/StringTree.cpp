@@ -94,30 +94,9 @@ StringTree<char_t>::FindNode(TreeRoot &root, char_t *key, int keyLen)
 	return 0;
 }
 
-/* Force compiler to compile all required versions of StringSTree class methods */
-
-__volatile void
-StringTreeCompilerStub()
-{
-	/* all supported types are here */
-	StringTree<char>::CompilerStub();
-	StringTree<u8>::CompilerStub();
-	StringTree<u16>::CompilerStub();
-	StringTree<u32>::CompilerStub();
-	StringTree<u64>::CompilerStub();
-}
-
-template <typename char_t>
-__volatile void
-StringTree<char_t>::CompilerStub()
-{
-	TreeRoot root;
-	STREE_INIT(root);
-	TreeEntry node;
-	memset(&node, 0, sizeof(node));
-
-	StringTree<char_t>::AddNode(root, &node, 0);
-	StringTree<char_t>::DeleteNode(root, &node);
-	StringTree<char_t>::FindNode(root, 0);
-	StringTree<char_t>::GetNextNode(root, 0);
-}
+/* Instantiate with common types */
+template class StringTree<char>;
+template class StringTree<u8>;
+template class StringTree<u16>;
+template class StringTree<u32>;
+template class StringTree<u64>;

@@ -59,7 +59,7 @@ DefineILProber(ElfImageLoader)
 }
 
 int
-ElfImageLoader::Load(MM::Map *map)
+ElfImageLoader::Load(MM::Map *map, MM::VMObject *bssObj)
 {
 	if (status) {
 		return E_FAULT;
@@ -119,6 +119,20 @@ ElfImageLoader::Load(MM::Map *map)
 			obj->Release();
 			FREE(phdr);
 			return E_FAULT;
+		}
+		/* Insert BSS chunk if required */
+		if (mem_size > roundup2(file_size, PAGE_SIZE)) {
+			protection &= ~MM::PROT_COW;
+			if (phdr->p_flags & PF_W) {
+				protection |= MM::PROT_WRITE;
+			}
+			vaddr_t base = start_va + roundup2(file_size, PAGE_SIZE);
+			if (!map->InsertObjectAt(bssObj, base, base,
+					mem_size - roundup2(file_size, PAGE_SIZE), protection)) {
+				obj->Release();
+				FREE(phdr);
+				return E_FAULT;
+			}
 		}
 	}
 	obj->Release();

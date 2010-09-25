@@ -533,9 +533,9 @@ public:
 	static inline PTE::PDEntry *VtoAPDE(vaddr_t va) {return &altPTD[va >> PD_SHIFT];}
 	static inline PTE::PTEntry *VtoPTE(vaddr_t va) {return &PTmap[va >> PT_SHIFT];}
 	static inline PTE::PTEntry *VtoAPTE(vaddr_t va) {return &altPTmap[va >> PT_SHIFT];}
-	static inline void *OpNew(u32 size, int isSingle);
-	static inline void *OpNew(u32 size, int isSingle, const char *className, const char *fileName, int line);
-	static inline void OpDelete(void *p);
+	static void *OpNew(u32 size, int isSingle = 0);
+	static void *OpNew(u32 size, int isSingle, const char *className, const char *fileName, int line);
+	static void OpDelete(void *p);
 	static void *malloc(u32 size, u32 align = 4, PageZone zone = ZONE_REST);
 	static void mfree(void *p);
 	static void *mrealloc(void *p, u32 size, u32 align = 4, PageZone zone = ZONE_REST);
@@ -558,6 +558,15 @@ public:
 	int DestroyMap(Map *map);
 	int UpdatePDE(Map *originator, vaddr_t va, PTE::PDEntry *pde);
 	int AttachCPU();
+};
+
+class KMemAllocator : public MemAllocator {
+public:
+	virtual void *malloc(u32 size) { return MM::malloc(size); }
+	virtual void mfree(void *p) { MM::mfree(p); }
+	virtual void *mrealloc(void *p, u32 size) { return MM::mrealloc(p, size); }
+	virtual void *AllocateStruct(u32 size) { return MM::OpNew(size); }
+	virtual void FreeStruct(void *p, u32 size = 0) { MM::OpDelete(p); }
 };
 
 extern MM *mm;

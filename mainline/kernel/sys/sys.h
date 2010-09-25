@@ -91,10 +91,12 @@ void inline printf(const char *fmt,...)
 	vprintf(fmt, va);
 }
 
-#else /* KERNEL */
+#endif /* KERNEL */
 
 #include <gate/gate.h>
 
+#ifndef KERNEL
+#include <user.h>
 #endif /* KERNEL */
 
 #endif /* ASSEMBLER */

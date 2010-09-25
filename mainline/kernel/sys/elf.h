@@ -29,7 +29,7 @@ public:
 	DeclareILFactory();
 	DeclareILProber();
 
-	virtual int Load(MM::Map *map);
+	virtual int Load(MM::Map *map, MM::VMObject *bssObj);
 	virtual vaddr_t GetEntryPoint();
 };
 

@@ -11,18 +11,22 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#include <gate/GProcess.h>
+#include <gate/GateStream.h>
+
 DECLARE_GCLASS(GApp);
 
 class GApp : public GateObject {
 private:
-
+	GProcess *gproc;
 public:
 	GApp();
 	virtual ~GApp();
 
-	virtual PM::pid_t GetPID();
-	virtual PM::pid_t GetThreadID();
 	virtual void ExitThread(int exitCode = 0) __noreturn;
+
+	virtual GProcess *GetProcess();
+	virtual GStream *GetStream(char *name);
 
 	DECLARE_GCLASS_IMP(GApp);
 };
