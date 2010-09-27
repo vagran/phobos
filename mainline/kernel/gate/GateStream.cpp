@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -13,11 +13,13 @@ DEFINE_GCLASS(GStream);
 
 GStream::GStream(char *name)
 {
-	this->streamName = strdup(name);
+	streamName = strdup(name);
+	proc->AddStream(this);
 }
 
 GStream::~GStream()
 {
+	proc->RemoveStream(this);
 	MM::mfree(streamName);
 }
 

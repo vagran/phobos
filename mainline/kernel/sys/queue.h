@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef QUEUE_H_
@@ -239,7 +239,7 @@ public:
  *
  */
 
-template <typename char_t>
+template <typename char_t = char>
 class StringTree {
 public:
 	typedef u32 hash_t;

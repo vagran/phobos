@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef GATE_H_
@@ -13,6 +13,8 @@ phbSource("$Id$");
 
 /* Gate objects description */
 #include <gate/App.h>
+#include <gate/GateStream.h>
+#include <gate/GProcess.h>
 
 #ifdef KERNEL
 

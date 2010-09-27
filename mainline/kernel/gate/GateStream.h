@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef GATESTREAM_H_
@@ -15,8 +15,10 @@ DECLARE_GCLASS(GStream);
 
 class GStream : public GateObject {
 private:
+	friend class PM::Process;
+
 	char *streamName;
-	StringTree<char>::TreeEntry nameTree;
+	StringTree<>::TreeEntry nameTree;
 
 public:
 	enum {

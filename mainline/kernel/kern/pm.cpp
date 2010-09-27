@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -646,6 +646,7 @@ PM::Runqueue::SelectThread()
 PM::Process::Process()
 {
 	LIST_INIT(threads);
+	STREE_INIT(streams);
 	numThreads = 0;
 	numAliveThreads = 0;
 	map = 0;
@@ -741,6 +742,38 @@ PM::Thread *
 PM::Process::GetThread()
 {
 	return LIST_FIRST(Thread, list, threads);
+}
+
+int
+PM::Process::AddStream(GStream *stream)
+{
+	streamsLock.Lock();
+	if (STREE_FIND(GStream, nameTree, streams, stream->streamName)) {
+		streamsLock.Unlock();
+		return -1;
+	}
+	STREE_ADD(nameTree, stream, streams, stream->streamName);
+	streamsLock.Unlock();
+	return 0;
+}
+
+int
+PM::Process::RemoveStream(GStream *stream)
+{
+	streamsLock.Lock();
+	STREE_DELETE(nameTree, stream, streams);
+	streamsLock.Unlock();
+	return 0;
+}
+
+GStream *
+PM::Process::GetStream(char *name)
+{
+	GStream *stream;
+	streamsLock.Lock();
+	stream = STREE_FIND(GStream, nameTree, streams, name);
+	streamsLock.Unlock();
+	return stream;
 }
 
 int

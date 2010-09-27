@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef PM_H_
@@ -12,6 +12,8 @@
 phbSource("$Id$");
 
 /* Processes manager */
+
+class GStream;
 
 class PM : public Object {
 public:
@@ -176,6 +178,8 @@ public:
 		State state;
 		ProcessFault fault;
 		KString name;
+		SpinLock streamsLock;
+		StringTree<>::TreeRoot streams;
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
@@ -202,6 +206,9 @@ public:
 		int Stop();
 		int Resume();
 		int Fault(ProcessFault flt, const char *msg = 0, ...) __format(printf, 3, 4);
+		int AddStream(GStream *stream);
+		int RemoveStream(GStream *stream);
+		GStream *GetStream(char *name);
 	};
 
 	class Runqueue : public Object {
