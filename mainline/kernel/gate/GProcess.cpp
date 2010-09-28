@@ -36,8 +36,10 @@ GProcess::GetThreadID()
 int
 GProcess::GetName(char *buf, int bufLen)
 {
-	if (proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
-		return -1;
+	if (buf) {
+		if (proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
+			return -1;
+		}
 	}
 	return proc->GetName()->Get(buf, bufLen);
 }

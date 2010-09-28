@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -123,17 +123,17 @@ CPUMutex::TryLock()
 
 Mutex::Mutex(int flag) : lock(flag)
 {
-
+	useSleep = pm && PM::Thread::GetCurrent();
 }
 
 void
 Mutex::Lock()
 {
-	if (pm) {
+	if (useSleep) {
 		pm->ReserveSleepChannel(this);
 	}
 	while (lock.TryLock()) {
-		if (pm) {
+		if (useSleep) {
 			pm->Sleep(this, "Mutex::Lock");
 		} else {
 			pause();
@@ -151,7 +151,7 @@ void
 Mutex::Unlock()
 {
 	lock.Unlock();
-	if (pm) {
+	if (useSleep) {
 		pm->Wakeup(this);
 	}
 }

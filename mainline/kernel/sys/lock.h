@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef LOCK_H_
@@ -317,6 +317,7 @@ public:
 class Mutex : public Object {
 private:
 	SpinLock lock;
+	int useSleep;
 public:
 	Mutex(int flag = 0);
 	void Lock();

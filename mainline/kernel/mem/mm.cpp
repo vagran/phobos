@@ -1757,7 +1757,7 @@ MM::Map::CheckPageProtection(vaddr_t va, Protection protection, int user)
 	}
 
 	return (protection & e->protection & (PROT_READ | PROT_WRITE | PROT_EXEC)) ==
-		protection;
+		protection ? 0 : -1;
 }
 
 int

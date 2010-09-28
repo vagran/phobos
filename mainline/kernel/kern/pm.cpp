@@ -1072,6 +1072,9 @@ PM::Thread *
 PM::Thread::GetCurrent()
 {
 	CPU *cpu = CPU::GetCurrent();
+	if (!cpu) {
+		return 0;
+	}
 	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
 	assert(rq);
 	return rq->GetCurrentThread();
