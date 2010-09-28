@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -1742,6 +1742,22 @@ MM::Map::IsMapped(vaddr_t va)
 		return 0;
 	}
 	return pte->fields.present;
+}
+
+int
+MM::Map::CheckPageProtection(vaddr_t va, Protection protection, int user)
+{
+	Entry *e = Lookup(va, 1);
+	if (!e) {
+		return -1;
+	}
+	/* reject system pages if user access requested */
+	if (user && !(e->flags & Entry::F_USER)) {
+		return -1;
+	}
+
+	return (protection & e->protection & (PROT_READ | PROT_WRITE | PROT_EXEC)) ==
+		protection;
 }
 
 int

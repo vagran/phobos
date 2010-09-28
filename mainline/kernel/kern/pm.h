@@ -28,6 +28,7 @@ public:
 		PFLT_GATE_STACK, /* Invalid stack pointer when called gate method */
 		PFLT_GATE_METHOD_RESTICTED, /* Restricted gate method called */
 		PFLT_PAGE_FAULT, /* Page fault */
+		PFLT_INVALID_BUFFER, /* Invalid user buffer provided to gate method */
 	};
 
 	enum {
@@ -110,7 +111,7 @@ public:
 		u32 rqFlags;
 		Process *proc;
 		u32 stackSize;
-		vaddr_t stackAddr;
+		vaddr_t gateCallSP; /* stack pointer on gate method entrance, kernel stack starts from there */
 		MM::VMObject *stackObj;
 		MM::Map::Entry *stackEntry;
 		CPU *cpu;
@@ -151,6 +152,8 @@ public:
 			return esp > stackEntry->base &&
 				esp <= stackEntry->base + stackEntry->size;
 		}
+		inline void SetGateCallSP(u32 esp) { gateCallSP = esp; }
+		int IsKernelStack(vaddr_t addr, vsize_t size);
 		int Fault(ProcessFault flt, const char *msg = 0, ...) __format(printf, 3, 4);
 	};
 
@@ -209,6 +212,8 @@ public:
 		int AddStream(GStream *stream);
 		int RemoveStream(GStream *stream);
 		GStream *GetStream(char *name);
+		int CheckUserBuf(void *buf, u32 size, MM::Protection protection = MM::PROT_READ);
+		int CheckUserString(char *str);
 	};
 
 	class Runqueue : public Object {

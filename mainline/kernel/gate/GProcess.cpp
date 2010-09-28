@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -36,5 +36,8 @@ GProcess::GetThreadID()
 int
 GProcess::GetName(char *buf, int bufLen)
 {
+	if (proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
+		return -1;
+	}
 	return proc->GetName()->Get(buf, bufLen);
 }

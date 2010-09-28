@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -19,5 +19,6 @@ Main(GApp *app)
 	str += ' ';
 	str += GETSTR(proc, GProcess::GetName);
 	str.GetBuffer();
+	proc->GetName((char *)0x555555, 237);// should fault
 	return proc->GetPID();//temp
 }

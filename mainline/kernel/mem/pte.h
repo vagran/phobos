@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef PTE_H_
@@ -18,7 +18,7 @@ public:
 		struct {
 			u64		present:1,
 					write:1,
-					system:1,
+					user:1,
 					writeThrough:1,
 					cacheDisable:1,
 					accessed:1,

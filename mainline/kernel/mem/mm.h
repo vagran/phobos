@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef MM_H_
@@ -385,6 +385,7 @@ public:
 		int Pagein(vaddr_t va); /* make this page resident */
 		inline u32 GetCR3() { return cr3; }
 		int AddPDE(vaddr_t va, PTE::PDEntry *pde);
+		int CheckPageProtection(vaddr_t va, Protection protection, int user);
 	};
 
 	Map *kmemMap; /* kernel process virtual address space */

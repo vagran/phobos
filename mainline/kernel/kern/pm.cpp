@@ -332,6 +332,8 @@ PM::StrProcessFault(ProcessFault flt)
 		return "Restricted gate method called";
 	case PFLT_PAGE_FAULT:
 		return "Page fault";
+	case PFLT_INVALID_BUFFER:
+		return "Invalid user buffer provided to gate method";
 	}
 	return "Unknown fault";
 }
@@ -777,6 +779,71 @@ PM::Process::GetStream(char *name)
 }
 
 int
+PM::Process::CheckUserBuf(void *buf, u32 size, MM::Protection protection)
+{
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	PM::Process *proc = thrd->GetProcess();
+	MM::Map *map = proc->GetUserMap();
+
+	/* protect kernel stack, deny any access */
+	if (thrd->IsKernelStack((vaddr_t)buf, size)) {
+		thrd->Fault(PM::PFLT_INVALID_BUFFER,
+			"Invalid buffer - %lu bytes at 0x%08lx, "
+			"access denied to the kernel stack", size, (u32)buf);
+		return -1;
+	}
+
+	vaddr_t endVa = roundup2((vaddr_t)buf + size, PAGE_SIZE);
+	for (vaddr_t va = rounddown2((vaddr_t)buf, PAGE_SIZE); va < endVa;
+		va += PAGE_SIZE) {
+		if (map->CheckPageProtection(va, protection, 1)) {
+			thrd->Fault(PM::PFLT_INVALID_BUFFER,
+				"Invalid buffer - %lu bytes at 0x%08lx, failed for page 0x%08lx, "
+				"requested access: %c%c%c", size, (u32)buf, va,
+				(protection & MM::PROT_READ) ? 'r' : '-',
+				(protection & MM::PROT_WRITE) ? 'w' : '-',
+				(protection & MM::PROT_EXEC) ? 'x' : '-');
+			return -1;
+ 		}
+	}
+	return 0;
+}
+
+int
+PM::Process::CheckUserString(char *str)
+{
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	PM::Process *proc = thrd->GetProcess();
+	MM::Map *map = proc->GetUserMap();
+
+	/* scan pages for zero one by one */
+	vaddr_t endVa = roundup2((vaddr_t)str + 1, PAGE_SIZE);
+	vaddr_t va = (vaddr_t)str;
+	while (1) {
+		/* protect the kernel stack */
+		if (thrd->IsKernelStack(va, endVa - va)) {
+			thrd->Fault(PM::PFLT_INVALID_BUFFER, "Invalid string at 0x%08lx, "
+				"failed for page 0x%08lx, kernel stack access denied",
+				(u32)str, va);
+			return -1;
+		}
+
+		if (map->CheckPageProtection(va, MM::PROT_READ, 1)) {
+			thrd->Fault(PM::PFLT_INVALID_BUFFER, "Invalid string at 0x%08lx, "
+				"failed for page 0x%08lx", (u32)str, va);
+			return -1;
+		}
+		while (va < endVa) {
+			if (!*(char *)va) {
+				return 0;
+			}
+			va++;
+		}
+		endVa += PAGE_SIZE;
+	}
+}
+
+int
 PM::Process::Stop()
 {
 	Thread *thrd;
@@ -1168,6 +1235,28 @@ PM::Thread::MapKernelStack(vaddr_t esp)
 		}
 	}
 	return 0;
+}
+
+int
+PM::Thread::IsKernelStack(vaddr_t addr, vsize_t size)
+{
+	vaddr_t stackStart = stackEntry->base;
+	vaddr_t stackEnd = gateCallSP + sizeof(vaddr_t);
+	vaddr_t endAddr = addr + size;
+
+	/*
+	 * Check for intersection with the kernel stack,
+	 * keep in mind the address space wrapping.
+	 */
+	if (endAddr <= stackStart &&
+		(addr < endAddr || addr >= stackEnd)) {
+		return 0;
+	}
+	if (addr >= stackEnd &&
+		(endAddr > addr || endAddr <= stackStart)) {
+		return 0;
+	}
+	return 1;
 }
 
 PM::Thread::~Thread()

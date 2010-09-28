@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -431,6 +431,7 @@ GateObjValidateCall(u32 idx, vaddr_t esp)
 		thrd->Fault(PM::PFLT_GATE_STACK, "Not valid stack pointer: 0x%08lx", esp);
 		return 0;
 	}
+	thrd->SetGateCallSP(esp);
 
 	GateObject *obj = ((GateObject **)esp)[1];
 	if (GateObject::Validate(obj)) {

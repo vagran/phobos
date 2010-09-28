@@ -30,8 +30,10 @@ GApp::ExitThread(int exitCode)
 GStream *
 GApp::GetStream(char *name)
 {
-	//notimpl
-	return 0;
+	if (proc->CheckUserString(name)) {
+		return 0;
+	}
+	return proc->GetStream(name);
 }
 
 GProcess *

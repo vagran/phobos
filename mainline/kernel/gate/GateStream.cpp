@@ -29,6 +29,9 @@ GStream::GetName(char *buf, int bufSize)
 	if (!buf) {
 		return strlen(streamName);
 	}
+	if (proc->CheckUserBuf(buf, bufSize, MM::PROT_WRITE)) {
+		return -1;
+	}
 	strncpy(buf, streamName, bufSize);
 	return strlen(buf);
 }
