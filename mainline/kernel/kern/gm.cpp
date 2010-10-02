@@ -330,7 +330,7 @@ GateObject::KRelease()
 {
 	assert(krefCount);
 	int rc = --krefCount;
-	if (!rc && !refCount) {
+	if (!rc) {
 		DELETE(this);
 	}
 	return rc;

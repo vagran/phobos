@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -192,7 +192,7 @@ int MyProcess(void *arg)//temp
 	while (1) {
 		//pm->Wakeup(&proc1);
 		pm->Sleep(&proc2, "proc2", tm->MS(1000));
-		printf("process 1 waken\n");
+		//printf("process 1 waken\n");
 	}
 	return 0;
 }
@@ -202,7 +202,7 @@ static int
 StartupProc(void *arg)
 {
 	/* now we are in the kernel process */
-	devMan.ProbeDevices();
+	devMan.ConfigureDevices();
 
 	/* wake up the rest CPUs */
 	CPU::StartSMP();
@@ -233,16 +233,16 @@ StartupProc(void *arg)
 	}
 
 	sti();//temp
-	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));
-	tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));
-	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(5000), (void *)"one-shot 5s");
+	//tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));
+	//tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));
+	//tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(5000), (void *)"one-shot 5s");
 
 	pm->CreateProcess(MyProcess, (void *)"process 1", "process 1");
 
 	while (1) {
 		//pm->Wakeup(&proc2);
 		pm->Sleep(&proc1, "proc1", tm->MS(2000));
-		printf("init proc waken\n");
+		//printf("init proc waken\n");
 	}
 	return 0;
 }

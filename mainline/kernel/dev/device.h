@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef DEVICE_H_
@@ -17,6 +17,12 @@ extern DeviceManager devMan;
 
 class Device : public Object {
 public:
+	typedef enum {
+		OP_READ,
+		OP_WRITE,
+		OP_MAX
+	} Operation;
+
 	class IOBuf : public Object {
 	public:
 		enum Flags {
@@ -110,7 +116,17 @@ public:
 };
 
 class ChrDevice : public Device {
+public:
+	typedef int (Object::*EventCallback)(ChrDevice *dev, Operation op);
+private:
+	typedef struct {
+		Object *obj;
+		EventCallback cbk;
+	} EventCbk;
 
+	EventCbk evCbk[OP_MAX];
+protected:
+	virtual int Notify(Operation op);
 public:
 	ChrDevice(Type type, u32 unit, u32 classID);
 	virtual ~ChrDevice();
@@ -119,6 +135,8 @@ public:
 	virtual IOStatus Putc(u8 c);
 	virtual int Read(u8 *buf, u32 size);
 	virtual int Write(u8 *buf, u32 size);
+	virtual u32 GetWaitChannel(Operation op) { return 0; }
+	virtual int RegisterCallback(Operation op, EventCallback cbk, Object *obj);
 };
 
 class BlkDevice : public Device {
@@ -191,6 +209,7 @@ private:
 	void ScanAvailUnits(DevClass *p);
 	u32 inline Lock();
 	void inline Unlock(u32 x);
+	int ProbeDevices();
 public:
 	DeviceManager();
 	static inline u32 GetClassID(const char *classID)	{ return gethash(classID); }
@@ -201,11 +220,10 @@ public:
 	Device *GetDevice(const char *devClass, u32 unit);
 	Device *GetDevice(u32 devClassID, u32 unit);
 	Device *GetDevice(const char *devName);
-	int ProbeDevices();
-
 	u32 RegisterClass(const char *devClass, Device::Type type, const char *desc,
 		DeviceFactory factory, DeviceProber prober = 0, void *arg = 0);
 	u32 AllocateUnit(u32 devClassID);
+	int ConfigureDevices();
 };
 
 char *Device::GetClass() { return devMan.GetClass(GetClassID()); }

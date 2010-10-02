@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef IM_H_
@@ -27,6 +27,7 @@ public:
 		IP_DEFAULT =	-1,
 
 		IP_CONSOLE,
+		IP_KBD,
 		IP_TIMER,
 
 		IP_RTC,

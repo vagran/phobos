@@ -189,6 +189,16 @@ PM::ProcessEntry(void *arg)
 	proc->gateArea->Initialize();
 	GApp *app = proc->gateArea->GetApp();
 	app->AddRef(); /* bump user reference counter */
+
+	/* Create default streams */
+	/* XXX just temporal stub, provide terminal access for process */
+	ConsoleDev *videoTerm = (ConsoleDev *)devMan.GetDevice("vga", 0);
+	GNEW(proc->gateArea, GConsoleStream, "output", videoTerm, GConsoleStream::F_OUTPUT);
+	GNEW(proc->gateArea, GConsoleStream, "trace", videoTerm, GConsoleStream::F_OUTPUT);
+	GNEW(proc->gateArea, GConsoleStream, "log", videoTerm, GConsoleStream::F_OUTPUT);
+	GNEW(proc->gateArea, GConsoleStream, "input",
+		(ConsoleDev *)devMan.GetDevice("kbdcons", 0), GConsoleStream::F_INPUT);
+
 	*(--esp) = (u32)app;
 	/* push fake return address for debugger */
 	*(--esp) = 0;
@@ -769,11 +779,11 @@ PM::Process::RemoveStream(GStream *stream)
 }
 
 GStream *
-PM::Process::GetStream(char *name)
+PM::Process::GetStream(const char *name)
 {
 	GStream *stream;
 	streamsLock.Lock();
-	stream = STREE_FIND(GStream, nameTree, streams, name);
+	stream = STREE_FIND(GStream, nameTree, streams, (char *)name);
 	streamsLock.Unlock();
 	return stream;
 }
@@ -810,7 +820,7 @@ PM::Process::CheckUserBuf(void *buf, u32 size, MM::Protection protection)
 }
 
 int
-PM::Process::CheckUserString(char *str)
+PM::Process::CheckUserString(const char *str)
 {
 	PM::Thread *thrd = PM::Thread::GetCurrent();
 	PM::Process *proc = thrd->GetProcess();

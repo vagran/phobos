@@ -11,7 +11,7 @@ phbSource("$Id$");
 
 DEFINE_GCLASS(GStream);
 
-GStream::GStream(char *name)
+GStream::GStream(const char *name)
 {
 	streamName = strdup(name);
 	proc->AddStream(this);

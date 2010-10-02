@@ -211,9 +211,9 @@ public:
 		int Fault(ProcessFault flt, const char *msg = 0, ...) __format(printf, 3, 4);
 		int AddStream(GStream *stream);
 		int RemoveStream(GStream *stream);
-		GStream *GetStream(char *name);
+		GStream *GetStream(const char *name);
 		int CheckUserBuf(void *buf, u32 size, MM::Protection protection = MM::PROT_READ);
-		int CheckUserString(char *str);
+		int CheckUserString(const char *str);
 	};
 
 	class Runqueue : public Object {

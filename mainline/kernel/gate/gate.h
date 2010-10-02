@@ -12,9 +12,11 @@
 phbSource("$Id$");
 
 /* Gate objects description */
-#include <gate/App.h>
-#include <gate/GateStream.h>
-#include <gate/GProcess.h>
+#include <gate/core/App.h>
+#include <gate/io/GateStream.h>
+#include <gate/io/GConsoleStream.h>
+#include <gate/core/GProcess.h>
+#include <gate/core/GTime.h>
 
 #ifdef KERNEL
 

@@ -286,6 +286,7 @@ public:
 	void Lock();
 	void Unlock();
 	int TryLock(); /* returns 0 if successfully locked, -1 otherwise */
+	operator int() { return flag; }
 };
 
 template <typename value_t>

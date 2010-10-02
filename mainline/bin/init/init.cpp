@@ -18,7 +18,25 @@ Main(GApp *app)
 	CString str(GETSTR(proc, GProcess::GetName));
 	str += ' ';
 	str += GETSTR(proc, GProcess::GetName);
-	str.GetBuffer();
-	proc->GetName((char *)0x555555, 237);// should fault
+	str += '\n';
+	GStream *out = app->GetStream("output");
+	/*GTime *time = app->GetTime();
+	while (1) {
+		out->Write((u8 *)str.GetBuffer(), str.GetLength());
+		app->Sleep(time->MS(1000));
+	}*/
+
+	GStream *in = app->GetStream("input");
+
+	int rc;
+	u8 c;
+	while ((rc = in->Read(&c, 1)) >= 0) {
+		if (rc) {
+			CString s;
+			s.Format("Character read: 0x%02lx ('%c')\n", (u32)c, c);
+			out->Write((u8 *)s.GetBuffer(), s.GetLength());
+		}
+	}
+
 	return proc->GetPID();//temp
 }

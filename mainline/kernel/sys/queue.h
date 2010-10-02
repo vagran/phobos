@@ -257,7 +257,8 @@ public:
 		Tree<hash_t>::TreeRoot rootnode;
 	} TreeRoot;
 
-	static inline int KeyCompare(char_t *key1, int len1, char_t *key2, int len2) {
+	static inline int KeyCompare(const char_t *key1, int len1,
+		const char_t *key2, int len2) {
 		if (len1 != len2) {
 			return 1;
 		}
@@ -272,7 +273,8 @@ public:
 		return 0;
 	}
 
-	static TreeEntry *FindNode(TreeRoot &root, char_t *key, int keyLen = -1) __noinline;
+	static TreeEntry *FindNode(TreeRoot &root, char_t *key,
+		int keyLen = -1) __noinline;
 	static void AddNode(TreeRoot &root, TreeEntry *node, char_t *key,
 		int keyLen = -1) __noinline;
 	static void DeleteNode(TreeRoot &root, TreeEntry *node) __noinline;

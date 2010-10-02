@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef TM_H_
@@ -90,6 +90,7 @@ public:
 	int GetTime(Time *t);
 	u64 GetTicks();
 	inline u64 MS(u64 ms) {return ms * timerFreq / 1000 / tickDivisor;}
+	inline u64 S(u64 s) {return s * timerFreq / tickDivisor;}
 	Handle SetTimer(TimerFunc func, u64 timeToRun, void *arg = 0, u64 period = 0);
 	int RemoveTimer(Handle h);
 };

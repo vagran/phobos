@@ -14,6 +14,13 @@ phbSource("$Id$");
 DECLARE_GCLASS(GStream);
 
 class GStream : public GateObject {
+public:
+	enum ErrorCode {
+			EOF = -1,
+			E_FAULT = -0x7fff, /* Some general fault */
+			E_NOTSUPPORTED, /* The stream doesn't support either reading or writing */
+	};
+
 private:
 	friend class PM::Process;
 
@@ -21,18 +28,14 @@ private:
 	StringTree<>::TreeEntry nameTree;
 
 public:
-	enum {
-		EOF = -1,
-	};
-
-	GStream(char *name);
+	GStream(const char *name);
 	virtual ~GStream();
 
 	virtual int GetName(char *buf = 0, int bufSize = 0);
 	/* return number of bytes read, EOF if end of stream, another negative value if error */
-	virtual int Read(u8 *buf, u32 size) = 0;
+	virtual int Read(u8 *buf, u32 size) { return E_NOTSUPPORTED; }
 	/* return number of bytes written, negative value if error */
-	virtual int Write(u8 *buf, u32 size) = 0;
+	virtual int Write(u8 *buf, u32 size) { return E_NOTSUPPORTED; }
 
 	DECLARE_GCLASS_IMP(GStream);
 };

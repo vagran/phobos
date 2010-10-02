@@ -3,12 +3,14 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
 phbSource("$Id$");
 
+#include <dev/chr/KbdDev.h>
+#include <dev/chr/KbdConsole.h>
 
 Device::Device(Type type, u32 unit, u32 classID)
 {
@@ -157,12 +159,39 @@ Device::IOBuf::Setup(u64 addr, int direction, u32 size, void *buf)
 ChrDevice::ChrDevice(Type type, u32 unit, u32 classID) :
 	Device(type, unit, classID)
 {
-
+	memset(evCbk, 0, sizeof(evCbk));
 }
 
 ChrDevice::~ChrDevice()
 {
 
+}
+
+int
+ChrDevice::Notify(Operation op)
+{
+	if (op >= OP_MAX) {
+		return -1;
+	}
+	if (evCbk[op].obj) {
+		(evCbk[op].obj->*evCbk[op].cbk)(this, op);
+	}
+	u32 waitId = GetWaitChannel(op);
+	if (waitId) {
+		pm->Wakeup((PM::waitid_t)waitId);
+	}
+	return 0;
+}
+
+int
+ChrDevice::RegisterCallback(Operation op, EventCallback cbk, Object *obj)
+{
+	if (op >= OP_MAX) {
+		return -1;
+	}
+	evCbk[op].obj = obj;
+	evCbk[op].cbk = cbk;
+	return 0;
 }
 
 Device::IOStatus
@@ -473,6 +502,24 @@ DeviceManager::ProbeDevices()
 			if (!d) {
 				break;
 			}
+		}
+	}
+	return 0;
+}
+
+int
+DeviceManager::ConfigureDevices()
+{
+	ProbeDevices();
+
+	/* Check for old keyboard controller */
+	KbdDev *kbd = (KbdDev *)GetDevice("8042kbd0");
+
+	/* Create keyboard console if we have keyboard */
+	if (kbd) {
+		KbdConsole *kbdCons = (KbdConsole *)CreateDevice("kbdcons");
+		if (kbdCons) {
+			kbdCons->SetInputDevice(kbd);
 		}
 	}
 	return 0;

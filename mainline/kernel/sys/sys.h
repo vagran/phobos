@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef SYS_H_
@@ -45,6 +45,7 @@ extern void __assert(const char *file, u32 line, const char *cond);
 
 #include <lock.h>
 #include <object.h>
+#include <Fifo.h>
 #include <Bitmap.h>
 #include <mem.h>
 #include <String.h>
