@@ -116,14 +116,15 @@ Device::IOBuf::AllocateBuffer(u32 size)
 int
 Device::IOBuf::Wait(u64 timeout)
 {
-	int rc, timedOut;
+	int rc;
+	void *wakenBy;
 
 	while (!(flags & F_COMPLETE)) {
-		rc = pm->Sleep(this, "IOBuf::Wait", timeout, &timedOut);
+		rc = pm->Sleep(this, "IOBuf::Wait", timeout, &wakenBy);
 		if (rc) {
 			break;
 		}
-		if (timedOut) {
+		if (!wakenBy) {
 			rc = 1;
 			break;
 		}

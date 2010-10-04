@@ -79,7 +79,7 @@ PM::IdleThread()
 {
 	CPU *cpu = CPU::GetCurrent();
 	assert(cpu);
-	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
+	Runqueue *rq = CPU_RQ(cpu);
 	assert(rq);
 	sti();
 	while (1) {
@@ -116,6 +116,7 @@ void
 PM::FreeSleepEntry(SleepEntry *p)
 {
 	assert(!p->numThreads);
+	assert(LIST_ISEMPTY(p->threads));
 	TREE_DELETE(tree, p, tqSleep);
 	DELETE(p);
 }
@@ -270,9 +271,9 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 	assert(cpu);
 	/* create runqueue on this CPU */
 	cpu->pcpu.runQueue = NEWSINGLE(Runqueue);
-	ensure(cpu->pcpu.runQueue);
+	ensure(CPU_RQ(cpu));
 	rqLock.Lock();
-	LIST_ADD(list, ((Runqueue *)cpu->pcpu.runQueue), runQueues);
+	LIST_ADD(list, CPU_RQ(cpu), runQueues);
 	rqLock.Unlock();
 	/* The first caller should create kernel process */
 	assert((!kernelProc && kernelProcEntry) || (kernelProc && !kernelProcEntry));
@@ -307,7 +308,7 @@ PM::ValidateState()
 		/* Currently active thread should be stopped, switch to another one */
 		CPU *cpu = CPU::GetCurrent();
 		assert(cpu);
-		Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
+		Runqueue *rq = CPU_RQ(cpu);
 		assert(rq);
 		Thread *nextThrd = rq->SelectThread();
 		/* at least idle thread should be there */
@@ -362,34 +363,94 @@ PM::SleepTimeout(Thread *thrd)
 	tqLock.Lock();
 	assert(thrd->waitTimeout);
 	thrd->waitTimeout = 0;
+	thrd->wakenBy = 0;
 	Wakeup(thrd);
-	thrd->wakenByTimeout = 1;
 	tqLock.Unlock();
 	im->RestorePL(x);
 }
 
 int
-PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout, int *byTimeout)
+PM::SleepMultiple(waitid_t *channelsID, int numChannels,
+		const char *sleepString, u64 timeout, waitid_t *wakenBy)
 {
+	if (numChannels == -1) {
+		for (numChannels = 0; channelsID[numChannels]; numChannels++);
+	}
+	assert(numChannels);
+
+	Thread *thrd = Thread::GetCurrent();
 	u64 x = im->SetPL(IM::IP_MAX);
 	tqLock.Lock();
-	SleepEntry *se = GetSleepEntry(channelID);
-	if (!se) {
-		se = CreateSleepEntry(channelID);
-	} else {
-		if (se->flags & SleepEntry::F_WAKEN) {
-			FreeSleepEntry(se);
+
+	/* Allocate ThreadElement structures */
+	ThreadElement *e;
+	LIST_INIT(thrd->waitEntries);
+	for (int i = 0; i < numChannels; i++) {
+		e = NEW(ThreadElement);
+		if (!e) {
 			tqLock.Unlock();
 			im->RestorePL(x);
-			return 0;
+			while ((e = LIST_FIRST(ThreadElement, thrdList, thrd->waitEntries))) {
+				LIST_DELETE(thrdList, e, thrd->waitEntries);
+				DELETE(e);
+			}
+			return -1;
 		}
+		LIST_ADD(thrdList, e, thrd->waitEntries);
+		e->thread = thrd;
 	}
-	assert(se);
-	Thread *thrd = Thread::GetCurrent();
+	thrd->numWaitEntries = numChannels;
+
+	/* Firstly check if there are no waken sleep entries */
+	SleepEntry *se;
+	int waken = 0;
+	e = LIST_FIRST(ThreadElement, thrdList, thrd->waitEntries);
+	for (int i = 0; i < numChannels; i++) {
+		se = GetSleepEntry(channelsID[i]);
+		e->se = se;
+		if (se && (se->flags & SleepEntry::F_WAKEN)) {
+			waken = 1;
+			FreeSleepEntry(se);
+			thrd->wakenBy = channelsID[i];
+		}
+		e = LIST_NEXT(ThreadElement, thrdList, e);
+	}
+	/* If at least one thread was waken then return */
+	if (waken) {
+		tqLock.Unlock();
+		im->RestorePL(x);
+		while ((e = LIST_FIRST(ThreadElement, thrdList, thrd->waitEntries))) {
+			LIST_DELETE(thrdList, e, thrd->waitEntries);
+			DELETE(e);
+		}
+		if (wakenBy) {
+			*wakenBy = thrd->wakenBy;
+		}
+		return 0;
+	}
+
+	/*
+	 * The next step, create non-existing sleep entries and add the thread
+	 * to all of the sleep entries
+	 */
 	Runqueue *rq = thrd->GetRunqueue();
 	rq->RemoveThread(thrd);
-	LIST_ADD(sleepList, thrd, se->threads);
-	se->numThreads++;
+	e = LIST_FIRST(ThreadElement, thrdList, thrd->waitEntries);
+	for (int i = 0; i < numChannels; i++) {
+		if (e->se) {
+			se = e->se;
+		} else {
+			se = CreateSleepEntry(channelsID[i]);
+			e->se = se;
+		}
+		assert(se);
+
+		LIST_ADD(seList, e, se->threads);
+		se->numThreads++;
+		e = LIST_NEXT(ThreadElement, thrdList, e);
+	}
+
+	/* Setup timer if wake up by timeout requested */
 	Handle hTimeout;
 	if (timeout) {
 		hTimeout = tm->SetTimer(SleepTimeout, tm->GetTicks() + timeout, thrd);
@@ -397,17 +458,34 @@ PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout, int *byTimeo
 	} else {
 		hTimeout = 0;
 	}
-	thrd->Sleep(se, sleepString, hTimeout);
+	thrd->Sleep(sleepString, hTimeout);
 	tqLock.Unlock();
 	im->RestorePL(x);
+
+	/* Switch to another thread */
 	Thread *next = rq->SelectThread();
 	/* at least idle thread should be there */
 	assert(next);
 	next->SwitchTo();
-	if (byTimeout) {
-		*byTimeout = thrd->wakenByTimeout;
+	/* We were waken up */
+	if (wakenBy) {
+		*wakenBy = thrd->wakenBy;
 	}
 	return 0;
+}
+
+int
+PM::SleepMultiple(void **channelsID, int numChannels,
+			const char *sleepString, u64 timeout, void **wakenBy)
+{
+	return SleepMultiple((waitid_t *)channelsID, numChannels, sleepString,
+		timeout, (waitid_t *)wakenBy);
+}
+
+int
+PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout, waitid_t *wakenBy)
+{
+	return SleepMultiple(&channelID, 1, sleepString, timeout, wakenBy);
 }
 
 int
@@ -452,9 +530,9 @@ PM::FreeSleepChannel(waitid_t channelID)
 }
 
 int
-PM::Sleep(void *channelID, const char *sleepString, u64 timeout, int *byTimeout)
+PM::Sleep(void *channelID, const char *sleepString, u64 timeout, void **wakenBy)
 {
-	return Sleep((waitid_t)channelID, sleepString, timeout, byTimeout);
+	return Sleep((waitid_t)channelID, sleepString, timeout, (waitid_t *)wakenBy);
 }
 
 /* return 0 if someone waken, 1 if nobody waits on this channel, -1 if error */
@@ -486,11 +564,15 @@ PM::Wakeup(SleepEntry *se)
 		return 0;
 	}
 	se->numThreads++; /* hold reference to sleep entry */
-	Thread *thrd;
-	while ((thrd = LIST_FIRST(Thread, sleepList, se->threads))) {
+	ThreadElement *e;
+	while ((e = LIST_FIRST(ThreadElement, seList, se->threads))) {
+		Thread *thrd = e->thread;
+		thrd->wakenBy = TREE_KEY(tree, se);
 		Wakeup(thrd);
 	}
 	assert(se->numThreads == 1);
+	se->numThreads = 0;
+	assert(LIST_ISEMPTY(se->threads));
 	FreeSleepEntry(se);
 	return 0;
 }
@@ -500,9 +582,8 @@ int
 PM::Wakeup(Thread *thrd)
 {
 	UnsleepThread(thrd);
-	thrd->wakenByTimeout = 0;
 	thrd->Unsleep();
-	thrd->Run(); /* XXX CPU should be selected */
+	thrd->Run();
 	return 0;
 }
 
@@ -510,17 +591,26 @@ PM::Wakeup(Thread *thrd)
 int
 PM::UnsleepThread(Thread *thrd)
 {
-	SleepEntry *se = (SleepEntry *)thrd->waitEntry;
-	assert(se);
-	LIST_DELETE(sleepList, thrd, se->threads);
-	assert(se->numThreads);
-	se->numThreads--;
+	/* Remove all relations between thread and sleep entries */
+	ThreadElement *e;
+	while ((e = LIST_FIRST(ThreadElement, thrdList, thrd->waitEntries))) {
+		SleepEntry *se = e->se;
+		LIST_DELETE(seList, e, se->threads);
+		assert(se->numThreads);
+		se->numThreads--;
+		if (!se->numThreads) {
+			FreeSleepEntry(se);
+		}
+		LIST_DELETE(thrdList, e, thrd->waitEntries);
+		assert(thrd->numWaitEntries);
+		thrd->numWaitEntries--;
+		DELETE(e);
+	}
+
+	/* Destroy timer if it was created */
 	if (thrd->waitTimeout) {
 		tm->RemoveTimer(thrd->waitTimeout);
 		thrd->waitTimeout = 0;
-	}
-	if (!se->numThreads) {
-		FreeSleepEntry(se);
 	}
 	return 0;
 }
@@ -566,6 +656,7 @@ PM::Runqueue::AddThread(Thread *thrd)
 	thrd->sliceTicks = GetSliceTicks(thrd);
 	thrd->rqFlags = 0;
 	thrd->state = Thread::S_RUNNING;
+	u32 intr = IM::DisableIntr();
 	qLock.Lock();
 	thrd->rqQueue = qActive;
 	thrd->cpu = cpu;
@@ -575,13 +666,15 @@ PM::Runqueue::AddThread(Thread *thrd)
 	numQueued++;
 	numActive++;
 	qLock.Unlock();
+	IM::RestoreIntr(intr);
 	return 0;
 }
 
 int
 PM::Runqueue::RemoveThread(Thread *thrd)
 {
-	assert(thrd->cpu->pcpu.runQueue == this);
+	assert(CPU_RQ(thrd->cpu) == this);
+	u32 intr = IM::DisableIntr();
 	qLock.Lock();
 	Queue *queue = (Queue *)thrd->rqQueue;
 	ListHead *head = &queue->queue[thrd->priority];
@@ -608,16 +701,19 @@ PM::Runqueue::RemoveThread(Thread *thrd)
 	thrd->cpu = 0;
 	thrd->state = Thread::S_NONE;
 	qLock.Unlock();
+	IM::RestoreIntr(intr);
 	return 0;
 }
 
-/* must be called with qLock */
 PM::Thread *
 PM::Runqueue::SelectThread()
 {
 	assert(numQueued);
 	int pri;
 	Thread *thrd;
+
+	u32 intr = IM::DisableIntr();
+	qLock.Lock();
 	while (1) {
 		if (!numActive) {
 			/* start next round */
@@ -638,6 +734,8 @@ PM::Runqueue::SelectThread()
 			/* no more threads in running state */
 			thrd = LIST_FIRST(Thread, rqList, qActive->queue[pri]);
 			assert(thrd);
+			qLock.Unlock();
+			IM::RestoreIntr(intr);
 			return thrd;
 		}
 		assert(numActive == 1);
@@ -649,6 +747,8 @@ PM::Runqueue::SelectThread()
 	}
 	thrd = LIST_FIRST(Thread, rqList, qActive->queue[pri]);
 	assert(thrd);
+	qLock.Unlock();
+	IM::RestoreIntr(intr);
 	return thrd;
 }
 
@@ -976,7 +1076,8 @@ PM::Thread::Thread(Process *proc)
 	fault = PFLT_NONE;
 	memset(&ctx, 0, sizeof(ctx));
 	priority = DEF_PRIORITY;
-	waitEntry = 0;
+	LIST_INIT(waitEntries);
+	numWaitEntries = 0;
 	waitString = 0;
 	waitTimeout = 0;
 	rqQueue = 0;
@@ -1010,7 +1111,7 @@ PM::Thread::Exit(int exitCode)
 	/* switch to another thread */
 	CPU *cpu = CPU::GetCurrent();
 	assert(cpu);
-	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
+	Runqueue *rq = CPU_RQ(cpu);
 	assert(rq);
 	Thread *nextThrd = rq->SelectThread();
 	/* at least idle thread should be there */
@@ -1085,7 +1186,7 @@ PM::Thread::GetCurrent()
 	if (!cpu) {
 		return 0;
 	}
-	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
+	Runqueue *rq = CPU_RQ(cpu);
 	assert(rq);
 	return rq->GetCurrentThread();
 }
@@ -1099,7 +1200,7 @@ PM::Thread::Run(CPU *cpu)
 		cpu = pm->SelectCPU();
 	}
 	assert(cpu);
-	Runqueue *rq = (Runqueue *)cpu->pcpu.runQueue;
+	Runqueue *rq = CPU_RQ(cpu);
 	return rq->AddThread(this);
 }
 
@@ -1141,10 +1242,9 @@ PM::Thread::Terminate(int exitCode)
 }
 
 int
-PM::Thread::Sleep(void *waitEntry, const char *waitString, Handle waitTimeout)
+PM::Thread::Sleep(const char *waitString, Handle waitTimeout)
 {
 	assert(state == S_NONE);
-	this->waitEntry = waitEntry;
 	this->waitString = waitString;
 	this->waitTimeout = waitTimeout;
 	state = S_SLEEP;
@@ -1155,8 +1255,8 @@ int
 PM::Thread::Unsleep()
 {
 	assert(state == S_SLEEP);
+	assert(LIST_ISEMPTY(waitEntries));
 	state = S_NONE;
-	waitEntry = 0;
 	waitString = 0;
 	waitTimeout = 0;
 	return 0;

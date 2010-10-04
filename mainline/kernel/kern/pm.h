@@ -13,6 +13,9 @@ phbSource("$Id$");
 
 /* Processes manager */
 
+/* Get per-CPU runqueue */
+#define CPU_RQ(cpu)		((Runqueue *)cpu->pcpu.runQueue)
+
 class GStream;
 
 class PM : public Object {
@@ -104,9 +107,12 @@ public:
 		friend class Runqueue;
 		friend class PM;
 
+		enum {
+			NUM_STATIC_WAIT_ENTRIES =	32,
+		};
+
 		ListEntry list; /* list of threads in process */
 		ListEntry rqList; /* entry in run-queue */
-		ListEntry sleepList;
 		PIDEntry pid;
 		u32 rqFlags;
 		Process *proc;
@@ -118,10 +124,11 @@ public:
 		Context ctx;
 		u32 priority;
 		u32 sliceTicks; /* ticks of time slice left */
-		void *waitEntry; /* zero if not waiting */
+		ListHead waitEntries; /* empty if not waiting, list of ThreadElements */
+		int numWaitEntries;
 		const char *waitString;
 		Handle waitTimeout;
-		int wakenByTimeout:1;
+		waitid_t wakenBy; /* by timeout when zero */
 		void *rqQueue; /* active or expired queue */
 		State state;
 		int exitCode;
@@ -141,10 +148,10 @@ public:
 		static Thread *GetCurrent();
 		int Run(CPU *cpu = 0);
 		int Stop();
-		int Sleep(void *waitEntry, const char *waitString, Handle waitTimeout = 0);
+		int Sleep(const char *waitString, Handle waitTimeout = 0);
 		int Unsleep();
 		int Terminate(int exitCode = 0);
-		inline Runqueue *GetRunqueue() { return cpu ? (Runqueue *)cpu->pcpu.runQueue : 0; }
+		inline Runqueue *GetRunqueue() { return cpu ? CPU_RQ(cpu) : 0; }
 		inline Process *GetProcess() { return proc; }
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 		int MapKernelStack(vaddr_t esp);
@@ -260,9 +267,20 @@ private:
 
 		Tree<waitid_t>::TreeEntry tree;
 		u32 flags;
-		ListHead threads;
+		ListHead threads; /* List of ThreadElement structures */
 		u32 numThreads;
 	} SleepEntry;
+
+	/*
+	 * Intermediate structure to implement many-to-many relations between
+	 * threads and sleep entries
+	 */
+	typedef struct {
+		ListEntry seList;
+		ListEntry thrdList;
+		Thread *thread;
+		SleepEntry *se;
+	} ThreadElement;
 
 	static ListHead imageLoaders;
 	ListHead processes;
@@ -308,8 +326,12 @@ public:
 	 * If byTimeout argument is provided it indicates either the thread was waken by timeout
 	 * or by event on specified channel.
 	 */
-	int Sleep(waitid_t channelID, const char *sleepString, u64 timeout = 0, int *byTimeout = 0);
-	int Sleep(void *channelID, const char *sleepString, u64 timeout = 0, int *byTimeout = 0);
+	int Sleep(waitid_t channelID, const char *sleepString, u64 timeout = 0, waitid_t *wakenBy = 0);
+	int Sleep(void *channelID, const char *sleepString, u64 timeout = 0, void **wakenBy = 0);
+	int SleepMultiple(waitid_t *channelsID, int numChannels,
+		const char *sleepString, u64 timeout = 0, waitid_t *wakenBy = 0);
+	int SleepMultiple(void **channelsID, int numChannels,
+			const char *sleepString, u64 timeout = 0, void **wakenBy = 0);
 	int ReserveSleepChannel(void *channelID);
 	int ReserveSleepChannel(waitid_t channelID);
 	int FreeSleepChannel(void *channelID); /* do not need to be called if Sleep() was called */

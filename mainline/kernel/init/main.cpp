@@ -179,20 +179,24 @@ int MyTimer(Handle h, u64 ticks, void *arg)//temp
 {
 	Time time;
 	tm->GetTime(&time);
-	printf("MyTimer: ticks = %llu, name = %s, time = %llu.%06lu\n",
-		ticks, (char *)arg, time.sec, time.usec);
+	printf("%llu.%06lu MyTimer (%s): 0x%08lx\n", time.sec, time.usec, *(char **)arg, (u32)arg);
+	pm->Wakeup(arg);
 	return 0;
 }
 
-static int proc1, proc2;
+static const char *ev1 = "event 1", *ev2 = "event 2", *ev3 = "event 3";
 
 int MyProcess(void *arg)//temp
 {
 	printf("Process: %s\n", (char *)arg);
 	while (1) {
-		//pm->Wakeup(&proc1);
-		pm->Sleep(&proc2, "proc2", tm->MS(1000));
-		//printf("process 1 waken\n");
+		void *wakenBy;
+		void *events[] = {&ev1, &ev2, &ev3, 0};
+		pm->SleepMultiple(events, -1, "test multisleep", tm->MS(2000), &wakenBy);
+		Time time;
+		tm->GetTime(&time);
+		printf("%llu.%06lu process waken by %s\n", time.sec, time.usec,
+			wakenBy ? *(char **)wakenBy : "timeout");
 	}
 	return 0;
 }
@@ -233,16 +237,18 @@ StartupProc(void *arg)
 	}
 
 	sti();//temp
-	//tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 2s", tm->MS(2000));
-	//tm->SetTimer(MyTimer, tm->GetTicks(), (void *)"periodic 3s", tm->MS(3000));
-	//tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(5000), (void *)"one-shot 5s");
+	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(2000), &ev1, tm->MS(2000));
+	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(3000), &ev2, tm->MS(3000));
+	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(7000), &ev3);
 
 	pm->CreateProcess(MyProcess, (void *)"process 1", "process 1");
 
 	while (1) {
 		//pm->Wakeup(&proc2);
-		pm->Sleep(&proc1, "proc1", tm->MS(2000));
-		//printf("init proc waken\n");
+		pm->Sleep(&ev1, "proc1");
+		Time time;
+		tm->GetTime(&time);
+		printf("%llu.%06lu init proc waken\n", time.sec, time.usec);
 	}
 	return 0;
 }

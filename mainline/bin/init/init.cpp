@@ -20,11 +20,7 @@ Main(GApp *app)
 	str += GETSTR(proc, GProcess::GetName);
 	str += '\n';
 	GStream *out = app->GetStream("output");
-	/*GTime *time = app->GetTime();
-	while (1) {
-		out->Write((u8 *)str.GetBuffer(), str.GetLength());
-		app->Sleep(time->MS(1000));
-	}*/
+	GTime *time = app->GetTime();
 
 	GStream *in = app->GetStream("input");
 
@@ -35,6 +31,8 @@ Main(GApp *app)
 			CString s;
 			s.Format("Character read: 0x%02lx ('%c')\n", (u32)c, c);
 			out->Write((u8 *)s.GetBuffer(), s.GetLength());
+		} else {
+			app->Sleep(time->MS(10));
 		}
 	}
 

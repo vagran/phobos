@@ -135,3 +135,12 @@ KbdConsole::Getc(u8 *c)
 	im->RestorePL(cpl);
 	return s;
 }
+
+Device::IOStatus
+KbdConsole::OpAvailable(Operation op)
+{
+	if (op == OP_READ) {
+		return fifo.GetLenth() ? IOS_OK : IOS_NODATA;
+	}
+	return IOS_NOTSPRT;
+}

@@ -37,6 +37,7 @@ public:
 	virtual int SetInputDevice(KbdDev *dev);
 	virtual u32 GetWaitChannel(Operation op);
 	virtual IOStatus Getc(u8 *c);
+	virtual IOStatus OpAvailable(Operation op);
 };
 
 #endif /* KBDCONSOLE_H_ */

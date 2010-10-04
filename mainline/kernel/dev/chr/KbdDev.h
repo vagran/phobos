@@ -192,6 +192,7 @@ public:
 	virtual int SetLeds(int leds) { return -1; }
 	virtual int GetLeds() { return leds; }
 	virtual u32 GetWaitChannel(Operation op);
+	virtual IOStatus OpAvailable(Operation op);
 };
 
 #endif /* KBDDEV_H_ */
