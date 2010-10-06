@@ -24,6 +24,32 @@ GConsoleStream::~GConsoleStream()
 	con->Release();
 }
 
+PM::waitid_t
+GConsoleStream::GetWaitChannel(Operation op)
+{
+	if (op == OP_READ) {
+		return con->GetWaitChannel(Device::OP_READ);
+	} else if (op == OP_WRITE) {
+		return con->GetWaitChannel(Device::OP_WRITE);
+	}
+	/* Unsupported operation */
+	ERROR(E_OP_NOTSUPPORTED);
+	return 0;
+}
+
+int
+GConsoleStream::OpAvailable(Operation op)
+{
+	if (op == OP_READ) {
+		return con->OpAvailable(Device::OP_READ) == Device::IOS_OK;
+	} else if (op == OP_WRITE) {
+		return con->OpAvailable(Device::OP_WRITE) == Device::IOS_OK;
+	}
+	/* Unsupported operation */
+	ERROR(E_OP_NOTSUPPORTED);
+	return 0;
+}
+
 int
 GConsoleStream::Read(u8 *buf, u32 size)
 {

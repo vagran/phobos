@@ -19,6 +19,10 @@ DECLARE_GCLASS(GApp);
 
 class GApp : public GateObject {
 private:
+	enum {
+		MAX_WAIT_OBJECTS =		1024, /* Maximal number of object for Wait() method */
+	};
+
 	GProcess *gproc;
 	GTime *gtime;
 public:
@@ -28,7 +32,8 @@ public:
 	virtual void ExitThread(int exitCode = 0) __noreturn;
 	virtual void Abort(char *msg = 0);
 	virtual int Sleep(u64 time);
-	virtual int Wait();//notimpl
+	virtual int Wait(Operation op, GateObject **objects, int numObjects,
+		void *bitmap = 0, u64 timeout = 0);
 
 	virtual int GetLastErrorStr(char *buf, int bufLen);
 	virtual Error::ErrorCode GetLastError();

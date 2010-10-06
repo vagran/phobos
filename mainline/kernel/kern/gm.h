@@ -148,12 +148,12 @@ DECLARE_GCLASS(GateObject);
 
 class GateObject : public Object {
 public:
-	enum Operation {
+	typedef enum {
 		OP_READ,
 		OP_WRITE,
 
 		OP_MAX
-	};
+	} Operation;
 private:
 	enum {
 		GATE_OBJ_SIGNATURE = 'G' | ('A' << 8) | ('T' << 16) | ('E' << 24),
@@ -183,6 +183,7 @@ protected:
 	int userMode;
 	CallStatEntry *callStats;
 	u64 numKernCalls, numUserCalls;
+
 public:
 	void operator delete(void *obj);
 	GateObject();
@@ -203,6 +204,10 @@ public:
 	virtual ~GateObject();
 	virtual int AddRef();
 	virtual int Release();
+
+	/* Waitable objects must redefine these two methods */
+	virtual PM::waitid_t GetWaitChannel(Operation op) { return 0; }
+	virtual int OpAvailable(Operation op) { return 0; } /* return non-zero if available */
 
 	DECLARE_GCLASS_IMP(GateObject);
 };

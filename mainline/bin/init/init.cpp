@@ -26,13 +26,31 @@ Main(GApp *app)
 
 	int rc;
 	u8 c;
-	while ((rc = in->Read(&c, 1)) >= 0) {
-		if (rc) {
-			CString s;
-			s.Format("Character read: 0x%02lx ('%c')\n", (u32)c, c);
+	CString s;
+	while (1) {
+		GateObject *objs[] = { in };
+		u32 bitmap;
+
+		if (app->Wait(GateObject::OP_READ, objs, SIZEOFARRAY(objs), &bitmap,
+			time->S(2))) {
+			s = "Wait failed\n";
+			out->Write((u8 *)s.GetBuffer(), s.GetLength());
+			s = GETSTR(app, GApp::GetLastErrorStr);
 			out->Write((u8 *)s.GetBuffer(), s.GetLength());
 		} else {
-			app->Sleep(time->MS(10));
+			if (BitIsSet(&bitmap, 0)) {
+				rc = in->Read(&c, 1);
+				if (rc < 0) {
+					s = "Read failed\n";
+					out->Write((u8 *)s.GetBuffer(), s.GetLength());
+				} else if (rc) {
+					s.Format("Character read: 0x%02lx ('%c')\n", (u32)c, c);
+					out->Write((u8 *)s.GetBuffer(), s.GetLength());
+				}
+			} else {
+				s = "Waken by timeout\n";
+				out->Write((u8 *)s.GetBuffer(), s.GetLength());
+			}
 		}
 	}
 

@@ -18,6 +18,8 @@ Error::ErrorDef Error::errorDefs[] = {
 	ERROR_DEF(E_IO,					"I/O operation fault"),
 	ERROR_DEF(E_INVAL,				"Invalid parameters"),
 	ERROR_DEF(E_THREAD_FAULT,		"Thread fault raised"),
+	ERROR_DEF(E_INVAL_GATEOBJ,		"Invalid gate object pointer passed to system call"),
+	ERROR_DEF(E_OP_NOTSUPPORTED,	"Operation not supported"),
 };
 
 Error::Error()

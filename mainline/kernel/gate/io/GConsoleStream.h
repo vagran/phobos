@@ -25,6 +25,9 @@ public:
 private:
 	int flags;
 	ConsoleDev *con;
+
+	virtual PM::waitid_t GetWaitChannel(Operation op);
+	virtual int OpAvailable(Operation op);
 public:
 	GConsoleStream(const char *name, ConsoleDev *con, int flags = F_INPUT | F_OUTPUT);
 	virtual ~GConsoleStream();

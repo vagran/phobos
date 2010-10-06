@@ -20,6 +20,8 @@ public:
 		E_IO,					/* I/O operations error */
 		E_INVAL,				/* Invalid parameters */
 		E_THREAD_FAULT,			/* Thread fault raised */
+		E_INVAL_GATEOBJ,		/* Invalid gate object pointer passed to system call */
+		E_OP_NOTSUPPORTED,		/* Operation not supported */
 	};
 private:
 	enum {
