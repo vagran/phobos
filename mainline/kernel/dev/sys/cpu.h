@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef CPU_H_
@@ -93,6 +93,7 @@ public:
 	inline void SetAST() { setAST = 1; }
 	inline int IsSetAST() { return setAST; }
 	inline void ClearAST() { setAST = 0; }
+	inline int GetIntrNesting() { return intrNesting; }
 	inline int GetTrapNesting() { return trapNesting; }
 };
 

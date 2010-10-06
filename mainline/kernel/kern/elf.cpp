@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -62,15 +62,18 @@ int
 ElfImageLoader::Load(MM::Map *map, MM::VMObject *bssObj)
 {
 	if (status) {
-		return E_FAULT;
+		ERROR(E_FAULT);
+		return -1;
 	}
 	ElfPhdr *phdr = ALLOC(ElfPhdr, 1);
 	if (!phdr) {
-		return E_NOMEM;
+		ERROR(E_NOMEM);
+		return -1;
 	}
 	MM::VMObject *obj = vfs->MapFile(file);
 	if (!obj) {
-		return E_FAULT;
+		ERROR(E_FAULT);
+		return -1;
 	}
 	/* iterate through program header entries */
 	for (int i = 0; i < ehdr.e_phnum; i++) {
@@ -78,7 +81,8 @@ ElfImageLoader::Load(MM::Map *map, MM::VMObject *bssObj)
 			sizeof(*phdr)) != sizeof(*phdr)) {
 			obj->Release();
 			FREE(phdr);
-			return E_IO;
+			ERROR(E_IO);
+			return -1;
 		}
 		/* load only segments of PT_LOAD type */
 		if (phdr->p_type != PT_LOAD) {
@@ -101,7 +105,8 @@ ElfImageLoader::Load(MM::Map *map, MM::VMObject *bssObj)
 				"is not supported");
 			obj->Release();
 			FREE(phdr);
-			return E_INVAL;
+			ERROR(E_INVAL);
+			return -1;
 		}
 		/* build protection value */
 		int protection = 0;
@@ -118,7 +123,8 @@ ElfImageLoader::Load(MM::Map *map, MM::VMObject *bssObj)
 			protection)) {
 			obj->Release();
 			FREE(phdr);
-			return E_FAULT;
+			ERROR(E_FAULT);
+			return -1;
 		}
 		/* Insert BSS chunk if required */
 		if (mem_size > roundup2(file_size, PAGE_SIZE)) {
@@ -131,7 +137,8 @@ ElfImageLoader::Load(MM::Map *map, MM::VMObject *bssObj)
 					mem_size - roundup2(file_size, PAGE_SIZE), protection)) {
 				obj->Release();
 				FREE(phdr);
-				return E_FAULT;
+				ERROR(E_FAULT);
+				return -1;
 			}
 		}
 	}

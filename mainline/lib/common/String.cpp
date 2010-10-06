@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -91,6 +91,7 @@ String<Allocator>::operator =(const char *str)
 	if (!str) {
 		len = 0;
 		buf[0] = 0;
+		Realloc(1);
 		return *this;
 	}
 	len = strlen(str);

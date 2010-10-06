@@ -32,6 +32,7 @@ public:
 		PFLT_GATE_METHOD_RESTICTED, /* Restricted gate method called */
 		PFLT_PAGE_FAULT, /* Page fault */
 		PFLT_INVALID_BUFFER, /* Invalid user buffer provided to gate method */
+		PFLT_ABORT, /* Aborted by application request */
 	};
 
 	enum {
@@ -109,6 +110,7 @@ public:
 
 		enum {
 			NUM_STATIC_WAIT_ENTRIES =	32,
+			ERROR_HISTORY_SIZE =		2,
 		};
 
 		ListEntry list; /* list of threads in process */
@@ -118,6 +120,7 @@ public:
 		Process *proc;
 		u32 stackSize;
 		vaddr_t gateCallSP; /* stack pointer on gate method entrance, kernel stack starts from there */
+		vaddr_t gateCallRetAddr; /* application return address from a system call */
 		MM::VMObject *stackObj;
 		MM::Map::Entry *stackEntry;
 		CPU *cpu;
@@ -135,6 +138,10 @@ public:
 		ProcessFault fault;
 		KString faultStr;
 		int isActive; /* currently running on some CPU */
+		Error err[ERROR_HISTORY_SIZE];
+		int curError; /* current error object index */
+		int numErrors; /* number of valid errors in history (including current one) */
+		GateObject *gateObj; /* gate object which handles current system call, 0 if not in system call */
 	public:
 		Thread(Process *proc);
 		~Thread();
@@ -159,9 +166,16 @@ public:
 			return esp > stackEntry->base &&
 				esp <= stackEntry->base + stackEntry->size;
 		}
-		inline void SetGateCallSP(u32 esp) { gateCallSP = esp; }
+		inline void SetGateCallSP(u32 esp) {
+			gateCallSP = esp;
+			gateCallRetAddr = *(vaddr_t *)esp;
+		}
+		inline void SetGateObject(GateObject *gateObj) { this->gateObj = gateObj; }
 		int IsKernelStack(vaddr_t addr, vsize_t size);
 		int Fault(ProcessFault flt, const char *msg = 0, ...) __format(printf, 3, 4);
+		Error *GetError(int depth = 0); /* depth 0 for current error, 1 for previous and so on */
+		Error *NextError(); /* Advance current error to the next one in the history ring */
+		Error *PrevError(); /* Advance current error to the previous one in the history ring */
 	};
 
 	class Process : public Object {
@@ -190,6 +204,7 @@ public:
 		KString name;
 		SpinLock streamsLock;
 		StringTree<>::TreeRoot streams;
+		int isKernelProc;
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
@@ -328,9 +343,9 @@ public:
 	 */
 	int Sleep(waitid_t channelID, const char *sleepString, u64 timeout = 0, waitid_t *wakenBy = 0);
 	int Sleep(void *channelID, const char *sleepString, u64 timeout = 0, void **wakenBy = 0);
-	int SleepMultiple(waitid_t *channelsID, int numChannels,
+	int Sleep(waitid_t *channelsID, int numChannels,
 		const char *sleepString, u64 timeout = 0, waitid_t *wakenBy = 0);
-	int SleepMultiple(void **channelsID, int numChannels,
+	int Sleep(void **channelsID, int numChannels,
 			const char *sleepString, u64 timeout = 0, void **wakenBy = 0);
 	int ReserveSleepChannel(void *channelID);
 	int ReserveSleepChannel(waitid_t channelID);
@@ -343,6 +358,16 @@ public:
 	CPU *SelectCPU(); /* select the most suitable CPU for new task */
 	static const char *StrProcessFault(ProcessFault flt);
 };
+
+#define ERROR(code,...) { \
+	PM::Thread *__thrd = PM::Thread::GetCurrent(); \
+	if (__thrd) { \
+		Error *__e = __thrd->GetError(); \
+		if (__e) { \
+			__e->RaiseError(__func__, __LINE__, Error::code, ## __VA_ARGS__); \
+		} \
+	} \
+}
 
 extern PM *pm;
 

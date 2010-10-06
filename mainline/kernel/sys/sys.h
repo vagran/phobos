@@ -19,7 +19,6 @@ phbSource("$Id$");
 
 #ifndef ASSEMBLER
 #include <types.h>
-#include <error.h>
 #include <queue.h>
 #include <gcc.h>
 #include <specialreg.h>
@@ -49,6 +48,7 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #include <Bitmap.h>
 #include <mem.h>
 #include <String.h>
+#include <error.h>
 #include <dev/device.h>
 #include <dev/chr/syscons.h>
 #include <kern/im.h>

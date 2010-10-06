@@ -445,7 +445,12 @@ GateObjValidateCall(u32 idx, vaddr_t esp)
 			idx, (u32)obj, obj->GetClassName());
 		return 0;
 	}
+	/* update calling statistics */
 	obj->UpdateCallStat(idx, 1);
+	/* Set current gate object for the thread */
+	thrd->SetGateObject(obj);
+	/* allocate new error object for this system call */
+	thrd->NextError();
 	return method;
 }
 

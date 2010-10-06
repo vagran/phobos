@@ -193,7 +193,7 @@ PM::ProcessEntry(void *arg)
 
 	/* Create default streams */
 	/* XXX just temporal stub, provide terminal access for process */
-	ConsoleDev *videoTerm = (ConsoleDev *)devMan.GetDevice("vga", 0);
+	ConsoleDev *videoTerm = (ConsoleDev *)devMan.GetDevice("syscons"/*//temp "vga" */, 0);
 	GNEW(proc->gateArea, GConsoleStream, "output", videoTerm, GConsoleStream::F_OUTPUT);
 	GNEW(proc->gateArea, GConsoleStream, "trace", videoTerm, GConsoleStream::F_OUTPUT);
 	GNEW(proc->gateArea, GConsoleStream, "log", videoTerm, GConsoleStream::F_OUTPUT);
@@ -304,6 +304,11 @@ int
 PM::ValidateState()
 {
 	Thread *thrd = Thread::GetCurrent();
+	/* we are completed with a system call processing */
+	thrd->gateCallSP = 0;
+	thrd->gateCallRetAddr = 0;
+	thrd->gateObj = 0;
+
 	if (thrd->state != Thread::S_RUNNING) {
 		/* Currently active thread should be stopped, switch to another one */
 		CPU *cpu = CPU::GetCurrent();
@@ -345,6 +350,8 @@ PM::StrProcessFault(ProcessFault flt)
 		return "Page fault";
 	case PFLT_INVALID_BUFFER:
 		return "Invalid user buffer provided to gate method";
+	case PFLT_ABORT:
+		return "Aborted by application request";
 	}
 	return "Unknown fault";
 }
@@ -370,7 +377,7 @@ PM::SleepTimeout(Thread *thrd)
 }
 
 int
-PM::SleepMultiple(waitid_t *channelsID, int numChannels,
+PM::Sleep(waitid_t *channelsID, int numChannels,
 		const char *sleepString, u64 timeout, waitid_t *wakenBy)
 {
 	if (numChannels == -1) {
@@ -475,17 +482,17 @@ PM::SleepMultiple(waitid_t *channelsID, int numChannels,
 }
 
 int
-PM::SleepMultiple(void **channelsID, int numChannels,
+PM::Sleep(void **channelsID, int numChannels,
 			const char *sleepString, u64 timeout, void **wakenBy)
 {
-	return SleepMultiple((waitid_t *)channelsID, numChannels, sleepString,
+	return Sleep((waitid_t *)channelsID, numChannels, sleepString,
 		timeout, (waitid_t *)wakenBy);
 }
 
 int
 PM::Sleep(waitid_t channelID, const char *sleepString, u64 timeout, waitid_t *wakenBy)
 {
-	return SleepMultiple(&channelID, 1, sleepString, timeout, wakenBy);
+	return Sleep(&channelID, 1, sleepString, timeout, wakenBy);
 }
 
 int
@@ -660,7 +667,7 @@ PM::Runqueue::AddThread(Thread *thrd)
 	qLock.Lock();
 	thrd->rqQueue = qActive;
 	thrd->cpu = cpu;
-	LIST_ADDLAST(rqList, thrd, qActive->queue[thrd->priority]);
+	LIST_ADD_LAST(rqList, thrd, qActive->queue[thrd->priority]);
 	BitSet(activeMask, thrd->priority);
 	BitSet(queuedMask, thrd->priority);
 	numQueued++;
@@ -766,6 +773,7 @@ PM::Process::Process()
 	gateMap = 0;
 	gateArea = 0;
 	heapObj = 0;
+	isKernelProc = 0;
 	fault = PFLT_NONE;
 	state = S_STOPPED;
 }
@@ -888,6 +896,7 @@ PM::Process::GetStream(const char *name)
 	return stream;
 }
 
+/* Check if the buffer provided from the user space is valid  */
 int
 PM::Process::CheckUserBuf(void *buf, u32 size, MM::Protection protection)
 {
@@ -919,6 +928,7 @@ PM::Process::CheckUserBuf(void *buf, u32 size, MM::Protection protection)
 	return 0;
 }
 
+/* Check if the string pointer provided from the user space is valid */
 int
 PM::Process::CheckUserString(const char *str)
 {
@@ -1007,6 +1017,7 @@ int
 PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
 {
 	this->name = name;
+	this->isKernelProc = isKernelProc;
 	if (isKernelProc) {
 		this->priority = KERNEL_PRIORITY;
 		map = mm->kmemMap;
@@ -1081,6 +1092,11 @@ PM::Thread::Thread(Process *proc)
 	waitString = 0;
 	waitTimeout = 0;
 	rqQueue = 0;
+	curError = 0;
+	numErrors = 0;
+	gateObj = 0;
+	gateCallSP = 0;
+	gateCallRetAddr = 0;
 	state = S_NONE;
 }
 
@@ -1390,6 +1406,64 @@ PM::Thread::~Thread()
 	}
 }
 
+Error *
+PM::Thread::GetError(int depth)
+{
+	if (depth < 0) {
+		return 0;
+	}
+	if (depth + 1 > numErrors) {
+		/* we do not have required error object in the history */
+		return 0;
+	}
+	int idx = curError;
+	while (depth) {
+		idx++;
+		if (idx == ERROR_HISTORY_SIZE) {
+			idx = 0;
+		}
+		depth--;
+	}
+	return &err[idx];
+}
+
+/* Allocate new error object */
+Error *
+PM::Thread::NextError()
+{
+	if (numErrors) {
+		curError++;
+		if (curError == ERROR_HISTORY_SIZE) {
+			curError = 0;
+		}
+		if (numErrors < ERROR_HISTORY_SIZE) {
+			numErrors++;
+		}
+	} else {
+		numErrors = 1;
+		curError = 0;
+	}
+	err[curError].Reset();
+	return &err[curError];
+}
+
+/* Switch to previous error object, do not reset it */
+Error *
+PM::Thread::PrevError()
+{
+	if (!numErrors) {
+		return 0;
+	}
+	err[curError].Reset();
+	numErrors--;
+	if (!curError) {
+		curError = ERROR_HISTORY_SIZE - 1;
+	} else {
+		curError--;
+	}
+	return &err[curError];
+}
+
 int
 PM::Thread::Fault(ProcessFault flt, const char *msg, ...)
 {
@@ -1399,8 +1473,10 @@ PM::Thread::Fault(ProcessFault flt, const char *msg, ...)
 		va_start(args, msg);
 		faultStr.FormatV(msg, args);
 	}
-	klog(KLOG_WARNING, "Thread %u (process %u) failed: %s: %s", GetID(),
-		proc->GetID(), PM::StrProcessFault(flt), faultStr.GetBuffer());
+	ERROR(E_THREAD_FAULT, "%s: %s", PM::StrProcessFault(flt), faultStr.GetBuffer());
+	klog(KLOG_WARNING, "Thread %u (process %u) failed at 0x%08lx: %s: %s",
+		GetID(), proc->GetID(), gateCallRetAddr,
+		PM::StrProcessFault(flt), faultStr.GetBuffer());
 	switch (flt) {
 	default:
 		proc->Fault(flt, "Fault \"%s\" occurred in thread %u",

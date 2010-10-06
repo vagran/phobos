@@ -192,7 +192,7 @@ int MyProcess(void *arg)//temp
 	while (1) {
 		void *wakenBy;
 		void *events[] = {&ev1, &ev2, &ev3, 0};
-		pm->SleepMultiple(events, -1, "test multisleep", tm->MS(2000), &wakenBy);
+		pm->Sleep(events, -1, "test multisleep", tm->MS(2000), &wakenBy);
 		Time time;
 		tm->GetTime(&time);
 		printf("%llu.%06lu process waken by %s\n", time.sec, time.usec,

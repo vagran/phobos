@@ -29,10 +29,51 @@ GApp::ExitThread(int exitCode)
 	PM::Thread::GetCurrent()->Exit(exitCode);
 }
 
+void
+GApp::Abort(char *msg)
+{
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	if (msg && !proc->CheckUserString(msg)) {
+		thrd->Fault(PM::PFLT_ABORT, "%s", msg);
+	} else {
+		thrd->Fault(PM::PFLT_ABORT);
+	}
+}
+
 int
 GApp::Sleep(u64 time)
 {
 	return pm->Sleep(PM::Thread::GetCurrent(), "GApp::Sleep", time);
+}
+
+int
+GApp::Wait()
+{
+	//notimpl
+	ERROR(E_FAULT, "Test error here %x", 237);//temp
+	ERROR(E_INVAL);
+	ERROR(E_NOMEM, "Another test error here %d", 201);//temp
+	return 0;
+}
+
+int
+GApp::GetLastErrorStr(char *buf, int bufLen)
+{
+	/* get error object for previous system call */
+	Error *e = PM::Thread::GetCurrent()->GetError(1);
+	/* return to previous error object in order to not change history by this call */
+	PM::Thread::GetCurrent()->PrevError();
+	return e ? e->GetStr(buf, bufLen) : KString("No errors reported\n").Get(buf, bufLen);
+}
+
+Error::ErrorCode
+GApp::GetLastError()
+{
+	/* get error object for previous system call */
+	Error *e = PM::Thread::GetCurrent()->GetError(1);
+	/* return to previous error object in order to not change history by this call */
+	PM::Thread::GetCurrent()->PrevError();
+	return e ? e->GetCode() : Error::E_SUCCESS;
 }
 
 GStream *

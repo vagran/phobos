@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 ENTRY(start)
@@ -61,6 +61,7 @@ SECTIONS {
 	. = ALIGN(0x1000);
 	_erodata = ABSOLUTE(.);
 	
+	/* Create RAM-disk from .ramdisk section of input object if exists */
 	_ramdisk = _erodata;
 	.ramdisk : AT(_erodata - _btext + _eboot) {
 		*(.ramdisk)

@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef GM_H_
@@ -147,6 +147,13 @@ extern GM *gm;
 DECLARE_GCLASS(GateObject);
 
 class GateObject : public Object {
+public:
+	enum Operation {
+		OP_READ,
+		OP_WRITE,
+
+		OP_MAX
+	};
 private:
 	enum {
 		GATE_OBJ_SIGNATURE = 'G' | ('A' << 8) | ('T' << 16) | ('E' << 24),

@@ -66,7 +66,7 @@ QueueTest::Run()
 	ut_printf("Insert after...");
 	p = UTALLOC(Item, 1);
 	p->idx = 8;
-	LIST_INSERTAFTER(list, p, p1);
+	LIST_INSERT_AFTER(list, p, p1);
 	k = 0;
 	LIST_FOREACH(Item, list, p, head) {
 		if (p->idx != pat2[k]) {
@@ -84,7 +84,7 @@ QueueTest::Run()
 	ut_printf("Insert before...");
 	p = UTALLOC(Item, 1);
 	p->idx = 9;
-	LIST_INSERTBEFORE(list, p, head, p1);
+	LIST_INSERT_BEFORE(list, p, head, p1);
 	k = 0;
 	LIST_FOREACH(Item, list, p, head) {
 		if (p->idx != pat3[k]) {

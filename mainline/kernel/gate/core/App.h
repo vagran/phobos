@@ -26,7 +26,12 @@ public:
 	virtual ~GApp();
 
 	virtual void ExitThread(int exitCode = 0) __noreturn;
+	virtual void Abort(char *msg = 0);
 	virtual int Sleep(u64 time);
+	virtual int Wait();//notimpl
+
+	virtual int GetLastErrorStr(char *buf, int bufLen);
+	virtual Error::ErrorCode GetLastError();
 
 	virtual GProcess *GetProcess();
 	virtual GStream *GetStream(const char *name);

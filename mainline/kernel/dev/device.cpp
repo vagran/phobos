@@ -427,11 +427,11 @@ DeviceManager::CreateDevice(DevClass *p, u32 unit)
 		if (TREE_KEY(tree, di1) < unit) {
 			continue;
 		}
-		LIST_INSERTBEFORE(list, di, p->devList, di1);
+		LIST_INSERT_BEFORE(list, di, p->devList, di1);
 		inserted = 1;
 	}
 	if (!inserted) {
-		LIST_ADDLAST(list, di, p->devList);
+		LIST_ADD_LAST(list, di, p->devList);
 	}
 	p->numDevs++;
 	Unlock(x);

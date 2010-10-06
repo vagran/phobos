@@ -72,21 +72,21 @@ typedef struct {
 	} \
 }
 
-#define LIST_ADDLAST	LIST_ADD
+#define LIST_ADD_LAST	LIST_ADD
 
-#define LIST_ADDFIRST(entry, var, head) {\
+#define LIST_ADD_FIRST(entry, var, head) {\
 	LIST_ADD(entry, var, head); \
 	(head).first = &(var)->entry; \
 }
 
-#define LIST_INSERTAFTER(entry, var, after) { \
+#define LIST_INSERT_AFTER(entry, var, after) { \
 	(var)->entry.next = (after)->entry.next; \
 	(var)->entry.prev = &(after)->entry; \
 	(after)->entry.next->prev = &(var)->entry; \
 	(after)->entry.next = &(var)->entry; \
 }
 
-#define LIST_INSERTBEFORE(entry, var, head, before) { \
+#define LIST_INSERT_BEFORE(entry, var, head, before) { \
 	(var)->entry.next = &(before)->entry; \
 	(var)->entry.prev = (before)->entry.prev; \
 	(before)->entry.prev->next = &(var)->entry; \
@@ -127,12 +127,12 @@ typedef struct {
 				LIST_DELETE(entry, var2, head); \
 				while (1) { \
 					if (LIST_ISFIRST(entry, var1, head)) {\
-						LIST_ADDFIRST(entry, var2, head); \
+						LIST_ADD_FIRST(entry, var2, head); \
 						break; \
 					} \
 					var1 = LIST_PREV(type, entry, var1); \
 					if (!(condition)) { \
-						LIST_INSERTAFTER(entry, var2, var1); \
+						LIST_INSERT_AFTER(entry, var2, var1); \
 						break; \
 					} \
 				} \
