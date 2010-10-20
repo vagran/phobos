@@ -184,3 +184,21 @@ GApp::GetTime()
 	gtime->AddRef();
 	return gtime;
 }
+
+void *
+GApp::AllocateHeap(u32 size, int prot)
+{
+	return proc->AllocateHeap(size, prot);
+}
+
+u32
+GApp::GetHeapSize(void *p)
+{
+	return proc->GetHeapSize(p);
+}
+
+int
+GApp::FreeHeap(void *p)
+{
+	return proc->FreeHeap(p);
+}

@@ -1018,6 +1018,7 @@ PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
 {
 	this->name = name;
 	this->isKernelProc = isKernelProc;
+	/* Create gate area map if it is not kernel process */
 	if (isKernelProc) {
 		this->priority = KERNEL_PRIORITY;
 		map = mm->kmemMap;
@@ -1034,20 +1035,87 @@ PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
 		}
 		gateMap->isUser = 1;
 	}
+
+	/* Create user space map */
 	userMap = map->CreateSubmap(0, GATE_AREA_ADDRESS);
 	if (!userMap) {
 		return -1;
 	}
 	userMap->isUser = 1;
+
+	/* Create not mapped guard page at the very bottom of process AS */
+	ensure(userMap->ReserveSpace(0, PAGE_SIZE));
+
+	/* Heap object is used for dynamic user space memory allocations */
 	heapObj = NEW(MM::VMObject, GATE_AREA_ADDRESS, MM::VMObject::F_HEAP);
 	if (!heapObj) {
 		return -1;
 	}
+
+	/* Create gate area object for non-kernel processes */
 	if (!isKernelProc) {
 		gateArea = gm->CreateGateArea(this);
 	}
+
 	state = S_RUNNING;
 	return 0;
+}
+
+void *
+PM::Process::AllocateHeap(u32 size, int prot)
+{
+	if (prot & ~(MM::PROT_READ | MM::PROT_WRITE | MM::PROT_EXEC)) {
+		ERROR(E_INVAL, "Invalid protection value specified");
+		return 0;
+	}
+	MM::Map::Entry *e = userMap->InsertObjectOffs(heapObj, size, 0, prot);
+	if (!e) {
+		ERROR(E_FAULT, "Failed to allocate entry for heap object");
+		return 0;
+	}
+	return (void *)e->base;
+}
+
+MM::Map::Entry *
+PM::Process::GetHeapEntry(vaddr_t va)
+{
+	/* Try to find corresponding entry in user map and check it belongs to heap object */
+	MM::Map::Entry *e = userMap->Lookup(va, 0);
+	if (!e) {
+		ERROR(E_INVAL, "Heap entry not found for specified address (0x%08lx)", va);
+		return 0;
+	}
+	if (e->object != heapObj) {
+		ERROR(E_INVAL, "The entry doesn't belong to heap object (0x%08lx)", va);
+		return 0;
+	}
+	return e;
+}
+
+int
+PM::Process::FreeHeap(void *p)
+{
+	MM::Map::Entry *e = GetHeapEntry((vaddr_t)p);
+	if (!e) {
+		ERROR(E_FAULT, "Cannot find heap entry");
+		return -1;
+	}
+	if (userMap->Free(e)) {
+		ERROR(E_FAULT, "Map allocator Free() method failed");
+		return -1;
+	}
+	return 0;
+}
+
+u32
+PM::Process::GetHeapSize(void *p)
+{
+	MM::Map::Entry *e = GetHeapEntry((vaddr_t)p);
+	if (!e) {
+		ERROR(E_FAULT, "Cannot find heap entry");
+		return 0;
+	}
+	return e->size;
 }
 
 /***********************************************/

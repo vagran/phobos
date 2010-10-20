@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef MEMALLOCATOR_H_
@@ -25,8 +25,8 @@ public:
 		mfree(p);
 		return pNew;
 	}
-	virtual void *AllocateStruct(u32 size) {return malloc(size);}
-	virtual void FreeStruct(void *p, u32 size = 0) {return mfree(p);}
+	virtual void *AllocateStruct(u32 size) { return malloc(size); }
+	virtual void FreeStruct(void *p, u32 size = 0) { return mfree(p); }
 };
 
 #endif /* MEMALLOCATOR_H_ */

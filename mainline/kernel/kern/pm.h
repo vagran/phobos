@@ -208,6 +208,7 @@ public:
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
+		MM::Map::Entry *GetHeapEntry(vaddr_t va);
 	public:
 		Process();
 		~Process();
@@ -236,6 +237,9 @@ public:
 		GStream *GetStream(const char *name);
 		int CheckUserBuf(void *buf, u32 size, MM::Protection protection = MM::PROT_READ);
 		int CheckUserString(const char *str);
+		void *AllocateHeap(u32 size, int prot = MM::PROT_READ | MM::PROT_WRITE);
+		int FreeHeap(void *p);
+		u32 GetHeapSize(void *p);
 	};
 
 	class Runqueue : public Object {

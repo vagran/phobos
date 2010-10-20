@@ -60,8 +60,11 @@ SpinLock::TryLock()
 	return rc;
 }
 
+#ifdef KERNEL
+
 /*********************************************/
 /* CPUMutex */
+
 CPUMutex::CPUMutex(int flag) : lock(flag)
 {
 	if (flag) {
@@ -170,3 +173,5 @@ CriticalSection::~CriticalSection()
 {
 	mtx->Unlock();
 }
+
+#endif /* KERNEL */

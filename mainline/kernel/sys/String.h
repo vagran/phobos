@@ -78,14 +78,13 @@ public:
 };
 
 typedef class String<KMemAllocator> KString;
-#ifndef KERNEL
+
+#ifdef KERNEL
+#define STRING KString
+#else /* KERNEL */
 #ifndef UNIT_TEST
-#include <user.h>
-typedef class String<UMemAllocator> CString;
 #define STRING CString
 #endif /* UNIT_TEST */
-#else /* KERNEL */
-#define STRING KString
 #endif /* KERNEL */
 
 #define GETSTR(obj, method) STRING::StringInfo(obj, (STRING::StringProvider)&method)

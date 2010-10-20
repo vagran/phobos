@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef STDLIB_H_
@@ -18,6 +18,8 @@ extern int argc;
 /* initialize object at predefined location */
 #define construct(location, type, ...)	new(location) type(__VA_ARGS__)
 void *operator new(size_t size, void *location);
+
+template<class T> void destruct(T *p) { p->~T(); }
 
 #define memset		__builtin_memset
 #define memcpy		__builtin_memcpy

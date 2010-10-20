@@ -42,6 +42,10 @@ public:
 	virtual GStream *GetStream(const char *name);
 	virtual GTime *GetTime();
 
+	virtual void *AllocateHeap(u32 size, int prot = MM::PROT_READ | MM::PROT_WRITE);
+	virtual u32 GetHeapSize(void *p);
+	virtual int FreeHeap(void *p);
+
 	DECLARE_GCLASS_IMP(GApp);
 };
 
