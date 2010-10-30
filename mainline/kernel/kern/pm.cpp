@@ -220,29 +220,54 @@ PM::ProcessEntry(void *arg)
 }
 
 PM::Process *
-PM::CreateProcess(const char *path, const char *name, int priority)
+PM::CreateProcess(const char *path, const char *name, int priority, const char *args)
 {
-	VFS::File *file = vfs->CreateFile(path);
-	if (!file) {
-		return 0;
-	}
-	ImageLoader *il = GetImageLoader(file);
-	if (!il) {
-		return 0;
-	}
 	if (!name) {
 		name = path;
 	}
-	Process *proc = IntCreateProcess(ProcessEntry, 0, name, priority, 0, 0);
+	Process *proc = IntCreateProcess(ProcessEntry, (void *)args, name, priority, 0, 0);
 	if (!proc) {
-		il->Release();
 		return 0;
 	}
-	if (il->Load(proc->userMap, proc->heapObj)) {
-		DestroyProcess(proc);
-		il->Release();
-		return 0;
-	}
+
+	proc->args = args;
+	KString interp;
+	KString sPath = path;
+	ImageLoader *il;
+	do {
+		VFS::File *file = vfs->CreateFile(sPath.GetBuffer());
+		if (!file) {
+			DestroyProcess(proc);
+			return 0;
+		}
+		il = GetImageLoader(file);
+		file->Release();
+		if (!il) {
+			DestroyProcess(proc);
+			return 0;
+		}
+
+		if (il->IsInterp(&interp)) {
+			/*
+			 * This is interpretable image, add current path to the process
+			 * arguments and load interpreter.
+			 */
+			KString newArgs = sPath;
+			newArgs += ' ';
+			newArgs += proc->args;
+			proc->args = newArgs;
+			il->Release();
+			sPath = interp;
+			continue;
+		}
+
+		if (il->Load(proc->userMap, proc->heapObj)) {
+			DestroyProcess(proc);
+			il->Release();
+			return 0;
+		}
+		break;
+	} while (1);
 	proc->SetEntryPoint(il->GetEntryPoint());
 	il->Release();
 	Thread *thrd = proc->GetThread();
@@ -1043,7 +1068,11 @@ PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
 	}
 	userMap->isUser = 1;
 
-	/* Create not mapped guard page at the very bottom of process AS */
+	/*
+	 * We do not want valid zero pointers so restrict allocation of the very
+	 * first page - create not mapped guard page at the very bottom of the
+	 * process virtual address space.
+	 */
 	ensure(userMap->ReserveSpace(0, PAGE_SIZE));
 
 	/* Heap object is used for dynamic user space memory allocations */

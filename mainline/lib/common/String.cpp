@@ -346,8 +346,8 @@ String<Allocator>::LockBuffer(int len)
 	if (lock) {
 		return 0;
 	}
-	if (len != -1 && len > bufLen) {
-		if (Realloc(len)) {
+	if (len != -1 && len >= bufLen) {
+		if (Realloc(len + 1)) {
 			return 0;
 		}
 	}
@@ -363,12 +363,7 @@ String<Allocator>::ReleaseBuffer(int len)
 		return -1;
 	}
 	--lock;
-	assert(len == -1 || len <= bufLen);
-	if (len != -1 && len == bufLen) {
-		if (Realloc(bufLen + 1)) {
-			return -1;
-		}
-	}
+	assert(len == -1 || len < bufLen);
 	if (len != -1) {
 		buf[len] = 0;
 		this->len = len;

@@ -57,6 +57,7 @@ public:
 		OBJ_ADDREF(refCount);
 		OBJ_RELEASE(refCount);
 
+		virtual int IsInterp(KString *interp) { return 0; }
 		virtual int Load(MM::Map *map, MM::VMObject *bssObj) = 0;
 		virtual vaddr_t GetEntryPoint() = 0;
 	};
@@ -205,6 +206,7 @@ public:
 		SpinLock streamsLock;
 		StringTree<>::TreeRoot streams;
 		int isKernelProc;
+		KString args;
 
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
@@ -240,6 +242,7 @@ public:
 		void *AllocateHeap(u32 size, int prot = MM::PROT_READ | MM::PROT_WRITE);
 		int FreeHeap(void *p);
 		u32 GetHeapSize(void *p);
+		inline KString *GetArgs() { return &args; }
 	};
 
 	class Runqueue : public Object {
@@ -320,7 +323,8 @@ private:
 	static int IdleThread(void *arg);
 	void IdleThread() __noreturn;
 	Process *IntCreateProcess(Thread::ThreadEntry entry, void *arg = 0,
-		const char *name = 0, int priority = DEF_PRIORITY, int isKernelProc = 0, int runIt = 1);
+		const char *name = 0, int priority = DEF_PRIORITY, int isKernelProc = 0,
+		int runIt = 1);
 	SleepEntry *GetSleepEntry(waitid_t id); /* must be called with tqLock */
 	SleepEntry *CreateSleepEntry(waitid_t id); /* must be called with tqLock */
 	void FreeSleepEntry(SleepEntry *p); /* must be called with tqLock */
@@ -337,7 +341,7 @@ public:
 	Process *CreateProcess(Thread::ThreadEntry entry, void *arg = 0,
 		const char *name = 0, int priority = DEF_PRIORITY);
 	Process *CreateProcess(const char *path, const char *name = 0,
-		int priority = DEF_PRIORITY);
+		int priority = DEF_PRIORITY, const char *args = 0);
 	int DestroyProcess(Process *proc);
 	void AttachCPU(Thread::ThreadEntry kernelProcEntry = 0, void *arg = 0) __noreturn;
 	inline Process *GetKernelProc() { return kernelProc; }

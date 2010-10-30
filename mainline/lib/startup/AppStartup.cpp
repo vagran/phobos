@@ -20,7 +20,7 @@ AppStart(GApp *app)
 	memset(&_edata, 0, (u32)&_end - (u32)&_edata);
 	/* call global constructors */
 	CXA::ConstructStaticObjects();
-	/* XXX should dynamically load libraries */
+	/* Initialize PhobOS user space run-time support library */
 	ULib::Initialize(app);
 	/* call Main() function */
 	app->ExitThread(Main(app));

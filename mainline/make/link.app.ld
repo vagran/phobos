@@ -3,17 +3,16 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
- 
- PAGE_SIZE = 4096;
  
  ENTRY(AppStart)
  
  SECTIONS {
-	. = PAGE_SIZE;
+	. = LOAD_ADDRESS;
 	.text . :{
 		*(.text)
+		*(.text.*)
 		*(.gnu.linkonce.t.*)
 	}
 	

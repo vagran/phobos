@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -683,19 +683,7 @@ BuddyAllocator<range_t>::GetOrders(u16 *pminOrder,u16 *pmaxOrder)
 }
 
 /* compile methods for supported base types */
-__volatile void
-BuddyCompilerStub()
-{
-#define REFTYPE(type) { \
-	BuddyAllocator<type> __CONCAT(obj_,type)((BuddyAllocator<type>::BuddyClient *)0); \
-	__CONCAT(obj_,type).Initialize(0,0,0,0); \
-	__CONCAT(obj_,type).Reserve(0 ,0); \
-	__CONCAT(obj_,type).Allocate(0 ,0); \
-	__CONCAT(obj_,type).Free(0); \
-	__CONCAT(obj_,type).Lookup(0); \
-}
-	REFTYPE(u8);
-	REFTYPE(u16);
-	REFTYPE(u32);
-	REFTYPE(u64);
-}
+template class BuddyAllocator<u8>;
+template class BuddyAllocator<u16>;
+template class BuddyAllocator<u32>;
+template class BuddyAllocator<u64>;

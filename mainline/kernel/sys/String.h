@@ -87,6 +87,9 @@ typedef class String<KMemAllocator> KString;
 #endif /* UNIT_TEST */
 #endif /* KERNEL */
 
+/* Define string provider function/method */
+#define DEF_STR_PROV(name) int name(char *buf, int bufLen)
+
 #define GETSTR(obj, method) STRING::StringInfo(obj, (STRING::StringProvider)&method)
 
 #endif /* STRING_H_ */

@@ -33,13 +33,28 @@ GProcess::GetThreadID()
 	return PM::Thread::GetCurrent()->GetID();
 }
 
-int
-GProcess::GetName(char *buf, int bufLen)
+DEF_STR_PROV(GProcess::GetName)
 {
-	if (buf) {
-		if (proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
-			return -1;
-		}
+	if (buf && proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
+		return -1;
 	}
 	return proc->GetName()->Get(buf, bufLen);
+}
+
+DEF_STR_PROV(GProcess::GetArgs)
+{
+	if (buf && proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
+		return -1;
+	}
+	return proc->GetArgs()->Get(buf, bufLen);
+}
+
+int
+GProcess::SetArgs(const char *args)
+{
+	if (proc->CheckUserString(args)) {
+		return -1;
+	}
+	*(proc->GetArgs()) = args;
+	return 0;
 }

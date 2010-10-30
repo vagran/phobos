@@ -231,7 +231,8 @@ StartupProc(void *arg)
 	}
 
 	/* launch 'init' application */
-	initProc = pm->CreateProcess(INIT_PATH);
+	initProc = pm->CreateProcess(INIT_PATH, "test_init", PM::DEF_PRIORITY,
+		"test arguments");
 	if (!initProc) {
 		klog(KLOG_WARNING, "Cannot launch 'init' application");
 	}

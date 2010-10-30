@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef ELF_H_
@@ -29,6 +29,7 @@ public:
 	DeclareILFactory();
 	DeclareILProber();
 
+	virtual int IsInterp(KString *interp);
 	virtual int Load(MM::Map *map, MM::VMObject *bssObj);
 	virtual vaddr_t GetEntryPoint();
 };

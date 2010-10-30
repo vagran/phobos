@@ -2,8 +2,9 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ©AST 2009. Written by Artemy Lebedev.
+# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
 
-SUBDIRS= init
+SUBDIRS= init \
+	rt_linker
 
 include $(PHOBOS_ROOT)/make/make.mak

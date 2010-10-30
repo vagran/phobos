@@ -59,6 +59,45 @@ DefineILProber(ElfImageLoader)
 }
 
 int
+ElfImageLoader::IsInterp(KString *interp)
+{
+	if (status) {
+		return 0;
+	}
+	ElfPhdr *phdr = ALLOC(ElfPhdr, 1);
+	if (!phdr) {
+		return 0;
+	}
+
+	int rc = 0;
+	/* iterate through program header entries */
+	for (int i = 0; i < ehdr.e_phnum; i++) {
+		if (file->Read(ehdr.e_phoff + ehdr.e_phentsize * i, phdr,
+			sizeof(*phdr)) != sizeof(*phdr)) {
+			break;
+		}
+		/* search for PT_INTERP entry */
+		if (phdr->p_type != PT_INTERP) {
+			continue;
+		}
+		/* This is interpretable image, load path */
+		char *path = interp->LockBuffer(phdr->p_filesz);
+		if (!path) {
+			break;
+		}
+		if (file->Read(phdr->p_offset, path, phdr->p_filesz) != phdr->p_filesz) {
+			interp->ReleaseBuffer(0);
+			break;
+		}
+		interp->ReleaseBuffer(phdr->p_filesz);
+		rc = 1;
+		break;
+	}
+	FREE(phdr);
+	return rc;
+}
+
+int
 ElfImageLoader::Load(MM::Map *map, MM::VMObject *bssObj)
 {
 	if (status) {

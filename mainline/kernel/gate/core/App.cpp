@@ -138,9 +138,11 @@ GApp::Wait(Operation op, GateObject **objects, int numObjects, void *bitmap,
 	return rc;
 }
 
-int
-GApp::GetLastErrorStr(char *buf, int bufLen)
+DEF_STR_PROV(GApp::GetLastErrorStr)
 {
+	if (proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
+		return -1;
+	}
 	/* get error object for previous system call */
 	Error *e = PM::Thread::GetCurrent()->GetError(1);
 	/* return to previous error object in order to not change history by this call */
