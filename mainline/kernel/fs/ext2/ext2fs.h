@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef EXT2FS_H_
@@ -222,7 +222,7 @@ public:
 	virtual Handle GetNode(Handle parent, const char *name, int nameLen = -1);
 	virtual VFS::Node::Type GetNodeType(Handle node);
 	virtual u64 GetNodeSize(Handle node);
-	virtual i64 ReadNode(Handle node, u64 offset, u32 len, void *buf);
+	virtual i64 ReadNode(Handle node, off_t offset, u32 len, void *buf);
 	virtual u32 ReadLink(Handle node, void *buf, u32 bufLen);
 };
 

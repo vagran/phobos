@@ -17,6 +17,7 @@ phbSource("$Id$");
 #include <gate/io/GConsoleStream.h>
 #include <gate/core/GProcess.h>
 #include <gate/core/GTime.h>
+#include <gate/core/GVFS.h>
 
 #ifdef KERNEL
 

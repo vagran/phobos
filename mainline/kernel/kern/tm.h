@@ -21,6 +21,9 @@ typedef struct {
 	u32 usec;
 } Time;
 
+/* For ported code only */
+typedef u64 time_t;
+
 class TM : public Object {
 public:
 	enum {

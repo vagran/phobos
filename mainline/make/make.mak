@@ -10,10 +10,10 @@ ifndef LOAD_ADDRESS
 LOAD_ADDRESS = $(DEF_LOAD_ADDRESS)
 endif
 
-COMPILE_FLAGS += -pipe -Werror -Wall -Wno-invalid-offsetof \
-	-fno-stack-protector -fno-default-inline -fno-builtin
+COMPILE_FLAGS += -pipe -Werror -Wall -fno-stack-protector  -fno-builtin
 
-COMPILE_FLAGS_CXX += -fno-exceptions -fno-rtti
+COMPILE_FLAGS_CXX += -fno-exceptions -fno-rtti -Wno-invalid-offsetof \
+	-fno-default-inline
 COMPILE_FLAGS_C +=
 COMPILE_FLAGS_ASM += -DASSEMBLER
 LINK_FLAGS += -nodefaultlibs -nostartfiles -nostdinc -nostdinc++ \
@@ -127,7 +127,7 @@ $(filter %.a, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
 $(filter %.sl, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
 	$(LINK_FILES) $(OBJS_SO)
 	$(LD) $(LINK_FLAGS) -fpic -shared --start-group $(LINK_FILES) --end-group \
-	-soname=$(LIBS_INSTALL_DIR)/$(@F) -o $@ $(OBJS_SO)
+	-soname=$(@F) -o $@ $(OBJS_SO)
 endif
 
 # Build dependencies - static and dynamic libraries

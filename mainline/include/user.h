@@ -6,7 +6,10 @@
  * Copyright �AST 2009. Written by Artemy Lebedev.
  */
 
-/* User space runtime support library */
+/*
+ * User space runtime support library.
+ * This file is included by every user space component.
+ */
 
 #ifndef USER_H_
 #define USER_H_

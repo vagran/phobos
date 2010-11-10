@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -453,7 +453,7 @@ Ext2FS::ReadLink(Handle node, void *buf, u32 bufLen)
 }
 
 i64
-Ext2FS::ReadNode(Handle node, u64 offset, u32 len, void *buf)
+Ext2FS::ReadNode(Handle node, off_t offset, u32 len, void *buf)
 {
 	return ReadFile((Node *)node, offset, len, buf);
 }

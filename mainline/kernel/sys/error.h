@@ -22,6 +22,8 @@ public:
 		E_THREAD_FAULT,			/* Thread fault raised */
 		E_INVAL_GATEOBJ,		/* Invalid gate object pointer passed to system call */
 		E_OP_NOTSUPPORTED,		/* Operation not supported */
+		E_EXISTS,				/* Object already exists */
+		E_NOTFOUND,				/* Object not found */
 	};
 private:
 	enum {

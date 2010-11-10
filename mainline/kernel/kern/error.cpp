@@ -20,6 +20,8 @@ Error::ErrorDef Error::errorDefs[] = {
 	ERROR_DEF(E_THREAD_FAULT,		"Thread fault raised"),
 	ERROR_DEF(E_INVAL_GATEOBJ,		"Invalid gate object pointer passed to system call"),
 	ERROR_DEF(E_OP_NOTSUPPORTED,	"Operation not supported"),
+	ERROR_DEF(E_EXISTS,				"Object already exists"),
+	ERROR_DEF(E_NOTFOUND,			"Object not found"),
 };
 
 Error::Error()

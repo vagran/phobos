@@ -14,6 +14,7 @@ phbSource("$Id$");
 #include <gate/core/GProcess.h>
 #include <gate/io/GateStream.h>
 #include <gate/core/GTime.h>
+#include <gate/core/GVFS.h>
 
 DECLARE_GCLASS(GApp);
 
@@ -25,6 +26,7 @@ private:
 
 	GProcess *gproc;
 	GTime *gtime;
+	GVFS *gvfs;
 public:
 	GApp();
 	virtual ~GApp();
@@ -41,6 +43,7 @@ public:
 	virtual GProcess *GetProcess();
 	virtual GStream *GetStream(const char *name);
 	virtual GTime *GetTime();
+	virtual GVFS *GetVFS();
 
 	virtual void *AllocateHeap(u32 size, int prot = MM::PROT_READ | MM::PROT_WRITE);
 	virtual u32 GetHeapSize(void *p);

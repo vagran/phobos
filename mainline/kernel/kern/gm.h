@@ -142,6 +142,8 @@ extern GM *gm;
 			sizeof(FUNC_PTR); \
 	}
 
+#define IS_GCLASS_OBJ(obj, className) (obj->GetID() == GCLASS_ID(className))
+
 #include <kern/pm.h>
 
 DECLARE_GCLASS(GateObject);

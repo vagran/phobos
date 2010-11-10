@@ -11,8 +11,14 @@
 #include <sys.h>
 phbSource("$Id$");
 
+typedef u64 off_t;
+
 class VFS : public Object {
 public:
+	enum CreateFileFlags {
+		CFF_EXISTING =		0x1, /* Open existing file */
+	};
+
 	class Mount;
 
 	class Node : public Object {
@@ -56,7 +62,7 @@ public:
 
 		inline Type GetType() { return type; }
 		u32 GetSize();
-		u32 Read(u64 offset, void *buf, u32 len);
+		u32 Read(off_t offset, void *buf, u32 len);
 	};
 
 	class Mount : public Object {
@@ -101,18 +107,19 @@ private:
 	Node *root;
 	SpinLock treeLock;
 
+	/* Makes initial reference to the new node */
 	Node *AllocateNode(Node *parent, Node::Type type, const char *name, int nameLen = -1);
 	int DeallocateNode(Node *node);
 	Mount *CreateMount(BlkDevice *dev, int flags, const char *fsType = 0);
-	Node *LookupNode(const char *path);
-	Node *GetSubNode(Node *parent, const char *name, int nameLen = -1);
-	Node *GetNode(Node *parent, const char *name, int nameLen = -1);
+	Node *LookupNode(const char *path); /* Bumps node references */
+	Node *GetSubNode(Node *parent, const char *name, int nameLen = -1); /* Bumps node references */
+	Node *GetNode(Node *parent, const char *name, int nameLen = -1); /* Bumps node references */
 public:
 	VFS();
 
 	int MountDevice(BlkDevice *dev, const char *mountPoint, int flags = 0,
 		const char *type = 0);
-	File *CreateFile(const char *path);
+	File *CreateFile(const char *path, int flags = 0, Node::Type type = Node::T_REGULAR);
 	MM::VMObject *MapFile(const char *path);
 	MM::VMObject *MapFile(File *file);
 };

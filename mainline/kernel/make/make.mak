@@ -2,7 +2,7 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ©AST 2009. Written by Artemy Lebedev.
+# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
 
 include $(PHOBOS_ROOT)/make/makevar.mak
 
@@ -71,10 +71,10 @@ $(IMAGE): $(OBJ_DIR) $(SUBDIRS_TARGET) $(LINK_SCRIPT) $(RAMDISK_FILE)
 		-T $(LINK_SCRIPT) -o $@ $(wildcard $(OBJ_DIR)/*.o) $(LINK_FILES)
 endif
 
-#ifeq ($(DO_RAMDISK),1)
-#$(RAMDISK_FILE):
-#	@$(MAKE) -C $(PHOBOS_ROOT)/mfs all
-#endif
+ifeq ($(DO_RAMDISK),1)
+$(RAMDISK_FILE):
+	@$(MAKE) -C $(PHOBOS_ROOT)/mfs $(RAMDISK_FILE)
+endif
 
 $(SUBDIRS_TARGET):
 	@$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)

@@ -15,10 +15,12 @@ GApp::GApp()
 {
 	gproc = GNEW(gateArea, GProcess);
 	gtime = GNEW(gateArea, GTime);
+	gvfs = GNEW(gateArea, GVFS);
 }
 
 GApp::~GApp()
 {
+	gvfs->Release();
 	gtime->KRelease();
 	gproc->KRelease();
 }
@@ -185,6 +187,13 @@ GApp::GetTime()
 {
 	gtime->AddRef();
 	return gtime;
+}
+
+GVFS *
+GApp::GetVFS()
+{
+	gvfs->AddRef();
+	return gvfs;
 }
 
 void *

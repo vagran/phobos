@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -15,6 +15,7 @@ VFS::VFS()
 {
 	root = AllocateNode(0, Node::T_DIRECTORY, ".");
 	ensure(root);
+	root->Release(); /* release initial reference */
 }
 
 VFS::Node *
@@ -37,6 +38,7 @@ VFS::AllocateNode(Node *parent, Node::Type type, const char *name, int nameLen)
 			node->hashHead = 0;
 		}
 	}
+	node->AddRef();
 	treeLock.Unlock();
 	return node;
 }
@@ -80,19 +82,21 @@ VFS::GetNode(Node *parent, const char *name, int nameLen)
 	}
 	u32 hash = nameLen == -1 ? gethash(name) : gethash((u8 *)name, nameLen);
 	Node *node;
+	treeLock.Lock();
 	if (parent->numChilds < 32) {
-		treeLock.Lock();
 		LIST_FOREACH(Node, list, node, parent->childs) {
 			if (node->hash != hash) {
 				continue;
 			}
 			if (nameLen == -1) {
 				if (!strncmp(name, node->name, nameLen) && !node->name[nameLen]) {
+					node->AddRef();
 					treeLock.Unlock();
 					return node;
 				}
 			} else {
 				if (!strcmp(name, node->name)) {
+					node->AddRef();
 					treeLock.Unlock();
 					return node;
 				}
@@ -101,31 +105,35 @@ VFS::GetNode(Node *parent, const char *name, int nameLen)
 		treeLock.Unlock();
 		return 0;
 	}
-	treeLock.Lock();
 	node = TREE_FIND(hash, Node, hashTreeEntry, parent->hashTree);
-	treeLock.Unlock();
 	if (!node) {
+		treeLock.Unlock();
 		return 0;
 	}
 	if (nameLen == -1) {
 		if (!strncmp(name, node->name, nameLen) && !node->name[nameLen]) {
+			node->AddRef();
+			treeLock.Unlock();
 			return node;
 		}
 	} else {
 		if (!strcmp(name, node->name)) {
+			node->AddRef();
+			treeLock.Unlock();
 			return node;
 		}
 	}
 	Node *hashHead = node;
-	treeLock.Lock();
 	LIST_FOREACH(Node, hashListEntry, node, hashHead->hashList) {
 		if (nameLen == -1) {
 			if (!strncmp(name, node->name, nameLen) && !node->name[nameLen]) {
+				node->AddRef();
 				treeLock.Unlock();
 				return node;
 			}
 		} else {
 			if (!strcmp(name, node->name)) {
+				node->AddRef();
 				treeLock.Unlock();
 				return node;
 			}
@@ -165,16 +173,19 @@ VFS::Node *
 VFS::LookupNode(const char *path)
 {
 	const char *cp, *next = path;
-	Node *node = root;
-	while (*next && node) {
+	Node *lastNode = root;
+	lastNode->AddRef();
+	while (next && *next && lastNode) {
 		for (cp = next; *cp && *cp == '/'; cp++);
 		if (!*cp) {
 			break;
 		}
 		for (next = cp; *next && *next != '/'; next++);
-		node = GetSubNode(node, cp, next - cp);
+		Node *node = GetSubNode(lastNode, cp, next - cp);
+		lastNode->Release();
+		lastNode = node;
 	}
-	return node;
+	return lastNode;
 }
 
 VFS::Mount *
@@ -205,7 +216,6 @@ VFS::MountDevice(BlkDevice *dev, const char *mountPoint, int flags, const char *
 		klog(KLOG_WARNING, "Mount point not found: '%s'", mountPoint);
 		return 0;
 	}
-	node->AddRef();
 	/* create new node, and replace old node with new one */
 	Node *mNode = AllocateNode(node->parent, Node::T_DIRECTORY, node->name);
 	treeLock.Lock();
@@ -221,18 +231,70 @@ VFS::MountDevice(BlkDevice *dev, const char *mountPoint, int flags, const char *
 	if (node == root) {
 		root = mNode;
 	}
+	mNode->Release(); /* release initial reference */
 	return 0;
 }
 
 VFS::File *
-VFS::CreateFile(const char *path)
+VFS::CreateFile(const char *path, int flags, Node::Type type)
 {
+	File *file;
+
 	Node *node = LookupNode(path);
-	if (!node) {
-		return 0;
+	if (node) {
+		if (node->type != type) {
+			ERROR(E_EXISTS, "The file of another type already exists "
+				"(requested type = %d, existing type = %d)", type, node->type);
+			node->Release();
+			return 0;
+		}
+	} else {
+		if (flags & CFF_EXISTING) {
+			ERROR(E_NOTFOUND, "Specified file does not exist ('%s')", path);
+			return 0;
+		}
+		/* Create new node */
+		int len;
+		for (len = strlen(path); len && path[len - 1] == '/'; len--);
+		int nameEnd = len;
+		for (; len && path[len - 1] != '/'; len--);
+		int nameStart = len;
+		for (; len && path[len - 1] == '/'; len--);
+		if (nameStart == nameEnd) {
+			ERROR(E_INVAL, "Empty file name in path '%s'", path);
+			return 0;
+		}
+		/* Get parent node */
+		Node *parentNode;
+		if (len) {
+			KString parentPath;
+			memcpy(parentPath.LockBuffer(len), path, len);
+			parentPath.ReleaseBuffer(len);
+			parentNode = LookupNode(parentPath.GetBuffer());
+			if (!parentNode) {
+				ERROR(E_NOTFOUND, "Parent directory not found (%s)",
+					parentPath.GetBuffer());
+				return 0;
+			}
+			if (parentNode->type != Node::T_DIRECTORY) {
+				ERROR(E_INVAL, "Parent node is not a directory ('%s' type is %d)",
+					parentPath.GetBuffer(), node->type);
+				parentNode->Release();
+				return 0;
+			}
+		} else {
+			parentNode = root;
+			parentNode->AddRef();
+		}
+		/* Create subnode */
+		node = AllocateNode(parentNode, type, &path[nameStart], nameEnd - nameStart);
+		parentNode->Release();
+		if (!node) {
+			ERROR(E_FAULT, "Cannot allocate new node");
+			return 0;
+		}
 	}
 	/* XXX should implement file cache management */
-	File *file;
 	switch (node->type) {
 	case Node::T_REGULAR:
 		file = NEW(File, node);
@@ -243,9 +305,7 @@ VFS::CreateFile(const char *path)
 	default:
 		return 0;
 	}
-	if (!file) {
-		return 0;
-	}
+	node->Release();
 	return file;
 }
 
@@ -277,7 +337,7 @@ VFS::MapFile(const char *path)
 		return 0;
 	}
 	MM::VMObject *obj = MapFile(file);
-	/* release our reference to file */
+	/* release our reference to the file */
 	file->Release();
 	return obj;
 }
@@ -354,7 +414,7 @@ VFS::Node::GetSize()
 }
 
 u32
-VFS::Node::Read(u64 offset, void *buf, u32 len)
+VFS::Node::Read(off_t offset, void *buf, u32 len)
 {
 	if (!mount) {
 		return 0;
@@ -393,7 +453,7 @@ VFS::File::~File()
 }
 
 u32
-VFS::File::Read(u64 offset, void *buf, u32 len)
+VFS::File::Read(off_t offset, void *buf, u32 len)
 {
 	return node->Read(offset, buf, len);
 }
