@@ -142,7 +142,7 @@ GApp::Wait(Operation op, GateObject **objects, int numObjects, void *bitmap,
 
 DEF_STR_PROV(GApp::GetLastErrorStr)
 {
-	if (proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
+	if (buf && proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
 		return -1;
 	}
 	/* get error object for previous system call */

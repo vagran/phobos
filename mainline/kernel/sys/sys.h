@@ -48,6 +48,7 @@ extern void __assert(const char *file, u32 line, const char *cond);
 #include <Bitmap.h>
 #include <mem.h>
 #include <String.h>
+#include <Stack.h>
 #include <error.h>
 #include <dev/device.h>
 #include <dev/chr/syscons.h>

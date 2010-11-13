@@ -13,7 +13,7 @@ phbSource("$Id$");
 
 DECLARE_GCLASS(GFile);
 
-class GFile : GateObject {
+class GFile : public GateObject {
 public:
 	enum SeekFlags {
 		SF_SET, /* offset from beginning */
@@ -23,12 +23,14 @@ public:
 	};
 private:
 	VFS::File *file;
+	off_t curPos;
+	off_t size;
 public:
 	GFile(VFS::File *file);
 	virtual ~GFile();
 
 	virtual int Truncate();
-	virtual int GetSize(off_t *pSize);
+	virtual u32 GetSize(off_t *pSize);
 	virtual int Rename(const char *name);
 	virtual DEF_STR_PROV(GetName);
 	virtual DEF_STR_PROV(GetPath);
@@ -65,7 +67,8 @@ public:
 	GVFS();
 	virtual ~GVFS();
 
-	virtual GFile *CreateFile(const char *path, u32 flags = CF_READ | CF_WRITE);
+	virtual GFile *CreateFile(const char *path, u32 flags = CF_READ | CF_WRITE,
+		VFS::Node::Type type = VFS::Node::T_REGULAR);
 	virtual int DeleteFile(const char *path);
 
 	DECLARE_GCLASS_IMP(GVFS);

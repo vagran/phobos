@@ -240,6 +240,10 @@ VFS::CreateFile(const char *path, int flags, Node::Type type)
 {
 	File *file;
 
+	if (!Node::IsValidType(type)) {
+		ERROR(E_INVAL, "Invalid file type specified: %d", type);
+		return 0;
+	}
 	Node *node = LookupNode(path);
 	if (node) {
 		if (node->type != type) {
@@ -303,6 +307,7 @@ VFS::CreateFile(const char *path, int flags, Node::Type type)
 		file = NEW(Directory, node);
 		break;
 	default:
+		//XXX
 		return 0;
 	}
 	node->Release();
@@ -403,7 +408,7 @@ VFS::Node::Release()
 	return rc;
 }
 
-u32
+off_t
 VFS::Node::GetSize()
 {
 	if (!mount) {
@@ -411,6 +416,12 @@ VFS::Node::GetSize()
 	}
 	DeviceFS *fs = mount->GetFS();
 	return fs->GetNodeSize(fsNode);
+}
+
+int
+VFS::Node::IsValidType(Type type)
+{
+	return type > T_NONE && type < T_MAX;
 }
 
 u32
@@ -421,6 +432,35 @@ VFS::Node::Read(off_t offset, void *buf, u32 len)
 	}
 	DeviceFS *fs = mount->GetFS();
 	return fs->ReadNode(fsNode, offset, len, buf);
+}
+
+int
+VFS::Node::GetName(KString &str)
+{
+	str = name;
+	return 0;
+}
+
+int
+VFS::Node::GetPath(KString &str)
+{
+	if (!parent) {
+		str = '/';
+		return 0;
+	}
+	KStack<Node *> stack;
+	Node *node = this;
+	while (node->parent) {
+		stack.Push(node);
+		node = node->parent;
+	}
+	str = (const char *)0;
+	while (stack.GetDepth()) {
+		str += '/';
+		node = stack.Pop();
+		str += node->name;
+	}
+	return 0;
 }
 
 /******************************************************/
@@ -458,10 +498,22 @@ VFS::File::Read(off_t offset, void *buf, u32 len)
 	return node->Read(offset, buf, len);
 }
 
-u32
+off_t
 VFS::File::GetSize()
 {
 	return node->GetSize();
+}
+
+int
+VFS::File::GetName(KString &str)
+{
+	return node->GetName(str);
+}
+
+int
+VFS::File::GetPath(KString &str)
+{
+	return node->GetPath(str);
 }
 
 /******************************************************/

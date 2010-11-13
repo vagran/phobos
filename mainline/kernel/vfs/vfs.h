@@ -11,6 +11,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
+/* File offset */
 typedef u64 off_t;
 
 class VFS : public Object {
@@ -61,8 +62,11 @@ public:
 		int Release();
 
 		inline Type GetType() { return type; }
-		u32 GetSize();
+		off_t GetSize();
 		u32 Read(off_t offset, void *buf, u32 len);
+		static int IsValidType(Type type);
+		int GetName(KString &str);
+		int GetPath(KString &str);
 	};
 
 	class Mount : public Object {
@@ -90,8 +94,10 @@ public:
 
 		inline Node::Type GetType() { return node->GetType(); }
 
-		virtual u32 Read(u64 offset, void *buf, u32 len);
-		virtual u32 GetSize();
+		virtual u32 Read(off_t offset, void *buf, u32 len);
+		virtual off_t GetSize();
+		virtual int GetName(KString &str);
+		virtual int GetPath(KString &str);
 	};
 
 	class Directory : public File {

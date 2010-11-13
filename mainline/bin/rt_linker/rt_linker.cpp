@@ -31,9 +31,31 @@ Main(GApp *app)
 
 	GVFS *vfs = app->GetVFS();
 	GFile *file = vfs->CreateFile("/etc/test.txt");
-	u32 sz = file->Read(str.LockBuffer(17), 16);
-	str.ReleaseBuffer(16);
-	str.Format("%ld bytes: '%s'\n", sz, str.GetBuffer());
+	str = "Path: ";
+	str += GETSTR(file, GFile::GetPath);
+	str += '\n';
+	PRINTSTR();
+
+	CString str1;
+	u32 sz = file->Read(str1.LockBuffer(17), 16);
+	str1.ReleaseBuffer(sz);
+	str.Format("%ld bytes: '%s'\n", sz, str1.GetBuffer());
+	PRINTSTR();
+	sz = file->Read(str1.LockBuffer(3000), 3000);
+	str1.ReleaseBuffer(sz);
+	str.Format("%ld bytes: '%s'\n", sz, str1.GetBuffer());
+	PRINTSTR();
+
+	file->Seek(6);
+	sz = file->Read(str1.LockBuffer(3000), 3000);
+	str1.ReleaseBuffer(sz);
+	str.Format("%ld bytes: '%s'\n", sz, str1.GetBuffer());
+	PRINTSTR();
+
+	file->Seek(-50, GFile::SF_END);
+	sz = file->Read(str1.LockBuffer(3000), 3000);
+	str1.ReleaseBuffer(sz);
+	str.Format("%ld bytes: '%s'\n", sz, str1.GetBuffer());
 	PRINTSTR();
 	return 0;
 }

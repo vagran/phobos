@@ -21,6 +21,8 @@ phbSource("$Id$");
 
 #if !defined(KERNEL) && !defined(UNIT_TEST)
 typedef class String<UMemAllocator> CString;
+template <typename T, int STATIC_SIZE = 32> class CStack :
+	public Stack<UMemAllocator, T, STATIC_SIZE> {};
 #endif /* !defined(KERNEL) && !defined(UNIT_TEST) */
 
 #ifndef KERNEL

@@ -43,6 +43,7 @@ export LIBS_INSTALL_DIR = /usr/lib
 
 export INSTALL_ROOT = $(PHOBOS_ROOT)/install
 
+# Default load address for binary executables
 export DEF_LOAD_ADDRESS = 0x1000
 
 INCLUDE_DIRS = $(PHOBOS_ROOT)/kernel $(PHOBOS_ROOT)/kernel/sys $(PHOBOS_ROOT)/include
