@@ -14,14 +14,16 @@ phbSource("$Id$");
 template <class Allocator>
 class String : public Object {
 public:
-	typedef int (Object::*StringProvider)(char *buf, int bufSize);
+	typedef int (Object::*StringProvider)(char *buf, int bufSize, void *arg);
 	struct StringInfo {
 		Object *obj;
 		StringProvider str;
+		void *arg;
 
-		inline StringInfo(Object *obj, StringProvider str) {
+		inline StringInfo(Object *obj, StringProvider str, void *arg = 0) {
 			this->obj = obj;
 			this->str = str;
+			this->arg = arg;
 		}
 	};
 private:
@@ -45,7 +47,7 @@ private:
 public:
 	String(const char *str = 0);
 	String(char c);
-	String(Object *obj, StringProvider str);
+	String(Object *obj, StringProvider str, void *arg = 0);
 	String(const StringInfo &str);
 	~String();
 
@@ -88,8 +90,10 @@ typedef class String<KMemAllocator> KString;
 #endif /* KERNEL */
 
 /* Define string provider function/method */
-#define DEF_STR_PROV(name) int name(char *buf, int bufLen)
+#define DECL_STR_PROV(name) int name(char *buf, int bufLen, void *arg = 0)
+#define DEF_STR_PROV(name) int name(char *buf, int bufLen, void *arg)
 
-#define GETSTR(obj, method) STRING::StringInfo(obj, (STRING::StringProvider)&method)
+#define GETSTR(obj, method, ...) STRING::StringInfo(obj, \
+	(STRING::StringProvider)&method, ## __VA_ARGS__)
 
 #endif /* STRING_H_ */

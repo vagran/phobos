@@ -48,6 +48,12 @@ GFile::GetSize(off_t *pSize)
 }
 
 int
+GFile::Eof()
+{
+	return curPos == size;
+}
+
+int
 GFile::Rename(const char *name)
 {
 	//notimpl

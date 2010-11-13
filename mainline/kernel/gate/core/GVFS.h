@@ -32,13 +32,14 @@ public:
 	virtual int Truncate();
 	virtual u32 GetSize(off_t *pSize);
 	virtual int Rename(const char *name);
-	virtual DEF_STR_PROV(GetName);
-	virtual DEF_STR_PROV(GetPath);
+	virtual DECL_STR_PROV(GetName);
+	virtual DECL_STR_PROV(GetPath);
 	virtual u32 Read(void *buf, u32 len);
 	virtual u32 Write(void *buf, u32 len);
 	virtual u32 Seek(off_t offset, u32 flags = SF_SET, off_t *newOffset = 0); /* return new position */
 	virtual u32 GetCurPos(off_t *pos = 0);
 	virtual VFS::Node::Type GetType();
+	virtual int Eof();
 
 	DECLARE_GCLASS_IMP(GFile);
 };

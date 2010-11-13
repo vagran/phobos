@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <private.h>
+#include "private.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
@@ -45,7 +45,7 @@ static const char *_messages[] = {
 static const char *const _messages[] = {
 #endif /* PIC */
 #define __err__(a,b)	b,
-#include <errors.h>		/* include string tables from errors.h */
+#include "errors.h"		/* include string tables from errors.h */
 #undef __err__
 };
 

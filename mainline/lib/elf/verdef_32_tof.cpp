@@ -17,9 +17,16 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
-#include <private.h>
-#include <ext_types.h>
-#include <byteswap.h>
+#include "private.h"
+#include "ext_types.h"
+#include "byteswap.h"
+
+/*
+ * vd_version
+ */
+#define VER_DEF_NONE	0
+#define VER_DEF_CURRENT	1
+#define VER_DEF_NUM	2
 
 #if __LIBELF_SYMBOL_VERSIONS
 

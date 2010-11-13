@@ -17,7 +17,7 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
-#include <private.h>
+#include "private.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
@@ -111,7 +111,7 @@ _elf_csum(Elf *elf) {
 		    seterr(ERROR_NULLBUF);
 		    return 0L;
 		}
-		csum += add_bytes(data->d_buf, data->d_size);
+		csum += add_bytes((u8 *)data->d_buf, data->d_size);
 	    }
 	}
     }

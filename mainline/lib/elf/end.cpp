@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <private.h>
+#include "private.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
@@ -75,44 +75,47 @@ int
 elf_end(Elf *elf) {
     Elf **siblings;
 
-    if (!elf) {
-	return 0;
-    }
-    elf_assert(elf->e_magic == ELF_MAGIC);
-    if (--elf->e_count) {
-	return elf->e_count;
-    }
-    if (elf->e_parent) {
-	elf_assert(elf->e_parent->e_magic == ELF_MAGIC);
-	elf_assert(elf->e_parent->e_kind == ELF_K_AR);
-	siblings = &elf->e_parent->e_members;
-	while (*siblings) {
-	    if (*siblings == elf) {
-		*siblings = elf->e_link;
-		break;
-	    }
-	    siblings = &(*siblings)->e_link;
+	if (!elf) {
+		return 0;
 	}
-	elf_end(elf->e_parent);
-	_elf_free(elf->e_arhdr);
-    }
+	elf_assert(elf->e_magic == ELF_MAGIC);
+	if (--elf->e_count) {
+		return elf->e_count;
+	}
+	if (elf->e_parent) {
+		elf_assert(elf->e_parent->e_magic == ELF_MAGIC);
+		elf_assert(elf->e_parent->e_kind == ELF_K_AR);
+		siblings = &elf->e_parent->e_members;
+		while (*siblings) {
+			if (*siblings == elf) {
+				*siblings = elf->e_link;
+				break;
+			}
+			siblings = &(*siblings)->e_link;
+		}
+		elf_end(elf->e_parent);
+		_elf_free(elf->e_arhdr);
+	}
 #if HAVE_MMAP
-    else if (elf->e_unmap_data) {
-	munmap(elf->e_data, elf->e_size);
-    }
+	else if (elf->e_unmap_data) {
+		munmap(elf->e_data, elf->e_size);
+	}
 #endif /* HAVE_MMAP */
-    else if (!elf->e_memory) {
-	_elf_free(elf->e_data);
-    }
-    _elf_free_scns(elf, elf->e_scn_1);
-    if (elf->e_rawdata != elf->e_data) {
-	_elf_free(elf->e_rawdata);
-    }
-    if (elf->e_free_syms) {
-	_elf_free(elf->e_symtab);
-    }
-    _elf_free(elf->e_ehdr);
-    _elf_free(elf->e_phdr);
-    free(elf);
-    return 0;
+	else if (!elf->e_memory) {
+		_elf_free(elf->e_data);
+	}
+	_elf_free_scns(elf, elf->e_scn_1);
+	if (elf->e_rawdata != elf->e_data) {
+		_elf_free(elf->e_rawdata);
+	}
+	if (elf->e_free_syms) {
+		_elf_free(elf->e_symtab);
+	}
+	_elf_free(elf->e_ehdr);
+	_elf_free(elf->e_phdr);
+	if (elf->e_fd) {
+		elf->e_fd->Release();
+	}
+	free(elf);
+	return 0;
 }

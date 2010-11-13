@@ -38,7 +38,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #define malloc(size)		(uLib->GetMemAllocator()->malloc(size))
-#define realloc(p, size)	(uLib->GetMemAllocator()->realloc(p, size))
+#define realloc(p, size)	(uLib->GetMemAllocator()->mrealloc(p, size))
 #define free(p)				(uLib->GetMemAllocator()->mfree(p))
 
 //XXX extern void bcopy(), abort();
@@ -112,7 +112,7 @@ struct Elf_s {
     char*	e_data;			/* file/member data */
     char*	e_rawdata;		/* file/member raw data */
     size_t	e_idlen;		/* identifier size */
-    int		e_fd;			/* file descriptor */
+    GFile*		e_fd;			/* file descriptor */
     unsigned	e_count;		/* activation count */
     /* archive members (still common) */
     Elf*	e_parent;		/* NULL if not an archive member */
@@ -160,7 +160,7 @@ struct Elf_s {
     /* e_data */	NULL,\
     /* e_rawdata */	NULL,\
     /* e_idlen */	0,\
-    /* e_fd */		-1,\
+    /* e_fd */		0,\
     /* e_count */	1,\
     /* e_parent */	NULL,\
     /* e_next */	0,\

@@ -17,13 +17,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <private.h>
+#include "private.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
 #endif /* lint */
-
-#include <errno.h>
 
 #if HAVE_MMAP
 #include <sys/mman.h>
@@ -885,30 +883,25 @@ _elf64_write(Elf *elf, char *outbuf, size_t len) {
 #endif /* __LIBELF64 */
 
 static int
-xwrite(int fd, char *buffer, size_t len) {
+xwrite(GFile *fd, char *buffer, size_t len) {
     size_t done = 0;
-    size_t n;
+	size_t n;
 
-    while (done < len) {
-	n = write(fd, buffer + done, len - done);
-	if (n == 0) {
-	    /* file system full */
-	    return -1;
+	while (done < len) {
+		n = fd->Write(buffer + done, len - done);
+		if (n == 0) {
+			/* file system full */
+			return -1;
+		} else {
+			/* some bytes written, continue */
+			done += n;
+		}
 	}
-	else if (n != (size_t)-1) {
-	    /* some bytes written, continue */
-	    done += n;
-	}
-	else if (errno != EAGAIN && errno != EINTR) {
-	    /* real error */
-	    return -1;
-	}
-    }
     return 0;
 }
 
 static off_t
-_elf_output(Elf *elf, int fd, size_t len, off_t (*_elf_write)(Elf*, char*, size_t)) {
+_elf_output(Elf *elf, GFile *fd, size_t len, off_t (*_elf_write)(Elf*, char*, size_t)) {
     char *buf;
     off_t err;
 
@@ -952,7 +945,7 @@ _elf_output(Elf *elf, int fd, size_t len, off_t (*_elf_write)(Elf*, char*, size_
     memset(buf, _elf_fill, len);
     err = _elf_write(elf, buf, len);
     if (err != -1 && (size_t)err == len) {
-	if (lseek(fd, (off_t)0, SEEK_SET)) {
+	if (fd->Seek((off_t)0)) {
 	    seterr(ERROR_IO_SEEK);
 	    err = -1;
 	}

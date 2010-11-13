@@ -58,3 +58,19 @@ GProcess::SetArgs(const char *args)
 	*(proc->GetArgs()) = args;
 	return 0;
 }
+
+DEF_STR_PROV(GProcess::GetEnv)
+{
+	if (buf && proc->CheckUserBuf(buf, bufLen, MM::PROT_WRITE)) {
+		return -1;
+	}
+	//notimpl
+	return 0;
+}
+
+int
+GProcess::SetEnv(const char *name, char *value)
+{
+
+	return 0;
+}

@@ -17,70 +17,59 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <private.h>
+#include "private.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
 #endif /* lint */
-
-#include <errno.h>
 
 #if HAVE_MMAP
 #include <sys/mman.h>
 #endif /* HAVE_MMAP */
 
 static int
-xread(int fd, char *buffer, size_t len) {
+xread(GFile *fd, char *buffer, size_t len) {
     size_t done = 0;
     size_t n;
 
     while (done < len) {
-	n = read(fd, buffer + done, len - done);
-	if (n == 0) {
-	    /* premature end of file */
-	    return -1;
+		n = fd->Read(buffer + done, len - done);
+		if (n == 0) {
+			/* premature end of file */
+			return -1;
+		} else {
+			/* some bytes read, continue */
+			done += n;
+		}
 	}
-	else if (n != (size_t)-1) {
-	    /* some bytes read, continue */
-	    done += n;
-	}
-	else if (errno != EAGAIN && errno != EINTR) {
-	    /* real error */
-	    return -1;
-	}
-    }
-    return 0;
+	return 0;
 }
 
 void*
 _elf_read(Elf *elf, void *buffer, size_t off, size_t len) {
     void *tmp;
 
-    elf_assert(elf);
-    elf_assert(elf->e_magic == ELF_MAGIC);
-    elf_assert(off >= 0 && off + len <= elf->e_size);
-    if (elf->e_disabled) {
-	seterr(ERROR_FDDISABLED);
-    }
-    else if (len) {
-	off += elf->e_base;
-	if (lseek(elf->e_fd, (off_t)off, SEEK_SET) != (off_t)off) {
-	    seterr(ERROR_IO_SEEK);
+	elf_assert(elf);
+	elf_assert(elf->e_magic == ELF_MAGIC);
+	elf_assert(off >= 0 && off + len <= elf->e_size);
+	if (elf->e_disabled) {
+		seterr(ERROR_FDDISABLED);
+	} else if (len) {
+		off += elf->e_base;
+		if (elf->e_fd->Seek((off_t)off) != (off_t)off) {
+			seterr(ERROR_IO_SEEK);
+		} else if (!(tmp = buffer) && !(tmp = malloc(len))) {
+			seterr(ERROR_IO_2BIG);
+		} else if (xread(elf->e_fd, (char *)tmp, len)) {
+			seterr(ERROR_IO_READ);
+			if (tmp != buffer) {
+				free(tmp);
+			}
+		} else {
+			return tmp;
+		}
 	}
-	else if (!(tmp = buffer) && !(tmp = malloc(len))) {
-	    seterr(ERROR_IO_2BIG);
-	}
-	else if (xread(elf->e_fd, tmp, len)) {
-	    seterr(ERROR_IO_READ);
-	    if (tmp != buffer) {
-		free(tmp);
-	    }
-	}
-	else {
-	    return tmp;
-	}
-    }
-    return NULL;
+	return NULL;
 }
 
 void*

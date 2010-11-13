@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <private.h>
+#include "private.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
@@ -25,11 +25,14 @@ static const char rcsid[] = "@(#) $Id$";
 
 unsigned
 elf_version(unsigned ver) {
-    const char *s;
+    CString s;
     unsigned tmp;
 
-    if ((s = getenv("LIBELF_SANITY_CHECKS"))) {
-	_elf_sanity_checks = (int)strtol(s, (char**)NULL, 0);
+    GProcess *proc = uLib->GetApp()->GetProcess();
+    s = GETSTR(proc, GProcess::GetEnv, (void *)"LIBELF_SANITY_CHECKS");
+    proc->Release();
+    if (s.GetLength()) {
+	_elf_sanity_checks = (int)strtol(s.GetBuffer(), (char**)NULL, 0);
     }
     if (ver == EV_NONE) {
 	return EV_CURRENT;

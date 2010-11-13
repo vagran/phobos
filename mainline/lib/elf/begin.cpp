@@ -221,7 +221,7 @@ _elf_check_type(Elf *elf, size_t size) {
 }
 
 Elf*
-elf_begin(int fd, Elf_Cmd cmd, Elf *ref) {
+elf_begin(GFile *fd, Elf_Cmd cmd, Elf *ref) {
     Elf_Arhdr *arhdr = NULL;
     size_t size = 0;
     off_t off;
@@ -263,12 +263,13 @@ elf_begin(int fd, Elf_Cmd cmd, Elf *ref) {
 	    seterr(ERROR_FDMISMATCH);
 	    return NULL;
 	}
+	fd->AddRef();
 	if (!(arhdr = _elf_arhdr(ref))) {
 	    return NULL;
 	}
 	size = arhdr->ar_size;
     }
-    else if ((off = lseek(fd, (off_t)0, SEEK_END)) == (off_t)-1
+    else if ((off = fd->Seek((off_t)0, GFile::SF_END)) == (off_t)-1
 	  || (off_t)(size = off) != off) {
 	seterr(ERROR_IO_GETSIZE);
 	return NULL;

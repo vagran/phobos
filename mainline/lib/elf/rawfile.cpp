@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <private.h>
+#include "private.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
@@ -44,7 +44,7 @@ elf_rawfile(Elf *elf, size_t *ptr) {
 	    if (!elf->e_cooked) {
 		elf->e_rawdata = elf->e_data;
 	    }
-	    else if (!(elf->e_rawdata = _elf_read(elf, NULL, 0, elf->e_size))) {
+	    else if (!(elf->e_rawdata = (char *)_elf_read(elf, NULL, 0, elf->e_size))) {
 		return NULL;
 	    }
 	}

@@ -35,9 +35,11 @@ IS_PROFILE_ROOT = 1
 LINK_FILES += $(APP_RUNTIME_LIB) 
 ifeq ($(STATIC),1)
 LINK_FILES += $(COMMON_LIB) $(USER_LIB)
+LINK_FILES += $(foreach lib,$(LIBS),$(PHOBOS_ROOT)/lib/$(lib)/build/$(TARGET)/lib$(lib).a)
 else
 LINK_FILES += $(subst .a,.sl,$(COMMON_LIB) $(USER_LIB))
 LINK_FLAGS += -Bdynamic
+LINK_FILES += $(foreach lib,$(LIBS),$(PHOBOS_ROOT)/lib/$(lib)/build/$(TARGET)/lib$(lib).sl)
 endif
 REQUIRE_RUNTIME_LIB = 1
 

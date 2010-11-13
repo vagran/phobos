@@ -22,7 +22,6 @@
 #ifndef _LIBELF_H
 #define _LIBELF_H
 
-#include <stddef.h>	/* for size_t */
 #include <sys/types.h>
 
 #if __LIBELF_INTERNAL__
@@ -169,7 +168,7 @@ typedef struct {
 /*
  * Function declarations
  */
-extern Elf *elf_begin __P((int __fd, Elf_Cmd __cmd, Elf *__ref));
+extern Elf *elf_begin __P((GFile *fd, Elf_Cmd __cmd, Elf *__ref));
 extern Elf *elf_memory __P((char *__image, size_t __size));
 extern int elf_cntl __P((Elf *__elf, Elf_Cmd __cmd));
 extern int elf_end __P((Elf *__elf));

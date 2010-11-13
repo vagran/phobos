@@ -12,7 +12,7 @@
 phbSource("$Id$");
 
 /* File offset */
-typedef u64 off_t;
+typedef i64 off_t;
 
 class VFS : public Object {
 public:

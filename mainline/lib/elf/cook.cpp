@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <private.h>
+#include "private.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
@@ -192,7 +192,7 @@ _elf_cook_phdr(Elf *elf) {
 	}
 	size = _msize(elf->e_class, _elf_version, ELF_T_PHDR);
 	elf_assert(size);
-	if (!(p = malloc(num * size))) {
+	if (!(p = (char *)malloc(num * size))) {
 	    seterr(memerr(ELF_T_PHDR));
 	    return 0;
 	}

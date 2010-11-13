@@ -24,9 +24,11 @@ public:
 
 	virtual PM::pid_t GetPID();
 	virtual PM::pid_t GetThreadID();
-	virtual DEF_STR_PROV(GetName);
-	virtual DEF_STR_PROV(GetArgs);
+	virtual DECL_STR_PROV(GetName);
+	virtual DECL_STR_PROV(GetArgs);
 	virtual int SetArgs(const char *args);
+	virtual DECL_STR_PROV(GetEnv); /* arg - variable name */
+	virtual int SetEnv(const char *name, char *value); /* value = 0 for deleting */
 
 	DECLARE_GCLASS_IMP(GProcess);
 };

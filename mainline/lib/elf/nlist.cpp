@@ -17,20 +17,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <private.h>
-#include <nlist.h>
+#include "private.h"
+#include "nlist.h"
 
 #ifndef lint
 static const char rcsid[] = "@(#) $Id$";
 #endif /* lint */
-
-#if !defined(_WIN32)
-#if HAVE_FCNTL_H
-#include <fcntl.h>
-#else
-extern int open();
-#endif /* HAVE_FCNTL_H */
-#endif /* defined(_WIN32) */
 
 #ifndef O_RDONLY
 #define O_RDONLY	0
@@ -40,7 +32,7 @@ extern int open();
 #define O_BINARY	0
 #endif /* O_BINARY */
 
-#define FILE_OPEN_MODE	(O_RDONLY | O_BINARY)
+#define FILE_OPEN_MODE	(GVFS::CF_EXISTING | GVFS::CF_READ)
 
 #define PRIME	217
 
@@ -186,7 +178,7 @@ _elf_nlist(Elf *elf, struct nlist *nl) {
 	table[i].next = 0;
     }
     for (i = 1; i < nsymbols; i++) {
-	name = symbol_name(elf, symdata->d_buf, strdata->d_buf,
+	name = symbol_name(elf, symdata->d_buf, (char *)strdata->d_buf,
 			   strdata->d_size, i);
 	if (name == NULL) {
 	    free(table);
@@ -231,16 +223,18 @@ nlist(const char *filename, struct nlist *nl) {
     int result = -1;
     unsigned oldver;
     Elf *elf;
-    int fd;
+    GFile *fd;
 
+    GVFS *vfs = uLib->GetApp()->GetVFS();
     if ((oldver = elf_version(EV_CURRENT)) != EV_NONE) {
-	if ((fd = open(filename, FILE_OPEN_MODE)) != -1) {
+	if ((fd = vfs->CreateFile(filename, FILE_OPEN_MODE))) {
 	    if ((elf = elf_begin(fd, ELF_C_READ, NULL))) {
 		result = _elf_nlist(elf, nl);
 		elf_end(elf);
 	    }
-	    close(fd);
+	    fd->Release();
 	}
+	vfs->Release();
 	elf_version(oldver);
     }
     if (result) {

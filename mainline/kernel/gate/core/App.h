@@ -37,7 +37,7 @@ public:
 	virtual int Wait(Operation op, GateObject **objects, int numObjects,
 		void *bitmap = 0, u64 timeout = 0);
 
-	virtual DEF_STR_PROV(GetLastErrorStr);
+	virtual DECL_STR_PROV(GetLastErrorStr);
 	virtual Error::ErrorCode GetLastError();
 
 	virtual GProcess *GetProcess();

@@ -28,11 +28,11 @@ String<Allocator>::String(char c) : info(this,
 }
 
 template <class Allocator>
-String<Allocator>::String(Object *obj, StringProvider str) : info(this,
+String<Allocator>::String(Object *obj, StringProvider str, void *arg) : info(this,
 	(StringProvider)&String<Allocator>::Get)
 {
-	Initialize((obj->*str)(0, 0));
-	(obj->*str)(LockBuffer(), bufLen);
+	Initialize((obj->*str)(0, 0, arg));
+	(obj->*str)(LockBuffer(), bufLen, arg);
 	ReleaseBuffer();
 }
 
@@ -40,8 +40,8 @@ template <class Allocator>
 String<Allocator>::String(const StringInfo &str) : info(this,
 	(StringProvider)&String<Allocator>::Get)
 {
-	Initialize((str.obj->*str.str)(0, 0));
-	(str.obj->*str.str)(LockBuffer(), bufLen);
+	Initialize((str.obj->*str.str)(0, 0, str.arg));
+	(str.obj->*str.str)(LockBuffer(), bufLen, str.arg);
 	ReleaseBuffer();
 }
 
@@ -133,11 +133,11 @@ template <class Allocator>
 const String<Allocator> &
 String<Allocator>::operator =(const StringInfo &str)
 {
-	len = (str.obj->*str.str)(0, 0);
+	len = (str.obj->*str.str)(0, 0, str.arg);
 	if (Realloc(len + 1)) {
 		return *this;
 	}
-	(str.obj->*str.str)(buf, len + 1);
+	(str.obj->*str.str)(buf, len + 1, str.arg);
 	return *this;
 }
 
@@ -235,14 +235,14 @@ template <class Allocator>
 int
 String<Allocator>::Append(const StringInfo &str)
 {
-	int strLen = (str.obj->*str.str)(0, 0);
+	int strLen = (str.obj->*str.str)(0, 0, str.arg);
 	if (!strLen) {
 		return 0;
 	}
 	if (Realloc(len + strLen + 1)) {
 		return -1;
 	}
-	(str.obj->*str.str)(&buf[len], strLen + 1);
+	(str.obj->*str.str)(&buf[len], strLen + 1, str.arg);
 	len += strLen;
 	return 0;
 }
