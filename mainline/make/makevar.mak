@@ -50,6 +50,8 @@ export DEF_LOAD_ADDRESS = 0x1000
 INCLUDE_DIRS = $(PHOBOS_ROOT)/kernel $(PHOBOS_ROOT)/kernel/sys $(PHOBOS_ROOT)/include
 INCLUDE_FLAGS += $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
+PRECOMPILED_HEADERS = $(PHOBOS_ROOT)/kernel/sys/sys.h
+
 NAT_INCLUDE_DIRS = /usr/include
 NAT_INCLUDE_FLAGS = $(foreach dir,$(NAT_INCLUDE_DIRS),-I$(dir))
 

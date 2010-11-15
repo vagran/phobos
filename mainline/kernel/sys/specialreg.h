@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef SPECIALREG_H_
@@ -149,7 +149,7 @@ typedef enum {
 	CPUID_EFEAT_SYSCALL =	(1 << 11), /* SYSCALL/SYSRET available (when in 64-bit mode */
 	CPUID_EFEAT_NX =		(1 << 20), /* Execute Disable Bit available */
 	CPUID_EFEAT_RDTSCP =	(1 << 27), /* RDTSCP and IA32_TSC_AUX are available if 1 */
-	CPUID_EFEAT_IA64 =		(1 << 29), /* Intel® 64 Architecture available if 1 */
+	CPUID_EFEAT_IA64 =		(1 << 29), /* Intelï¿½ 64 Architecture available if 1 */
 } CPUIDBits;
 
 /*

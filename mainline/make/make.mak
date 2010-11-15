@@ -18,8 +18,8 @@ COMPILE_FLAGS_C +=
 COMPILE_FLAGS_ASM += -DASSEMBLER
 LINK_FLAGS += -nodefaultlibs -nostartfiles -nostdinc -nostdinc++ \
 	--no-omagic -z common-page-size=0x1000 --defsym LOAD_ADDRESS=$(LOAD_ADDRESS)
-	
-COMPILE_FLAGS += $(foreach inc,$(INCLUDES),-I$(inc))
+
+PIC_FLAGS = -fpic -D__PIC
 
 #TARGET variable must be either DEBUG or RELEASE
 ifndef TARGET
@@ -97,10 +97,19 @@ else
 $(error Target not supported: $(TARGET))
 endif
 
+INCLUDE_FLAGS += $(foreach inc,$(INCLUDES),-I$(inc))
+
 SRCS = $(wildcard *.S *.c *.cpp)
 OBJS_LOCAL = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(SRCS))))
 OBJS = $(foreach obj,$(OBJS_LOCAL),$(OBJ_DIR)/$(obj))
 OBJS_SO = $(subst .o,.so,$(OBJS))
+
+# Precompiled headers
+PCHS_LOCAL = $(foreach hdr,$(PRECOMPILED_HEADERS),$(notdir $(hdr)).gch)
+PCHS_DIR = $(OBJ_DIR)/pchs
+PCHS = $(foreach pch,$(PCHS_LOCAL),$(PCHS_DIR)/$(pch))
+PIC_PCHS_DIR = $(OBJ_DIR)/pic_pchs
+PIC_PCHS = $(foreach pch,$(PCHS_LOCAL),$(PIC_PCHS_DIR)/$(pch))
 
 SUBDIRS_TARGET = $(foreach item,$(SUBDIRS),$(item).dir)
 
@@ -138,25 +147,45 @@ endif
 $(filter %.a %.sl, $(LINK_FILES)):
 	$(MAKE) -C $(abspath $(@D)/../..) $(@F)
 
+# Precompiled headers
+$(PCHS_DIR):
+	if [ ! -d $@ ]; then mkdir $@; fi
+
+$(PCHS): $(PCHS_DIR) $(PRECOMPILED_HEADERS)
+	cp $(filter %/$(notdir $(patsubst %.h.gch,%.h,$@)),$(PRECOMPILED_HEADERS)) \
+		$(patsubst %.h.gch,%.h,$@)
+	$(CC) $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -o $@ \
+		-x c++-header $(patsubst %.h.gch,%.h,$@)
+
+$(PIC_PCHS_DIR):
+	if [ ! -d $@ ]; then mkdir $@; fi
+
+$(PIC_PCHS): $(PIC_PCHS_DIR) $(PRECOMPILED_HEADERS)
+	cp $(filter %/$(notdir $(patsubst %.h.gch,%.h,$@)),$(PRECOMPILED_HEADERS)) \
+		$(patsubst %.h.gch,%.h,$@)
+	$(CC) $(INCLUDE_FLAGS) $(PIC_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) \
+		-o $@ -x c++-header $(patsubst %.h.gch,%.h,$@)
+
 # Relocatable objects
 $(OBJ_DIR)/%.o: %.c
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) -o $@ $<
 
-$(OBJ_DIR)/%.o: %.cpp
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -o $@ $<
+$(OBJ_DIR)/%.o: %.cpp $(PCHS)
+	$(CC) -c -I$(PCHS_DIR) $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -o $@ $<
 
 $(OBJ_DIR)/%.o: %.S
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -o $@ $<
 
 # Position-independent objects
 $(OBJ_DIR)/%.so: %.c
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) -fpic -D__PIC -o $@ $<
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) $(PIC_FLAGS) -o $@ $<
 
-$(OBJ_DIR)/%.so: %.cpp
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -fpic -D__PIC -o $@ $<
+$(OBJ_DIR)/%.so: %.cpp $(PIC_PCHS)
+	$(CC) -c -I$(PIC_PCHS_DIR) $(INCLUDE_FLAGS) $(COMPILE_FLAGS) \
+		$(COMPILE_FLAGS_CXX) $(PIC_FLAGS) -o $@ $<
 
 $(OBJ_DIR)/%.so: %.S
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -fpic -D__PIC -o $@ $<
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) $(PIC_FLAGS) -o $@ $<
 
 $(SUBDIRS_TARGET):
 	@$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)
