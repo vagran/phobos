@@ -72,8 +72,8 @@ ASMCALL void _panic(const char *fileName, int line, const char *fmt,...) __forma
 
 /* System default output functions */
 
-void inline vprintf(const char *fmt, va_list va) __format(printf, 1, 0);
-void inline vprintf(const char *fmt, va_list va)
+static inline void vprintf(const char *fmt, va_list va) __format(printf, 1, 0);
+static inline void vprintf(const char *fmt, va_list va)
 {
 	if (sysCons) {
 		sysCons->VPrintf(fmt, va);
@@ -85,8 +85,8 @@ void inline vprintf(const char *fmt, va_list va)
 #endif /* DEBUG */
 }
 
-void inline printf(const char *fmt,...)	__format(printf, 1, 2);
-void inline printf(const char *fmt,...)
+static inline void printf(const char *fmt,...)	__format(printf, 1, 2);
+static inline void printf(const char *fmt,...)
 {
 	va_list va;
 	va_start(va, fmt);

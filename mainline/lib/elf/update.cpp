@@ -544,7 +544,7 @@ _elf_update_pointers(Elf *elf, char *outbuf, size_t len) {
 	/* don't shorten the memory image */
 	data = elf->e_data;
     }
-    else if ((data = (char*)realloc(elf->e_data, len))) {
+    else if ((data = (char*)mrealloc(elf->e_data, len))) {
 	elf->e_dsize = len;
     }
     else {
@@ -560,7 +560,7 @@ _elf_update_pointers(Elf *elf, char *outbuf, size_t len) {
     }
     if (elf->e_rawdata) {
 	/* update raw image */
-	if (!(rawdata = (char*)realloc(elf->e_rawdata, len))) {
+	if (!(rawdata = (char*)mrealloc(elf->e_rawdata, len))) {
 	    seterr(ERROR_IO_2BIG);
 	    return -1;
 	}
@@ -609,7 +609,7 @@ _elf_update_pointers(Elf *elf, char *outbuf, size_t len) {
 		    seterr(ERROR_UNIMPLEMENTED);
 		    return -1;
 		}
-		if (!(rawdata = (char*)realloc(sd->sd_memdata, len))) {
+		if (!(rawdata = (char*)mrealloc(sd->sd_memdata, len))) {
 		    seterr(ERROR_IO_2BIG);
 		    return -1;
 		}
@@ -954,7 +954,7 @@ _elf_output(Elf *elf, GFile *fd, size_t len, off_t (*_elf_write)(Elf*, char*, si
 	    err = -1;
 	}
     }
-    free(buf);
+    mfree(buf);
     return err;
 }
 

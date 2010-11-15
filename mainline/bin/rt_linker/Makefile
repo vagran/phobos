@@ -17,4 +17,6 @@ LOAD_ADDRESS = $(RT_LINKER_LOAD_ADDRESS)
 
 LIBS = elf
 
+INCLUDES += $(PHOBOS_ROOT)/lib/elf
+
 include $(PHOBOS_ROOT)/make/make.mak

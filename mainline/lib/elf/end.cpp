@@ -30,7 +30,7 @@ static const char rcsid[] = "@(#) $Id$";
 static void
 _elf_free(void *ptr) {
     if (ptr) {
-	free(ptr);
+	mfree(ptr);
     }
 }
 
@@ -50,7 +50,7 @@ _elf_free_scns(Elf *elf, Elf_Scn *scn) {
 		_elf_free(sd->sd_memdata);
 	    }
 	    if (sd->sd_freeme) {
-		free(sd);
+		mfree(sd);
 	    }
 	}
 	if ((sd = scn->s_rawdata)) {
@@ -60,7 +60,7 @@ _elf_free_scns(Elf *elf, Elf_Scn *scn) {
 		_elf_free(sd->sd_memdata);
 	    }
 	    if (sd->sd_freeme) {
-		free(sd);
+		mfree(sd);
 	    }
 	}
 	if (scn->s_freeme) {
@@ -116,6 +116,6 @@ elf_end(Elf *elf) {
 	if (elf->e_fd) {
 		elf->e_fd->Release();
 	}
-	free(elf);
+	mfree(elf);
 	return 0;
 }

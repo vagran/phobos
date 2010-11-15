@@ -27,7 +27,8 @@ public:
 	virtual DECL_STR_PROV(GetName);
 	virtual DECL_STR_PROV(GetArgs);
 	virtual int SetArgs(const char *args);
-	virtual DECL_STR_PROV(GetEnv); /* arg - variable name */
+	/* arg - variable name, dump entire environment if zero */
+	virtual DECL_STR_PROV(GetEnv);
 	virtual int SetEnv(const char *name, char *value); /* value = 0 for deleting */
 
 	DECLARE_GCLASS_IMP(GProcess);

@@ -181,7 +181,7 @@ _elf_nlist(Elf *elf, struct nlist *nl) {
 	name = symbol_name(elf, symdata->d_buf, (char *)strdata->d_buf,
 			   strdata->d_size, i);
 	if (name == NULL) {
-	    free(table);
+	    mfree(table);
 	    return -1;
 	}
 	if (*name != '\0') {
@@ -214,7 +214,7 @@ _elf_nlist(Elf *elf, struct nlist *nl) {
 	    np->n_numaux = 0;
 	}
     }
-    free(table);
+    mfree(table);
     return 0;
 }
 

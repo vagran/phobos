@@ -63,7 +63,7 @@ _elf_read(Elf *elf, void *buffer, size_t off, size_t len) {
 		} else if (xread(elf->e_fd, (char *)tmp, len)) {
 			seterr(ERROR_IO_READ);
 			if (tmp != buffer) {
-				free(tmp);
+				mfree(tmp);
 			}
 		} else {
 			return tmp;

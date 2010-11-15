@@ -27,7 +27,7 @@
 #if __LIBELF_INTERNAL__
 #include "sys_elf.h"
 #else /* __LIBELF_INTERNAL__ */
-#include <libelf/sys_elf.h>
+#include <sys_elf.h>
 #endif /* __LIBELF_INTERNAL__ */
 
 #if defined __GNUC__ && !defined __cplusplus

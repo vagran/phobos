@@ -183,12 +183,12 @@ _elf_arhdr(Elf *arf) {
     arhdr->ar_mode = getnum(hdr->ar_mode, sizeof(hdr->ar_mode), 8, &err);
     arhdr->ar_size = getnum(hdr->ar_size, sizeof(hdr->ar_size), 10, &err);
     if (err) {
-	free(arhdr);
+	mfree(arhdr);
 	seterr(ERROR_ARHDR);
 	return NULL;
     }
     if (arf->e_off + sizeof(struct ar_hdr) + arhdr->ar_size > arf->e_size) {
-	free(arhdr);
+	mfree(arhdr);
 	seterr(ERROR_TRUNC_MEMBER);
 	return NULL;
     }
@@ -312,8 +312,8 @@ elf_begin(GFile *fd, Elf_Cmd cmd, Elf *ref) {
 	for (xelf = ref->e_members; xelf; xelf = xelf->e_link) {
 	    elf_assert(xelf->e_parent == ref);
 	    if (xelf->e_base == elf->e_base) {
-		free(arhdr);
-		free(elf);
+		mfree(arhdr);
+		mfree(elf);
 		xelf->e_count++;
 		return xelf;
 	    }
@@ -379,7 +379,7 @@ elf_begin(GFile *fd, Elf_Cmd cmd, Elf *ref) {
 	else
 #endif /* HAVE_MMAP */
 	if (!(elf->e_data = (char *)_elf_read(elf, NULL, 0, size))) {
-	    free(elf);
+	    mfree(elf);
 	    return NULL;
 	}
     }

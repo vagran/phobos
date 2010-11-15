@@ -37,27 +37,6 @@
 # include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#define malloc(size)		(uLib->GetMemAllocator()->malloc(size))
-#define realloc(p, size)	(uLib->GetMemAllocator()->mrealloc(p, size))
-#define free(p)				(uLib->GetMemAllocator()->mfree(p))
-
-//XXX extern void bcopy(), abort();
-
-//XXX extern int read(), write(), close();
-//XXX extern off_t lseek();
-
-//XXX extern int ftruncate();
-
-#ifndef SEEK_SET
-#define SEEK_SET	0
-#endif /* SEEK_SET */
-#ifndef SEEK_CUR
-#define SEEK_CUR	1
-#endif /* SEEK_CUR */
-#ifndef SEEK_END
-#define SEEK_END	2
-#endif /* SEEK_END */
-
 #if HAVE_STRUCT_NLIST_DECLARATION
 # define nlist __override_nlist_declaration
 #endif /* HAVE_STRUCT_NLIST_DECLARATION */

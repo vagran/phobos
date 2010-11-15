@@ -374,6 +374,31 @@ String<Allocator>::ReleaseBuffer(int len)
 	return 0;
 }
 
+template <class Allocator>
+int
+String<Allocator>::Find(char c, int from)
+{
+	int idx;
+	for (idx = from; idx <= len; idx++) {
+		if (buf[idx] == c) {
+			return idx;
+		}
+	}
+	return -1;
+}
+
+template <class Allocator>
+int
+String<Allocator>::Truncate(int newLen)
+{
+	if (newLen >= len) {
+		return -1;
+	}
+	len = newLen;
+	buf[len] = 0;
+	return Realloc(len + 1);
+}
+
 #ifdef KERNEL
 /* Instantiate KString */
 template class String<KMemAllocator>;

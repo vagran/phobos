@@ -68,7 +68,7 @@ elf_getarsym(Elf *elf, size_t *ptr) {
 	    }
 	    if (s >= e) {
 		seterr(ERROR_SIZE_ARSYMTAB);
-		free(syms);
+		mfree(syms);
 		return NULL;
 	    }
 	    elf_assert(!*s);

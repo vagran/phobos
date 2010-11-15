@@ -3,7 +3,7 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright ©AST 2009. Written by Artemy Lebedev.
+ * Copyright ï¿½AST 2009. Written by Artemy Lebedev.
  */
 
 #include <sys.h>
@@ -83,6 +83,7 @@ memcmp(const void *ptr1, const void *ptr2, u32 size)
 		if (*(u8 *)ptr1 != *(u8 *)ptr2) {
 			return *(u8 *)ptr2 - *(u8 *)ptr1;
 		}
+		size--;
 	}
 	return 0;
 }

@@ -18,6 +18,8 @@ COMPILE_FLAGS_C +=
 COMPILE_FLAGS_ASM += -DASSEMBLER
 LINK_FLAGS += -nodefaultlibs -nostartfiles -nostdinc -nostdinc++ \
 	--no-omagic -z common-page-size=0x1000 --defsym LOAD_ADDRESS=$(LOAD_ADDRESS)
+	
+COMPILE_FLAGS += $(foreach inc,$(INCLUDES),-I$(inc))
 
 #TARGET variable must be either DEBUG or RELEASE
 ifndef TARGET
@@ -117,19 +119,19 @@ $(BINARY_NAME): % : $(OBJ_DIR)/%
 # The executable binary
 $(filter-out %.a %.sl, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
 	$(LINK_FILES) $(OBJS)
-	$(LD) $(LINK_FLAGS) --start-group $(LINK_FILES) --end-group \
-	--dynamic-linker $(RT_LINKER_DIR)/$(RT_LINKER_NAME) -o $@ $(OBJS)
+	$(LD) $(LINK_FLAGS) -o $@ --start-group $(LINK_FILES) $(OBJS) --end-group \
+	--dynamic-linker $(RT_LINKER_DIR)/$(RT_LINKER_NAME)
 
 # Archive files for static linkage
-$(filter %.a, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
-	$(LINK_FILES) $(OBJS)
+$(filter %.a, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 	
 # Shared library
 $(filter %.sl, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
 	$(LINK_FILES) $(OBJS_SO)
-	$(LD) $(LINK_FLAGS) -fpic -shared --start-group $(LINK_FILES) --end-group \
-	-soname=$(@F) -o $@ $(OBJS_SO)
+	$(LD) $(LINK_FLAGS) -fpic -shared -o $@ \
+	--start-group $(LINK_FILES) $(OBJS_SO) --end-group \
+	-soname=$(@F)
 endif
 
 # Build dependencies - static and dynamic libraries

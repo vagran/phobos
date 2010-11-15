@@ -2,9 +2,13 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ©AST 2009. Written by Artemy Lebedev.
+# Copyright ï¿½AST 2009. Written by Artemy Lebedev.
 
 include $(PHOBOS_ROOT)/make/makevar.mak
+
+ifdef KERNROOT
+unexport KERNROOT
+endif
 
 .PHONY: all install system_install
 
@@ -20,7 +24,13 @@ $(MFS_IMAGE): system_install
 	$(DD) if=/dev/zero of=$(MFS_IMAGE) bs=$(MFS_BLOCK_SIZE) count=$(MFS_IMAGE_SIZE)
 	$(MKE2FS) -F -m 0 -b $(MFS_BLOCK_SIZE) -L $(MFS_IMAGE_LABEL) $(MFS_IMAGE) $(MFS_IMAGE_SIZE)
 	$(SUDO) $(MOUNT) -t ext2 -o loop $(MFS_IMAGE) $(MFS_MOUNT)
-	$(CP) -R $(INSTALL_ROOT)/$(TARGET)/* $(MFS_MOUNT); $(SUDO) $(UMOUNT) $(MFS_MOUNT)
+	$(CP) -R $(INSTALL_ROOT)/$(TARGET)/* $(MFS_MOUNT); \
+	if [ $$? -ne 0 ]; then \
+		$(SUDO) $(UMOUNT) $(MFS_MOUNT); \
+		exit 1; \
+	fi
+	$(DF) -h $(MFS_MOUNT)
+	$(SUDO) $(UMOUNT) $(MFS_MOUNT)
 	$(OBJCOPY) -S -I binary -O elf32-i386 -B i386 --rename-section .data=.ramdisk $(MFS_IMAGE)
 
 system_install:

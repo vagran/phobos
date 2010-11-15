@@ -9,53 +9,70 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#include "rt_linker.h"
+
 int
 Main(GApp *app)
 {
+	RTLinker lkr;
+	return lkr.Link();
+}
 
-#	define PRINTSTR()	out->Write((u8 *)str.GetBuffer(), str.GetLength())
+RTLinker::RTLinker()
+{
+	target = GETSTR(uLib->GetProcess(), GProcess::GetArgs);
+	int len = target.Find(' ');
+	if (len != -1) {
+		target.Truncate(len);
+	}
+}
 
-	GProcess *proc = app->GetProcess();
-	CString str(GETSTR(proc, GProcess::GetName));
-	str += ' ';
-	str += GETSTR(proc, GProcess::GetArgs);
-	str += '\n';
-	GStream *out = app->GetStream("output");
-	PRINTSTR();
+RTLinker::~RTLinker()
+{
 
-	proc->SetArgs("myarg1 myarg2 3 4 5 6");
+}
 
-	str = GETSTR(proc, GProcess::GetArgs);
-	str += '\n';
-	PRINTSTR();
+int
+RTLinker::Link()
+{
+	printf("Target: %s\n", target.GetBuffer());
 
-	GVFS *vfs = app->GetVFS();
-	GFile *file = vfs->CreateFile("/etc/test.txt");
-	str = "Path: ";
-	str += GETSTR(file, GFile::GetPath);
-	str += '\n';
-	PRINTSTR();
+	GFile *fd = uLib->GetVFS()->CreateFile(target.GetBuffer());
+	if (!fd) {
+		printf("Failed to open file\n");
+		return -1;
+	}
 
-	CString str1;
-	u32 sz = file->Read(str1.LockBuffer(17), 16);
-	str1.ReleaseBuffer(sz);
-	str.Format("%ld bytes: '%s'\n", sz, str1.GetBuffer());
-	PRINTSTR();
-	sz = file->Read(str1.LockBuffer(3000), 3000);
-	str1.ReleaseBuffer(sz);
-	str.Format("%ld bytes: '%s'\n", sz, str1.GetBuffer());
-	PRINTSTR();
+	if (elf_version (EV_CURRENT ) == EV_NONE) {
+	     printf("ELF library initialization failed: %s" , elf_errmsg(-1));
+	     return -1;
+	}
 
-	file->Seek(6);
-	sz = file->Read(str1.LockBuffer(3000), 3000);
-	str1.ReleaseBuffer(sz);
-	str.Format("%ld bytes: '%s'\n", sz, str1.GetBuffer());
-	PRINTSTR();
+	Elf *elf;
 
-	file->Seek(-50, GFile::SF_END);
-	sz = file->Read(str1.LockBuffer(3000), 3000);
-	str1.ReleaseBuffer(sz);
-	str.Format("%ld bytes: '%s'\n", sz, str1.GetBuffer());
-	PRINTSTR();
+	if ((elf = elf_begin(fd, ELF_C_READ, NULL)) == NULL){
+	         printf("elf_begin() failed\n");
+	         return -1;
+	}
+
+	size_t shstrndx;
+	if (elf_getshdrstrndx(elf, &shstrndx)) {
+		printf("elf_getshdrstrndx () failed : %s\n", elf_errmsg(-1));
+		return -1;
+	}
+
+	Elf_Scn* scn = 0;
+	while ((scn = elf_nextscn(elf, scn)) != 0) {
+		Elf32_Shdr *shdr;
+		char *name;
+		if ((shdr = elf32_getshdr(scn)) != 0) {
+			if (!(name = elf_strptr(elf, shstrndx, shdr->sh_name))) {
+				printf(" elf_strptr () failed : %s\n", elf_errmsg(-1));
+				return -1;
+			}
+			printf("Section %ld %s\n", (u32)elf_ndxscn(scn), name);
+		}
+	}
+
 	return 0;
 }

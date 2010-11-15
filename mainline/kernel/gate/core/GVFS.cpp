@@ -177,6 +177,7 @@ GVFS::CreateFile(const char *path, u32 flags, VFS::Node::Type type)
 	if (!gfile) {
 		ERROR(E_FAULT, "Cannot create GFile object");
 	}
+	gfile->AddRef();
 	return gfile;
 }
 

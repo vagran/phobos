@@ -77,6 +77,8 @@ public:
 	int AppendFormat(const char *fmt, ...) __format(printf, 2, 3);
 	char *LockBuffer(int len = -1);
 	int ReleaseBuffer(int len = -1);
+	int Find(char c, int from = 0); /* return index of the first occurrence, -1 if not found */
+	int Truncate(int newLen);
 };
 
 typedef class String<KMemAllocator> KString;

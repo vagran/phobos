@@ -17,6 +17,7 @@ export DD = dd
 export CP = cp
 export MOUNT = mount
 export UMOUNT = umount
+export DF = df
 export SUDO_ASKPASS = /usr/bin/ssh-askpass
 export SUDO = sudo
 export MKE2FS = mke2fs
@@ -57,4 +58,4 @@ MFS_IMAGE = $(PHOBOS_ROOT)/mfs/image/$(TARGET)/$(MFS_IMAGE_NAME)
 MFS_BLOCK_SIZE = 1024
 MFS_IMAGE_LABEL = PhobOS_MFS
 # MFS image size in kilobytes
-MFS_IMAGE_SIZE = 4096
+MFS_IMAGE_SIZE = 6000
