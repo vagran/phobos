@@ -3,14 +3,12 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright �AST 2009. Written by Artemy Lebedev.
+ * Copyright (c)AST 2009. Written by Artemy Lebedev.
  */
 
 #ifndef ELF32_H_
 #define ELF32_H_
-#ifndef SYS_H_
 #include <sys.h>
-#endif /* SYS_H_ */
 phbSource("$Id$");
 
 /*

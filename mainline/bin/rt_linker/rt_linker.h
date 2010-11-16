@@ -8,9 +8,7 @@
 
 #ifndef RT_LINKER_H_
 #define RT_LINKER_H_
-#ifndef SYS_H_
 #include <sys.h>
-#endif /* SYS_H_ */
 phbSource("$Id$");
 
 #include <libelf.h>

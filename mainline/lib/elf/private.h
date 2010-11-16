@@ -22,6 +22,8 @@
 #ifndef _PRIVATE_H
 #define _PRIVATE_H
 
+#include <sys.h>
+
 #ifdef DEBUG
 #define ENABLE_DEBUG 1
 #define ENABLE_SANITY_CHECKS 1

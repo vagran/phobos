@@ -2,7 +2,7 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright �AST 2009. Written by Artemy Lebedev.
+# Copyright (c)AST 2009. Written by Artemy Lebedev.
 
 include $(PHOBOS_ROOT)/make/makevar.mak
 
@@ -18,8 +18,8 @@ COMPILE_FLAGS_C +=
 COMPILE_FLAGS_ASM += -DASSEMBLER
 LINK_FLAGS += -nodefaultlibs -nostartfiles -nostdinc -nostdinc++ \
 	--no-omagic -z common-page-size=0x1000 --defsym LOAD_ADDRESS=$(LOAD_ADDRESS)
-
-PIC_FLAGS = -fpic -D__PIC
+	
+COMPILE_FLAGS += $(foreach inc,$(INCLUDES),-I$(inc))
 
 #TARGET variable must be either DEBUG or RELEASE
 ifndef TARGET
@@ -97,18 +97,10 @@ else
 $(error Target not supported: $(TARGET))
 endif
 
-INCLUDE_FLAGS += $(foreach inc,$(INCLUDES),-I$(inc))
-
 SRCS = $(wildcard *.S *.c *.cpp)
 OBJS_LOCAL = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(SRCS))))
 OBJS = $(foreach obj,$(OBJS_LOCAL),$(OBJ_DIR)/$(obj))
 OBJS_SO = $(subst .o,.so,$(OBJS))
-
-# Precompiled headers
-PCHS_LOCAL = $(foreach hdr,$(PRECOMPILED_HEADERS),$(notdir $(hdr)))
-PCHS_DIRS = $(foreach pch,$(PCHS_LOCAL),$(OBJ_DIR)/$(pch).gch)
-PCHS = $(foreach pch,$(PCHS_LOCAL),$(OBJ_DIR)/$(pch).gch/$(pch).gch)
-PCHS_PIC = $(foreach pch,$(PCHS_LOCAL),$(OBJ_DIR)/$(pch).gch/$(pch).pic.gch)
 
 SUBDIRS_TARGET = $(foreach item,$(SUBDIRS),$(item).dir)
 
@@ -146,40 +138,25 @@ endif
 $(filter %.a %.sl, $(LINK_FILES)):
 	$(MAKE) -C $(abspath $(@D)/../..) $(@F)
 
-# Precompiled headers
-$(PCHS_DIRS): $(OBJ_DIR)
-	if [ ! -d $@ ]; then mkdir $@; fi
-
-$(PCHS): $(PCHS_DIRS) $(PRECOMPILED_HEADERS)
-	$(CC) $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -o $@ \
-		-x c++-header $(filter %/$(notdir $(patsubst %.gch,%,$@)),$(PRECOMPILED_HEADERS))
-	@echo "#error Precompiled header used" > $(patsubst %.gch,%,$@)
-
-$(PCHS_PIC): $(PCHS_DIRS) $(PRECOMPILED_HEADERS)
-	$(CC) $(INCLUDE_FLAGS) $(PIC_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) \
-		-o $@ -x c++-header $(filter %/$(notdir $(patsubst %.pic.gch,%,$@)),$(PRECOMPILED_HEADERS))
-	@echo "#error Precompiled header used" > $(patsubst %.pic.gch,%,$@)
-
 # Relocatable objects
 $(OBJ_DIR)/%.o: %.c
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) -o $@ $<
 
-$(OBJ_DIR)/%.o: %.cpp $(PCHS)
-	$(CC) -c -I$(OBJ_DIR) $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -o $@ $<
+$(OBJ_DIR)/%.o: %.cpp
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -o $@ $<
 
 $(OBJ_DIR)/%.o: %.S
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -o $@ $<
 
 # Position-independent objects
 $(OBJ_DIR)/%.so: %.c
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) $(PIC_FLAGS) -o $@ $<
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) -fpic -D__PIC -o $@ $<
 
-$(OBJ_DIR)/%.so: %.cpp $(PCHS_PIC)
-	$(CC) -c -I$(OBJ_DIR) $(INCLUDE_FLAGS) $(COMPILE_FLAGS) \
-		$(COMPILE_FLAGS_CXX) $(PIC_FLAGS) -o $@ $<
+$(OBJ_DIR)/%.so: %.cpp
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -fpic -D__PIC -o $@ $<
 
 $(OBJ_DIR)/%.so: %.S
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) $(PIC_FLAGS) -o $@ $<
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -fpic -D__PIC -o $@ $<
 
 $(SUBDIRS_TARGET):
 	@$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)
