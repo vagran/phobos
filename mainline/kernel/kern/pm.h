@@ -322,6 +322,7 @@ private:
 	int ReleasePID(pid_t pid);
 	static int IdleThread(void *arg);
 	void IdleThread() __noreturn;
+	/* Do not create a thread if 'entry' is zero */
 	Process *IntCreateProcess(Thread::ThreadEntry entry, void *arg = 0,
 		const char *name = 0, int priority = DEF_PRIORITY, int isKernelProc = 0,
 		int runIt = 1);

@@ -158,12 +158,14 @@ ElfImageLoader::Load(MM::Map *map, MM::VMObject *bssObj)
 		if (phdr->p_flags & PF_X) {
 			protection |= MM::PROT_EXEC;
 		}
-		if (!map->InsertObjectAt(obj, start_va, start_off, file_size,
-			protection)) {
-			obj->Release();
-			FREE(phdr);
-			ERROR(E_FAULT);
-			return -1;
+		if (file_size) {
+			if (!map->InsertObjectAt(obj, start_va, start_off, file_size,
+				protection)) {
+				obj->Release();
+				FREE(phdr);
+				ERROR(E_FAULT);
+				return -1;
+			}
 		}
 		/* Insert BSS chunk if required */
 		if (mem_size > roundup2(file_size, PAGE_SIZE)) {

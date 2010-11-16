@@ -108,6 +108,10 @@ ifdef LINK_SCRIPT
 LINK_FLAGS += -T $(LINK_SCRIPT)
 endif
 
+ifdef LINK_SCRIPTS
+LINK_FLAGS += $(foreach script,$(LINK_SCRIPTS), -T $(script))
+endif
+
 .PHONY: all clean install FORCE $(SUBDIRS_TARGET) $(BINARY_NAME)
 
 all: $(BINARY) $(SUBDIRS_TARGET) $(OBJ_DIR) $(OBJS)
@@ -118,7 +122,7 @@ $(BINARY_NAME): % : $(OBJ_DIR)/%
 
 # The executable binary
 $(filter-out %.a %.sl, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
-	$(LINK_FILES) $(OBJS)
+	$(LINK_SCRIPTS) $(LINK_FILES) $(OBJS)
 	$(LD) $(LINK_FLAGS) -o $@ --start-group $(LINK_FILES) $(OBJS) --end-group \
 	--dynamic-linker $(RT_LINKER_DIR)/$(RT_LINKER_NAME)
 
@@ -128,7 +132,7 @@ $(filter %.a, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(OBJS)
 	
 # Shared library
 $(filter %.sl, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
-	$(LINK_FILES) $(OBJS_SO)
+	$(LINK_SCRIPTS) $(LINK_FILES) $(OBJS_SO)
 	$(LD) $(LINK_FLAGS) -fpic -shared -o $@ \
 	--start-group $(LINK_FILES) $(OBJS_SO) --end-group \
 	-soname=$(@F)

@@ -148,21 +148,23 @@ PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg, const char *name,
 	TREE_ADD(tree, &proc->pid, pids, pid);
 	numProcesses++;
 	procListLock.Unlock();
-	if (!isKernelProc) {
-		Thread *thrd = proc->CreateThread(entry, arg);
-		if (!thrd) {
-			DestroyProcess(proc);
-			return 0;
-		}
-		if (runIt) {
-			thrd->Run();/* XXX should select CPU */
-		}
-	} else {
-		kernInitThread = proc->CreateThread(entry, arg,
-			Thread::DEF_KERNEL_STACK_SIZE, KERNEL_PRIORITY);
-		ensure(kernInitThread);
-		if (runIt) {
-			kernInitThread->Run();
+	if (entry) {
+		if (!isKernelProc) {
+			Thread *thrd = proc->CreateThread(entry, arg);
+			if (!thrd) {
+				DestroyProcess(proc);
+				return 0;
+			}
+			if (runIt) {
+				thrd->Run();
+			}
+		} else {
+			kernInitThread = proc->CreateThread(entry, arg,
+				Thread::DEF_KERNEL_STACK_SIZE, KERNEL_PRIORITY);
+			ensure(kernInitThread);
+			if (runIt) {
+				kernInitThread->Run();
+			}
 		}
 	}
 	return proc;
@@ -225,11 +227,10 @@ PM::CreateProcess(const char *path, const char *name, int priority, const char *
 	if (!name) {
 		name = path;
 	}
-	Process *proc = IntCreateProcess(ProcessEntry, (void *)args, name, priority, 0, 0);
+	Process *proc = IntCreateProcess(0, 0, name, priority, 0, 0);
 	if (!proc) {
 		return 0;
 	}
-
 	proc->args = args;
 	KString interp;
 	KString sPath = path;
@@ -270,7 +271,11 @@ PM::CreateProcess(const char *path, const char *name, int priority, const char *
 	} while (1);
 	proc->SetEntryPoint(il->GetEntryPoint());
 	il->Release();
-	Thread *thrd = proc->GetThread();
+	Thread *thrd = proc->CreateThread(ProcessEntry, (void *)args);
+	if (!thrd) {
+		DestroyProcess(proc);
+		return 0;
+	};
 	thrd->Run();
 	return proc;
 }
