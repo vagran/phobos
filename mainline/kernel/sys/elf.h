@@ -8,7 +8,9 @@
 
 #ifndef ELF_H_
 #define ELF_H_
+#ifndef SYS_H_
 #include <sys.h>
+#endif /* SYS_H_ */
 phbSource("$Id$");
 
 #include <elf_common.h>
