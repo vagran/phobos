@@ -298,7 +298,10 @@ void
 CPU::UninstallTrampoline(vaddr_t va)
 {
 	mm->UnmapPhys(smpGDT);
-	/* FreePage() */
+	MM::Page *pg = mm->GetPage((paddr_t)smpGDT);
+	assert(pg);
+	pg->Unwire();
+	mm->FreePage(pg);
 	vsize_t codeSize = (u32)&APBootEntryEnd - (u32)&APBootEntry;
 	u32 pgNum = (codeSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	for (u32 pgIdx = 0; pgIdx < pgNum; pgIdx++) {
@@ -306,6 +309,7 @@ CPU::UninstallTrampoline(vaddr_t va)
 		mm->UnmapPhys(va);
 		MM::Page *pg = mm->GetPage(pa);
 		assert(pg);
+		pg->Unwire();
 		mm->FreePage(pg);
 		va += PAGE_SIZE;
 	}
@@ -324,6 +328,7 @@ CPU::InstallTrampoline()
 	if (!pg) {
 		panic("Failed to allocate page for SMP trampoline GDT");
 	}
+	pg->Wire();
 	smpGDT = (vaddr_t)pg->pa;
 	mm->MapPhys(smpGDT, pg->pa);
 	u32 gdtSize = sizeof(SDT::Descriptor) * 16;
@@ -350,6 +355,7 @@ CPU::InstallTrampoline()
 		if (!pg) {
 			panic("Failed to allocate page for SMP trampoline");
 		}
+		pg->Wire();
 		paddr_t pa = pg->pa;
 		if (!pgIdx) {
 			assert(pa < 0x100000);

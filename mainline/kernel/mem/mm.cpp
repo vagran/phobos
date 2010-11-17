@@ -765,7 +765,16 @@ MM::AllocatePage(int flags, PageZone zone)
 int
 MM::FreePage(Page *pg)
 {
-	/* notimpl */
+	/* XXX */
+	assert(!(pg->flags & (Page::F_FREE | Page::F_ACTIVE | Page::F_INACTIVE |
+		Page::F_CACHE)));
+	assert(!pg->wireCount);
+	PageZone zone = pg->GetZone();
+	mm->pgqLock.Lock();
+	pg->flags |= Page::F_FREE;
+	LIST_ADD(queue, pg, pagesFree[zone]);
+	numPgFree++;
+	mm->pgqLock.Unlock();
 	return 0;
 }
 
@@ -1031,6 +1040,7 @@ MM::Page::Activate()
 	if (flags & (F_INACTIVE | F_CACHE)) {
 		Unqueue();
 	}
+	flags |= F_ACTIVE;
 	mm->numPgActive++;
 	LIST_ADD(queue, this, mm->pagesActive);
 	mm->pgqLock.Unlock();
@@ -1188,7 +1198,7 @@ MM::VMObject::RemovePage(Page *pg)
 {
 	assert(pg->object == this);
 	lock.Lock();
-	assert(TREE_FIND(pg->offset, Page, objEntry, pages) == pg);
+	assert(TREE_FIND(pg->offset >> PAGE_SHIFT, Page, objEntry, pages) == pg);
 	TREE_DELETE(objEntry, pg, pages);
 	numPages--;
 	lock.Unlock();
@@ -1207,6 +1217,21 @@ MM::VMObject::LookupPage(vaddr_t offset)
 	Page *pg = TREE_FIND(offset >> PAGE_SHIFT, Page, objEntry, pages);
 	lock.Unlock();
 	return pg;
+}
+
+int
+MM::VMObject::Unmap(Map::Entry *e)
+{
+	lock.Lock();
+	Page *pg;
+	TREE_FOREACH(Page, objEntry, pg, pages) {
+		vaddr_t offset = TREE_KEY(objEntry, pg) << PAGE_SHIFT;
+		vaddr_t va;
+		ensure(!e->GetVA(offset, &va));
+		e->Unmap(va);
+	}
+	lock.Unlock();
+	return 0;
 }
 
 int
@@ -1941,7 +1966,8 @@ MM::Map::Entry::~Entry()
 		alloc->Release();
 		alloc = 0;
 	}
-	if (object) {
+	if (!(flags & F_SUBMAP) && object) {
+		object->Unmap(this);
 		object->Release();
 		object = 0;
 	}
@@ -2008,6 +2034,18 @@ MM::Map::Entry::GetOffset(vaddr_t va, vaddr_t *offs)
 	}
 	if (offs) {
 		*offs = offset + va - base;
+	}
+	return 0;
+}
+
+int
+MM::Map::Entry::GetVA(vaddr_t offs, vaddr_t *va)
+{
+	if (offs < offset || offs >= offset + size) {
+		return -1;
+	}
+	if (va) {
+		*va = offs - offset + base;
 	}
 	return 0;
 }

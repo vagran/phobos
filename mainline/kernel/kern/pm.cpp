@@ -1577,7 +1577,8 @@ PM::Thread::Fault(ProcessFault flt, const char *msg, ...)
 	}
 	ERROR(E_THREAD_FAULT, "%s: %s", PM::StrProcessFault(flt), faultStr.GetBuffer());
 	klog(KLOG_WARNING, "Thread %u (process %u) failed at 0x%08lx: %s: %s",
-		GetID(), proc->GetID(), gateCallRetAddr,
+		GetID(), proc->GetID(),
+		gateCallRetAddr ? gateCallRetAddr : (trapFrame ? trapFrame->eip : 0),
 		PM::StrProcessFault(flt), faultStr.GetBuffer());
 	switch (flt) {
 	default:

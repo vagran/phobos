@@ -146,54 +146,8 @@ public:
 	ListHead topObjects; /* top-level objects */
 	u32 numObjects;
 
-	class Page;
 	class Pager;
-
-	class VMObject : public Object {
-	public:
-		enum Flags {
-			F_FILE =		0x1,
-			F_NOTPAGEABLE =	0x2,
-			F_STACK =		0x4,
-			F_HEAP =		0x8,
-			F_GATE =		0x10,
-		};
-
-		ListEntry	list; /* list of all objects */
-		vsize_t		size;
-		u32			flags;
-		Tree<vaddr_t>::TreeRoot		pages; /* resident pages tree */
-		u32			numPages; /* resident pages count */
-		ListHead	shadowObj; /* shadow objects */
-		/* list of shadow objects in copy object,
-		 * when copyObj == 0 (the object is not a shadow), this is
-		 * entry in list of top-level objects.
-		 */
-		ListEntry	shadowList;
-		VMObject	*copyObj; /* object to copy changed pages from */
-		vaddr_t		copyOffset; /* offset in copy object */
-		RefCount	refCount;
-		SpinLock	lock;
-		Pager		*pager; /* backing storage */
-		vaddr_t		pagerOffset;
-
-	private:
-		int CreateDefaultPager();
-	public:
-
-		VMObject(vsize_t size, u32 flags = 0);
-		virtual ~VMObject();
-		OBJ_ADDREF(refCount);
-		OBJ_RELEASE(refCount);
-		int SetSize(vsize_t size);
-		inline vsize_t GetSize() { return size; }
-		int InsertPage(Page *pg, vaddr_t offset);
-		Page *LookupPage(vaddr_t offset);
-		int RemovePage(Page *pg);
-		int CreatePager(Handle pagingHandle = 0);
-		int Pagein(vaddr_t offset, Page **ppg = 0, int numPages = 1);
-		int Pageout(vaddr_t offset, Page **ppg = 0, int numPages = 1);
-	};
+	class VMObject;
 
 	VMObject *kmemObj, *devObj;
 
@@ -226,7 +180,7 @@ public:
 		VMObject	*object;
 		vaddr_t		offset; /* offset in object */
 		ListEntry	queue; /* entry in free, active, inactive or cached pages queue */
-		/* entry in VMObject pages list, key is offset */
+		/* entry in VMObject pages list, key is offset shifted by PAGE_SHIFT */
 		Tree<vaddr_t>::TreeEntry	objEntry;
 
 		Page(paddr_t pa, u16 flags);
@@ -280,6 +234,7 @@ public:
 			int MapPA(vaddr_t va, paddr_t pa);
 			int Unmap(vaddr_t va);
 			int GetOffset(vaddr_t va, vaddr_t *offs);
+			int GetVA(vaddr_t offs, vaddr_t *va);
 			int Pagein(vaddr_t va, int numPages = 1);
 		};
 
@@ -390,6 +345,53 @@ public:
 
 	Map *kmemMap; /* kernel process virtual address space */
 	Map *bufMap; /* buffers space submap */
+
+	class VMObject : public Object {
+	public:
+		enum Flags {
+			F_FILE =		0x1,
+			F_NOTPAGEABLE =	0x2,
+			F_STACK =		0x4,
+			F_HEAP =		0x8,
+			F_GATE =		0x10,
+		};
+
+		ListEntry	list; /* list of all objects */
+		vsize_t		size;
+		u32			flags;
+		Tree<vaddr_t>::TreeRoot		pages; /* resident pages tree */
+		u32			numPages; /* resident pages count */
+		ListHead	shadowObj; /* shadow objects */
+		/* list of shadow objects in copy object,
+		 * when copyObj == 0 (the object is not a shadow), this is
+		 * entry in list of top-level objects.
+		 */
+		ListEntry	shadowList;
+		VMObject	*copyObj; /* object to copy changed pages from */
+		vaddr_t		copyOffset; /* offset in copy object */
+		RefCount	refCount;
+		SpinLock	lock;
+		Pager		*pager; /* backing storage */
+		vaddr_t		pagerOffset;
+
+	private:
+		int CreateDefaultPager();
+	public:
+
+		VMObject(vsize_t size, u32 flags = 0);
+		virtual ~VMObject();
+		OBJ_ADDREF(refCount);
+		OBJ_RELEASE(refCount);
+		int SetSize(vsize_t size);
+		inline vsize_t GetSize() { return size; }
+		int InsertPage(Page *pg, vaddr_t offset);
+		Page *LookupPage(vaddr_t offset);
+		int RemovePage(Page *pg);
+		int CreatePager(Handle pagingHandle = 0);
+		int Pagein(vaddr_t offset, Page **ppg = 0, int numPages = 1);
+		int Pageout(vaddr_t offset, Page **ppg = 0, int numPages = 1);
+		int Unmap(Map::Entry *e); /* Unmap all resident pages in specified entry */
+	};
 
 	class Pager : public Object {
 	public:

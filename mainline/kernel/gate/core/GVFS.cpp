@@ -143,6 +143,68 @@ GFile::GetType()
 	return file->GetType();
 }
 
+void *
+GFile::Map(u32 len, u32 flags, u32 offset, void *location)
+{
+	if (!len) {
+		len = roundup2(size, PAGE_SIZE);
+	} else {
+		len = roundup2(len, PAGE_SIZE);
+	}
+	if (offset & (PAGE_SIZE - 1)) {
+		ERROR(E_INVAL, "Offset should be multiple of PAGE_SIZE (0x%lx)", offset);
+		return 0;
+	}
+	if (((vaddr_t)location) & (PAGE_SIZE - 1)) {
+		ERROR(E_INVAL, "Location should be multiple of PAGE_SIZE (0x%lx)",
+			(vaddr_t)location);
+		return 0;
+	}
+
+	int prot = 0;
+	if (flags & MF_PROT_READ) {
+		prot |= MM::PROT_READ;
+	}
+	if (flags & MF_PROT_EXEC) {
+		prot |= MM::PROT_EXEC;
+	}
+	if (flags & MF_PROT_WRITE) {
+		if (flags & MF_SHARED) {
+			prot |= MM::PROT_WRITE;
+		} else {
+			prot |= MM::PROT_COW;
+		}
+	}
+
+	MM::VMObject *obj = vfs->MapFile(file);
+	if (!obj) {
+		ERROR(E_FAULT, "Cannot create VM object for file");
+		return 0;
+	}
+
+	MM::Map::Entry *e = 0;
+	if ((flags & MF_FIXED) || location) {
+		e = proc->GetUserMap()->InsertObjectAt(obj, (vaddr_t)location, offset,
+			len, prot);
+		if (!e && (flags & MF_FIXED)) {
+			obj->Release();
+			ERROR(E_FAULT, "Cannot insert object to specified location "
+				"(%ld bytes at 0x%lx)", len, (vaddr_t)location);
+			return 0;
+		}
+	}
+	if (!e) {
+		e = proc->GetUserMap()->InsertObject(obj, offset, len, prot);
+		if (!e) {
+			obj->Release();
+			ERROR(E_FAULT, "Cannot insert object to process map");
+			return 0;
+		}
+	}
+	obj->Release();
+	return (void *)e->base;
+}
+
 /* GVFS class */
 
 DEFINE_GCLASS(GVFS);
@@ -189,4 +251,10 @@ GVFS::DeleteFile(const char *path)
 	}
 
 	return 0;//notimpl
+}
+
+int
+GVFS::UnMap(void *map)
+{
+	return proc->GetUserMap()->Free((vaddr_t)map);
 }

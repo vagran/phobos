@@ -122,6 +122,7 @@ public:
 		u32 stackSize;
 		vaddr_t gateCallSP; /* stack pointer on gate method entrance, kernel stack starts from there */
 		vaddr_t gateCallRetAddr; /* application return address from a system call */
+		Frame *trapFrame;
 		MM::VMObject *stackObj;
 		MM::Map::Entry *stackEntry;
 		CPU *cpu;
@@ -170,6 +171,9 @@ public:
 		inline void SetGateCallSP(u32 esp) {
 			gateCallSP = esp;
 			gateCallRetAddr = *(vaddr_t *)esp;
+		}
+		inline void SetTrapFrame(Frame *frame) {
+			trapFrame = frame;
 		}
 		inline void SetGateObject(GateObject *gateObj) { this->gateObj = gateObj; }
 		int IsKernelStack(vaddr_t addr, vsize_t size);

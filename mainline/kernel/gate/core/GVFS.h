@@ -21,6 +21,17 @@ public:
 		SF_END, /* offset from end of file */
 		SF_WHENCE_MASK =	0x7,
 	};
+
+	enum MapFlags {
+		/* Protection bits */
+		MF_PROT_READ =		0x1,
+		MF_PROT_WRITE =		0x2,
+		MF_PROT_EXEC =		0x4,
+
+		MF_FIXED =			0x8, /* Map on specified location only */
+		MF_SHARED =			0x10, /* Shared mappping, COW if not specified */
+
+	};
 private:
 	VFS::File *file;
 	off_t curPos;
@@ -40,6 +51,8 @@ public:
 	virtual u32 GetCurPos(off_t *pos = 0);
 	virtual VFS::Node::Type GetType();
 	virtual int Eof();
+	virtual void *Map(u32 len = 0, u32 flags = MF_PROT_READ | MF_PROT_READ,
+		u32 offset = 0, void *location = 0);
 
 	DECLARE_GCLASS_IMP(GFile);
 };
@@ -71,6 +84,7 @@ public:
 	virtual GFile *CreateFile(const char *path, u32 flags = CF_READ | CF_WRITE,
 		VFS::Node::Type type = VFS::Node::T_REGULAR);
 	virtual int DeleteFile(const char *path);
+	virtual int UnMap(void *map);
 
 	DECLARE_GCLASS_IMP(GVFS);
 };

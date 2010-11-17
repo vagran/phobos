@@ -38,9 +38,13 @@ FilePager::GetPage(vaddr_t offset, MM::Page **ppg, int numPages)
 		return -1;
 	}
 	u32 size = numPages * PAGE_SIZE;
-	int rc = file->Read(offset, (void *)buf->base, size) == size ? 0 : -1;
+	u32 len = file->Read(offset, (void *)buf->base, size);
+	if (len < size) {
+		/* zero remained space */
+		memset((u8 *)buf->base + len, 0, size - len);
+	}
 	UnmapPages(buf);
-	return rc;
+	return 0;
 }
 
 int

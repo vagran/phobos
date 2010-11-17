@@ -53,6 +53,10 @@ OnTrap(Frame *frame)
 	if (cpu) {
 		cpu->NestTrap();
 	}
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	if (GDT::GetRPL(frame->cs) == GDT::PL_USER && thrd) {
+		thrd->SetTrapFrame(frame);
+	}
 	if (frame->eflags & EFLAGS_IF) {
 		if (cpu && cpu->GetTrapNesting() < CPU::MAX_TRAP_NESTING) {
 			sti();
@@ -60,6 +64,9 @@ OnTrap(Frame *frame)
 	}
 	if (idt) {
 		return idt->HandleTrap(frame);
+	}
+	if (GDT::GetRPL(frame->cs) == GDT::PL_USER && thrd) {
+		thrd->SetTrapFrame(0);
 	}
 	return 0;
 }

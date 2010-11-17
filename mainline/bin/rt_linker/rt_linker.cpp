@@ -43,6 +43,18 @@ RTLinker::Link()
 		return -1;
 	}
 
+	GFile *fd1 = uLib->GetVFS()->CreateFile("/etc/test.txt");
+	void *p = fd1->Map();
+	printf("p = 0x%lx\n", (u32)p);
+	CString s;
+	memcpy(s.LockBuffer(200), p, 200);
+	s.ReleaseBuffer();
+	printf("s = \n%s\n", s.GetBuffer());
+	uLib->GetVFS()->UnMap(p);
+	printf("Trying to copy unmapped area\n");
+	memcpy(s.LockBuffer(200), p, 200);
+	printf("Unampped copied\n");
+
 	if (elf_version (EV_CURRENT ) == EV_NONE) {
 	     printf("ELF library initialization failed: %s" , elf_errmsg(-1));
 	     return -1;
