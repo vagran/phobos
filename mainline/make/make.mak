@@ -29,7 +29,11 @@ endif
 ########
 ifdef APP
 ifndef LINK_SCRIPT
+ifeq ($(STATIC),1)
 LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.app.ld
+else
+LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.dynapp.ld
+endif
 endif
 BINARY_NAME = $(APP)
 export PROFILE_NAME = APP
@@ -55,6 +59,9 @@ LINK_FLAGS += -r
 
 ########
 else ifdef LIB
+ifndef LINK_SCRIPT
+LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.lib.ld
+endif
 BINARY_NAME = lib$(LIB).a 
 ifneq ($(STATIC),1)
 LINK_FLAGS += -Bdynamic

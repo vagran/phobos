@@ -929,7 +929,7 @@ MM::HandlePageFault(vaddr_t va, u32 code, int isUserMode)
 		if (e->protection & PROT_COW) {
 			/* copy-on-write fault */
 			//notimpl
-			return -1;
+			panic("COW requested");
 		}
 		/*
 		 * We permit kernel to write in read-only maps in order to support

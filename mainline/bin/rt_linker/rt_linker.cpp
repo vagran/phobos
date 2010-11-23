@@ -25,7 +25,7 @@ RTLinker::RTLinker()
 
 RTLinker::~RTLinker()
 {
-
+	DestroyObjTree();
 }
 
 void
@@ -247,6 +247,8 @@ RTLinker::ProcessObjDeps(ObjContext *ctx)
 		}
 	}
 
+	printf("Object created: %s\n", curObjName.GetBuffer());//temp
+
 	return 0;
 }
 
@@ -331,6 +333,23 @@ RTLinker::BuildObjTree(char *targetName)
 	dynTree = CreateObject(file);
 	file->Release();
 	return dynTree ? 0 : -1;
+}
+
+int
+RTLinker::DestroyObjTree()
+{
+	while (dynTree) {
+		DynObject *obj = dynTree;
+		/* find leaf object */
+		while (!LIST_ISEMPTY(obj->deps)) {
+			obj = LIST_LAST(DynObject, depList, obj->deps);
+		}
+		DELETE(obj);
+		if (obj == dynTree) {
+			dynTree = 0;
+		}
+	}
+	return 0;
 }
 
 int

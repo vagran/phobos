@@ -70,6 +70,7 @@ private:
 	Elf32_Dyn *FindDynTag(ObjContext *ctx, Elf32_Sword tag, Elf32_Dyn *prev = 0);
 	int GetDepChain(DynObject *obj, CString &s);
 	DynObject *GetNextObject(DynObject *prev = 0);
+	int DestroyObjTree();
 public:
 	RTLinker();
 	~RTLinker();
