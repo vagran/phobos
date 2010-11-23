@@ -71,14 +71,8 @@ phbSource("$Id$");
 
 #ifndef ASSEMBLER
 
+#ifdef KERNEL
 #define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
-#define ZALLOC(type,  count)	({ \
-	type *p = ALLOC(type, count); \
-	if (p) { \
-		memset(p, 0, sizeof(type) * (count)); \
-	} \
-	p; \
-})
 #define FREE(p)					MM::mfree(p)
 
 #ifndef DEBUG_MALLOC
@@ -88,12 +82,22 @@ phbSource("$Id$");
 #define NEW(className,...)			new((int)0, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
 #define NEWSINGLE(className,...)	new(1, __STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
 #endif /* DEBUG_MALLOC */
-#define DELETE(ptr)					delete (ptr)
 
 void *operator new(size_t size, int isSingle);
 void *operator new(size_t size, int isSingle, const char *className, const char *fileName, int line);
 void operator delete(void *p);
 void operator delete[](void *p);
+#endif /* KERNEL */
+
+#define DELETE(ptr)					delete (ptr)
+
+#define ZALLOC(type,  count)	({ \
+	type *p = ALLOC(type, count); \
+	if (p) { \
+		memset(p, 0, sizeof(type) * (count)); \
+	} \
+	p; \
+})
 
 class ConsoleDev;
 

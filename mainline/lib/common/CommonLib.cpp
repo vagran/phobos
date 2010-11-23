@@ -212,6 +212,26 @@ strchr(const char *str, int c)
 	return 0;
 }
 
+ASMCALL char *
+strstr(const char *s, const char *find)
+{
+	char c, sc;
+	size_t len;
+
+	if ((c = *find++)) {
+		len = strlen(find);
+		do {
+			do {
+				if (!(sc = *s++)) {
+					return 0;
+				}
+			} while (sc != c);
+		} while (strncmp(s, find, len));
+		s--;
+	}
+	return const_cast<char *>(s);
+}
+
 int
 sprintf(char *buf, const char *fmt,...)
 {

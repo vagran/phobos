@@ -52,8 +52,7 @@ typedef struct {
  * Section header.
  */
 typedef struct {
-	Elf32_Word	sh_name;	/* Section name (index into the
-					   section header string table). */
+	Elf32_Word	sh_name;	/* Section name (index into the section header string table). */
 	Elf32_Word	sh_type;	/* Section type. */
 	Elf32_Word	sh_flags;	/* Section flags. */
 	Elf32_Addr	sh_addr;	/* Address in memory image. */

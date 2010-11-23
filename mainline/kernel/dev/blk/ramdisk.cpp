@@ -44,7 +44,7 @@ Ramdisk::Push(IOBuf *buf)
 	if (AcceptBuffer(buf)) {
 		return -1;
 	}
-	if (buf->addr + buf->size >= GetSize()) {
+	if (buf->addr + buf->size > GetSize()) {
 		CompleteBuffer(buf, IOBuf::S_OUT_OF_RANGE);
 		return 0;
 	}

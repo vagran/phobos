@@ -143,6 +143,34 @@ String<Allocator>::operator =(const StringInfo &str)
 
 template <class Allocator>
 int
+String<Allocator>::Compare(const String &str)
+{
+	return strcmp(buf, str.buf);
+}
+
+template <class Allocator>
+int
+String<Allocator>::Compare(const char *str)
+{
+	return strcmp(buf, str);
+}
+
+template <class Allocator>
+int
+String<Allocator>::operator ==(const String &str)
+{
+	return !Compare(str);
+}
+
+template <class Allocator>
+int
+String<Allocator>::operator ==(const char *str)
+{
+	return !Compare(str);
+}
+
+template <class Allocator>
+int
 String<Allocator>::Realloc(int len)
 {
 	if (len > bufLen || bufLen - len > ALLOC_HYST) {

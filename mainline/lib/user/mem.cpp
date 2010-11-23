@@ -80,6 +80,18 @@ UMemAllocator::UMemAllocator()
 	alloc = uLib->GetMemAllocator();
 }
 
+void *
+operator new(size_t size)
+{
+	return uLib->GetMemAllocator()->malloc(size);
+}
+
+void *
+operator new(size_t size, const char *className, const char *fileName, int line)
+{
+	return uLib->GetMemAllocator()->malloc(size);
+}
+
 void
 operator delete(void *p)
 {

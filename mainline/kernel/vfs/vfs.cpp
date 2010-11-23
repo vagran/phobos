@@ -529,7 +529,7 @@ VFS::Directory::~Directory()
 }
 
 u32
-VFS::Directory::Read(u64 offset, u32 len, void *buf)
+VFS::Directory::Read(off_t offset, u32 len, void *buf)
 {
 	return 0;
 }

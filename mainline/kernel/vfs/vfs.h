@@ -106,7 +106,7 @@ public:
 		Directory(Node *node);
 		virtual ~Directory();
 
-		virtual u32 Read(u64 offset, u32 len, void *buf);
+		virtual u32 Read(off_t offset, u32 len, void *buf);
 	};
 
 private:

@@ -53,6 +53,18 @@ public:
 	virtual void *mrealloc(void *p, u32 size) { return alloc->mrealloc(p, size); }
 };
 
+#define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
+#define FREE(p)					MM::mfree(p)
+
+#ifndef DEBUG_MALLOC
+#define NEW(className,...)			new className(__VA_ARGS__)
+#else /* DEBUG_MALLOC */
+#define NEW(className,...)			new(__STR(className), __FILE__, __LINE__) className(__VA_ARGS__)
+#endif /* DEBUG_MALLOC */
+#define DELETE(ptr)					delete (ptr)
+
+void *operator new(size_t size);
+void *operator new(size_t size, const char *className, const char *fileName, int line);
 void operator delete(void *p);
 void operator delete[](void *p);
 

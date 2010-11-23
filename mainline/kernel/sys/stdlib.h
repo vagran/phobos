@@ -36,6 +36,7 @@ ASMCALL int strcmp(const char *s1, const char *s2);
 ASMCALL int strncmp(const char *s1, const char *s2, u32 len);
 ASMCALL char *strdup(const char *str);
 ASMCALL char *strchr(const char *str, int c);
+ASMCALL char *strstr(const char *s, const char *find);
 
 ASMCALL int	isalnum(int c);
 ASMCALL int	isalpha(int c);

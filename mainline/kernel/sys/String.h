@@ -58,6 +58,10 @@ public:
 	const String &operator =(char c);
 	const String &operator =(const String &str);
 	const String &operator =(const StringInfo &str);
+	int Compare(const String &str);
+	int Compare(const char *str);
+	int operator ==(const String &str);
+	int operator ==(const char *str);
 	inline char *GetBuffer() const { return buf; }
 	inline operator char *() { return buf; }
 	inline operator StringInfo &() { return info; }
@@ -79,6 +83,7 @@ public:
 	int ReleaseBuffer(int len = -1);
 	int Find(char c, int from = 0); /* return index of the first occurrence, -1 if not found */
 	int Truncate(int newLen);
+	inline void Empty() { *this = (char *)0; }
 };
 
 typedef class String<KMemAllocator> KString;

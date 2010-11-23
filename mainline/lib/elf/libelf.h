@@ -172,7 +172,7 @@ extern Elf *elf_begin __P((GFile *fd, Elf_Cmd __cmd, Elf *__ref));
 extern Elf *elf_memory __P((char *__image, size_t __size));
 extern int elf_cntl __P((Elf *__elf, Elf_Cmd __cmd));
 extern int elf_end __P((Elf *__elf));
-extern const char *elf_errmsg __P((int __err));
+extern const char *elf_errmsg __P((int __err = -1));
 extern int elf_errno __P((void));
 extern void elf_fill __P((int __fill));
 extern unsigned elf_flagdata __P((Elf_Data *__data, Elf_Cmd __cmd,

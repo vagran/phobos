@@ -223,198 +223,189 @@ _elf_check_type(Elf *elf, size_t size) {
 Elf*
 elf_begin(GFile *fd, Elf_Cmd cmd, Elf *ref) {
     Elf_Arhdr *arhdr = NULL;
-    size_t size = 0;
-    off_t off;
-    Elf *elf;
+	size_t size = 0;
+	off_t off;
+	Elf *elf;
 
-    elf_assert(_elf_init.e_magic == ELF_MAGIC);
-    if (_elf_version == EV_NONE) {
-	seterr(ERROR_VERSION_UNSET);
-	return NULL;
-    }
-    else if (cmd == ELF_C_NULL) {
-	return NULL;
-    }
-    else if (cmd == ELF_C_WRITE) {
-	ref = NULL;
-    }
-    else if (cmd != ELF_C_READ && cmd != ELF_C_RDWR) {
-	seterr(ERROR_INVALID_CMD);
-	return NULL;
-    }
-    else if (ref) {
-	elf_assert(ref->e_magic == ELF_MAGIC);
-	if (!ref->e_readable || (cmd == ELF_C_RDWR && !ref->e_writable)) {
-	    seterr(ERROR_CMDMISMATCH);
-	    return NULL;
-	}
-	if (ref->e_kind != ELF_K_AR) {
-	    ref->e_count++;
-	    return ref;
-	}
-	if (cmd == ELF_C_RDWR) {
-	    seterr(ERROR_MEMBERWRITE);
-	    return NULL;
-	}
-	if (ref->e_memory) {
-	    fd = ref->e_fd;
-	}
-	else if (fd != ref->e_fd) {
-	    seterr(ERROR_FDMISMATCH);
-	    return NULL;
-	}
-	fd->AddRef();
-	if (!(arhdr = _elf_arhdr(ref))) {
-	    return NULL;
-	}
-	size = arhdr->ar_size;
-    }
-    else if ((off = fd->Seek((off_t)0, GFile::SF_END)) == (off_t)-1
-	  || (off_t)(size = off) != off) {
-	seterr(ERROR_IO_GETSIZE);
-	return NULL;
-    }
-
-    if (!(elf = (Elf*)malloc(sizeof(Elf)))) {
-	seterr(ERROR_MEM_ELF);
-	return NULL;
-    }
-    *elf = _elf_init;
-    elf->e_fd = fd;
-    elf->e_parent = ref;
-    elf->e_size = elf->e_dsize = size;
-
-    if (cmd != ELF_C_READ) {
-	elf->e_writable = 1;
-    }
-    if (cmd != ELF_C_WRITE) {
-	elf->e_readable = 1;
-    }
-    else {
-	return elf;
-    }
-
-    if (ref) {
-	size_t offset = ref->e_off + sizeof(struct ar_hdr);
-	Elf *xelf;
-
-	elf_assert(arhdr);
-	elf->e_arhdr = arhdr;
-	elf->e_base = ref->e_base + offset;
-	/*
-	 * Share the archive's memory image. To avoid
-	 * multiple independent elf descriptors if the
-	 * same member is requested twice, scan the list
-	 * of open members for duplicates.
-	 *
-	 * I don't know how SVR4 handles this case. Don't rely on it.
-	 */
-	for (xelf = ref->e_members; xelf; xelf = xelf->e_link) {
-	    elf_assert(xelf->e_parent == ref);
-	    if (xelf->e_base == elf->e_base) {
-		mfree(arhdr);
-		mfree(elf);
-		xelf->e_count++;
-		return xelf;
-	    }
-	}
-	if (size == 0) {
-	    elf->e_data = NULL;
-	}
-#if 1
-	else {
-	    /*
-	     * Archive members may be misaligned.  Freezing them will
-	     * cause libelf to allocate buffers for translated data,
-	     * which should be properly aligned in all cases.
-	     */
-	    elf_assert(!ref->e_cooked);
-	    elf->e_data = elf->e_rawdata = ref->e_data + offset;
-	}
-#else
-	else if (ref->e_data == ref->e_rawdata) {
-	    elf_assert(!ref->e_cooked);
-	    /*
-	     * archive is frozen - freeze member, too
-	     */
-	    elf->e_data = elf->e_rawdata = ref->e_data + offset;
-	}
-	else {
-	    elf_assert(!ref->e_memory);
-	    elf->e_data = ref->e_data + offset;
-	    /*
-	     * The member's memory image may have been modified if
-	     * the member has been processed before. Since we need the
-	     * original image, we have to re-read the archive file.
-	     * Will fail if the archive's file descriptor is disabled.
-	     */
-	    if (!ref->e_cooked) {
-		ref->e_cooked = 1;
-	    }
-	    else if (!_elf_read(ref, elf->e_data, offset, size)) {
-		free(arhdr);
-		free(elf);
+	elf_assert(_elf_init.e_magic == ELF_MAGIC);
+	if (_elf_version == EV_NONE) {
+		seterr(ERROR_VERSION_UNSET);
 		return NULL;
-	    }
+	} else if (cmd == ELF_C_NULL) {
+		return NULL;
+	} else if (cmd == ELF_C_WRITE) {
+		ref = NULL;
+	} else if (cmd != ELF_C_READ && cmd != ELF_C_RDWR) {
+		seterr(ERROR_INVALID_CMD);
+		return NULL;
+	} else if (ref) {
+		elf_assert(ref->e_magic == ELF_MAGIC);
+		if (!ref->e_readable || (cmd == ELF_C_RDWR && !ref->e_writable)) {
+			seterr(ERROR_CMDMISMATCH);
+			return NULL;
+		}
+		if (ref->e_kind != ELF_K_AR) {
+			ref->e_count++;
+			return ref;
+		}
+		if (cmd == ELF_C_RDWR) {
+			seterr(ERROR_MEMBERWRITE);
+			return NULL;
+		}
+		if (ref->e_memory) {
+			fd = ref->e_fd;
+		} else if (fd != ref->e_fd) {
+			seterr(ERROR_FDMISMATCH);
+			return NULL;
+		}
+		if (!(arhdr = _elf_arhdr(ref))) {
+			return NULL;
+		}
+		size = arhdr->ar_size;
+	} else if ((off = fd->Seek((off_t)0, GFile::SF_END)) == (off_t)-1
+	    || (off_t)(size = off) != off) {
+		seterr(ERROR_IO_GETSIZE);
+		return NULL;
 	}
-#endif
-	elf->e_next = offset + size + (size & 1);
-	elf->e_disabled = ref->e_disabled;
-	elf->e_memory = ref->e_memory;
-	/* parent/child linking */
-	elf->e_link = ref->e_members;
-	ref->e_members = elf;
-	ref->e_count++;
-	/* Slowaris compatibility - do not rely on this! */
-	ref->e_off = elf->e_next;
-    }
-    else if (size) {
-#if HAVE_MMAP
-	/*
-	 * Using mmap on writable files will interfere with elf_update
-	 */
-	if (!elf->e_writable && (elf->e_data = _elf_mmap(elf))) {
-	    elf->e_unmap_data = 1;
+	if (!(elf = (Elf*)malloc(sizeof(Elf)))) {
+		seterr(ERROR_MEM_ELF);
+		return NULL;
 	}
-	else
-#endif /* HAVE_MMAP */
-	if (!(elf->e_data = (char *)_elf_read(elf, NULL, 0, size))) {
-	    mfree(elf);
-	    return NULL;
-	}
-    }
+	*elf = _elf_init;
+	fd->AddRef();
+	elf->e_fd = fd;
+	elf->e_parent = ref;
+	elf->e_size = elf->e_dsize = size;
 
-    _elf_check_type(elf, size);
-    return elf;
+	if (cmd != ELF_C_READ) {
+		elf->e_writable = 1;
+	}
+	if (cmd != ELF_C_WRITE) {
+		elf->e_readable = 1;
+	} else {
+		return elf;
+	}
+
+	if (ref) {
+		size_t offset = ref->e_off + sizeof(struct ar_hdr);
+		Elf *xelf;
+
+		elf_assert(arhdr);
+		elf->e_arhdr = arhdr;
+		elf->e_base = ref->e_base + offset;
+		/*
+		 * Share the archive's memory image. To avoid
+		 * multiple independent elf descriptors if the
+		 * same member is requested twice, scan the list
+		 * of open members for duplicates.
+		 *
+		 * I don't know how SVR4 handles this case. Don't rely on it.
+		 */
+		for (xelf = ref->e_members; xelf; xelf = xelf->e_link) {
+			elf_assert(xelf->e_parent == ref);
+			if (xelf->e_base == elf->e_base) {
+				mfree(arhdr);
+				mfree(elf);
+				xelf->e_count++;
+				return xelf;
+			}
+		}
+		if (size == 0) {
+			elf->e_data = NULL;
+		}
+#if 1
+		else {
+			/*
+			 * Archive members may be misaligned.  Freezing them will
+			 * cause libelf to allocate buffers for translated data,
+			 * which should be properly aligned in all cases.
+			 */
+			elf_assert(!ref->e_cooked);
+			elf->e_data = elf->e_rawdata = ref->e_data + offset;
+		}
+#else
+		else if (ref->e_data == ref->e_rawdata) {
+			elf_assert(!ref->e_cooked);
+			/*
+			 * archive is frozen - freeze member, too
+			 */
+			elf->e_data = elf->e_rawdata = ref->e_data + offset;
+		}
+		else {
+			elf_assert(!ref->e_memory);
+			elf->e_data = ref->e_data + offset;
+			/*
+			 * The member's memory image may have been modified if
+			 * the member has been processed before. Since we need the
+			 * original image, we have to re-read the archive file.
+			 * Will fail if the archive's file descriptor is disabled.
+			 */
+			if (!ref->e_cooked) {
+				ref->e_cooked = 1;
+			}
+			else if (!_elf_read(ref, elf->e_data, offset, size)) {
+				free(arhdr);
+				free(elf);
+				return NULL;
+			}
+		}
+#endif
+		elf->e_next = offset + size + (size & 1);
+		elf->e_disabled = ref->e_disabled;
+		elf->e_memory = ref->e_memory;
+		/* parent/child linking */
+		elf->e_link = ref->e_members;
+		ref->e_members = elf;
+		ref->e_count++;
+		/* Slowaris compatibility - do not rely on this! */
+		ref->e_off = elf->e_next;
+	} else if (size) {
+#if HAVE_MMAP
+		/*
+		 * Using mmap on writable files will interfere with elf_update
+		 */
+		if (!elf->e_writable && (elf->e_data = _elf_mmap(elf))) {
+			elf->e_unmap_data = 1;
+		}
+		else
+#endif /* HAVE_MMAP */
+		if (!(elf->e_data = (char *)_elf_read(elf, NULL, 0, size))) {
+			mfree(elf);
+			return NULL;
+		}
+	}
+
+	_elf_check_type(elf, size);
+	return elf;
 }
 
 Elf*
-elf_memory(char *image, size_t size) {
-    Elf *elf;
+elf_memory(char *image, size_t size)
+{
+	Elf *elf;
 
-    elf_assert(_elf_init.e_magic == ELF_MAGIC);
-    if (_elf_version == EV_NONE) {
-	seterr(ERROR_VERSION_UNSET);
-	return NULL;
-    }
-    else if (size == 0 || image == NULL) {
-	/* TODO: set error code? */
-	return NULL;
-    }
+	elf_assert(_elf_init.e_magic == ELF_MAGIC);
+	if (_elf_version == EV_NONE) {
+		seterr(ERROR_VERSION_UNSET);
+		return NULL;
+	} else if (size == 0 || image == NULL) {
+		/* TODO: set error code? */
+		return NULL;
+	}
 
-    if (!(elf = (Elf*)malloc(sizeof(Elf)))) {
-	seterr(ERROR_MEM_ELF);
-	return NULL;
-    }
-    *elf = _elf_init;
-    elf->e_size = elf->e_dsize = size;
-    elf->e_data = elf->e_rawdata = image;
-    elf->e_readable = 1;
-    elf->e_disabled = 1;
-    elf->e_memory = 1;
+	if (!(elf = (Elf*)malloc(sizeof(Elf)))) {
+		seterr(ERROR_MEM_ELF);
+		return NULL;
+	}
+	*elf = _elf_init;
+	elf->e_size = elf->e_dsize = size;
+	elf->e_data = elf->e_rawdata = image;
+	elf->e_readable = 1;
+	elf->e_disabled = 1;
+	elf->e_memory = 1;
 
-    _elf_check_type(elf, size);
-    return elf;
+	_elf_check_type(elf, size);
+	return elf;
 }
 
 #if __LIBELF64

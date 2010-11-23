@@ -45,7 +45,8 @@ OnTrapRet(Frame *frame)
 ASMCALL int
 OnTrap(Frame *frame)
 {
-	if (GDT::GetRPL(frame->cs) == GDT::PL_USER) {
+	int userMode = GDT::GetRPL(frame->cs) == GDT::PL_USER;
+	if (userMode) {
 		/* restore per-cpu reference segment selector from private TSS */
 		CPU::RestoreSelector();
 	}
@@ -54,7 +55,7 @@ OnTrap(Frame *frame)
 		cpu->NestTrap();
 	}
 	PM::Thread *thrd = PM::Thread::GetCurrent();
-	if (GDT::GetRPL(frame->cs) == GDT::PL_USER && thrd) {
+	if (userMode && thrd) {
 		thrd->SetTrapFrame(frame);
 	}
 	if (frame->eflags & EFLAGS_IF) {
@@ -65,7 +66,7 @@ OnTrap(Frame *frame)
 	if (idt) {
 		return idt->HandleTrap(frame);
 	}
-	if (GDT::GetRPL(frame->cs) == GDT::PL_USER && thrd) {
+	if (userMode && thrd) {
 		thrd->SetTrapFrame(0);
 	}
 	return 0;

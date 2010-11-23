@@ -1227,8 +1227,10 @@ MM::VMObject::Unmap(Map::Entry *e)
 	TREE_FOREACH(Page, objEntry, pg, pages) {
 		vaddr_t offset = TREE_KEY(objEntry, pg) << PAGE_SHIFT;
 		vaddr_t va;
-		ensure(!e->GetVA(offset, &va));
-		e->Unmap(va);
+		/* Unmap only pages which belong to specified entry */
+		if (!e->GetVA(offset, &va)) {
+			e->Unmap(va);
+		}
 	}
 	lock.Unlock();
 	return 0;
