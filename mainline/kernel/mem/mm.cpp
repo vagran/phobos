@@ -39,7 +39,7 @@ PTE::PDEntry *MM::PTDpde = (PTE::PDEntry *)(PTMAP_ADDRESS +
 PTE::PDEntry *MM::altPTDpde = (PTE::PDEntry *)(PTMAP_ADDRESS +
 	PTDPTDI * PAGE_SIZE + APTDPTDI * sizeof(PTE::PTEntry));
 
-PTE::PTEntry *MM::quickMapPTE;
+volatile PTE::PTEntry *MM::quickMapPTE;
 
 SpinLock MM::quickMapLock;
 
@@ -302,7 +302,7 @@ MM::PreInitialize(vaddr_t addr)
 	FlushTLB();
 
 	quickMapPTE = VtoPTE(quickMap);
-	memset(quickMapPTE, 0, QUICKMAP_SIZE * sizeof(PTE::PTEntry));
+	memset((void *)quickMapPTE, 0, QUICKMAP_SIZE * sizeof(PTE::PTEntry));
 }
 
 int
@@ -461,12 +461,13 @@ MM::QuickMapEnter(paddr_t pa)
 	paddr_t _pa = rounddown2(pa, PAGE_SIZE);
 	quickMapLock.Lock();
 	for (u32 i = 0; i < QUICKMAP_SIZE; i++) {
-		if (!quickMapPTE[i].fields.present) {
-			quickMapPTE[i].raw = _pa | PTE::F_W | PTE::F_P;
+		if (quickMapPTE[i].fields.present) {
+			continue;
 		}
-		quickMapLock.Unlock();
+		quickMapPTE[i].raw = _pa | PTE::F_W | PTE::F_P;
 		vaddr_t va = quickMap + i * PAGE_SIZE;
 		invlpg(va);
+		quickMapLock.Unlock();
 		return (void *)(va + (pa & (PAGE_SIZE - 1)));
 	}
 	quickMapLock.Unlock();
@@ -488,8 +489,8 @@ MM::QuickMapRemove(vaddr_t va)
 			va);
 	}
 	pte->raw = 0;
-	quickMapLock.Unlock();
 	invlpg(va);
+	quickMapLock.Unlock();
 }
 
 void
@@ -968,23 +969,15 @@ MM::HandlePageFault(vaddr_t va, u32 code, int isUserMode)
 	 * after the fault location.
 	 */
 	va = rounddown2(va, PAGE_SIZE);
-	assert(!(code & PFC_P));
-	assert(!map->IsMapped(va));
-	/* ... some pages before */
+	/* ... some pages before ... */
 	vaddr_t start_va = va;
 	for (int i = 1; i <= 3; i++) {
 		if (start_va <= e->base) {
 			break;
 		}
-		if (isWrite) {
-			if (!map->CheckPhysProtection(start_va - PAGE_SIZE,
-				PROT_READ | PROT_WRITE, isUserMode)) {
-				break;
-			}
-		} else {
-			if (map->IsMapped(start_va - PAGE_SIZE)) {
-				break;
-			}
+		if (!map->CheckPhysProtection(start_va - PAGE_SIZE,
+			PROT_READ | (isWrite ? PROT_WRITE : 0), isUserMode)) {
+			break;
 		}
 		start_va -= PAGE_SIZE;
 	}
@@ -994,15 +987,9 @@ MM::HandlePageFault(vaddr_t va, u32 code, int isUserMode)
 		if (end_va >= e->base + e->size) {
 			break;
 		}
-		if (isWrite) {
-			if (!map->CheckPhysProtection(end_va,
-				PROT_READ | PROT_WRITE, isUserMode)) {
-				break;
-			}
-		} else {
-			if (map->IsMapped(end_va)) {
-				break;
-			}
+		if (!map->CheckPhysProtection(end_va,
+			PROT_READ | (isWrite ? PROT_WRITE : 0), isUserMode)) {
+			break;
 		}
 		end_va += PAGE_SIZE;
 	}
@@ -1423,16 +1410,14 @@ MM::VMObject::Pagein(vaddr_t offset, Page **ppg, int isWrite)
 	vaddr_t curOff = offset;
 	Page *pg;
 	int rc;
-	while (!(rc = obj->HasPage(curOff, &pg, (isWrite && obj != this))) ||
+	while (!(rc = obj->HasPage(curOff, &pg, (isWrite && obj != this))) &&
 		obj->backingObj) {
 		curOff += obj->backingOffset;
 		obj = obj->backingObj;
 	}
 	if (rc < 0) {
 		return rc;
-	}
-
-	if (!rc) {
+	} else if (!rc) {
 		if (!(pg = mm->AllocatePage(flags & F_ZERO ? PAF_ZERO : 0))) {
 			klog(KLOG_WARNING, "Cannot allocate page");
 			return -1;

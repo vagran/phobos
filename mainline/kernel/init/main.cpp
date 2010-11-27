@@ -230,6 +230,13 @@ StartupProc(void *arg)
 		panic("Failed to mount root device: %s", vfsRoot);
 	}
 
+#ifdef DEBUG
+	if (!pm->CreateProcess("/bin/module_test", "Module test", PM::DEF_PRIORITY,
+		"4 mt_arg0 mt_arg1 mt_arg2 mt_arg3")) {
+		klog(KLOG_ERROR, "Cannot launch module testing process");
+	}
+#endif
+
 	/* launch 'init' application */
 	initProc = pm->CreateProcess(INIT_PATH, "test_init", PM::DEF_PRIORITY,
 		"test arguments");

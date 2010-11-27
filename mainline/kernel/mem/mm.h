@@ -477,7 +477,7 @@ private:
 	static vaddr_t firstAddr;
 	static PTE::PTEntry *PTmap, *altPTmap;
 	static PTE::PDEntry *PTD, *PTDpde, *altPTD, *altPTDpde;
-	static PTE::PTEntry *quickMapPTE;
+	volatile static PTE::PTEntry *quickMapPTE;
 	static SpinLock quickMapLock;
 	static InitState initState;
 	Page *pages;
