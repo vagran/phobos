@@ -262,7 +262,7 @@ PM::CreateProcess(const char *path, const char *name, int priority, const char *
 			continue;
 		}
 
-		if (il->Load(proc->userMap, proc->heapObj)) {
+		if (il->Load(proc->userMap, proc->bssObj)) {
 			DestroyProcess(proc);
 			il->Release();
 			return 0;
@@ -826,6 +826,9 @@ PM::Process::~Process()
 	if (gateArea) {
 		DELETE(gateArea);
 	}
+	if (bssObj) {
+		bssObj->Release();
+	}
 	if (heapObj) {
 		heapObj->Release();
 	}
@@ -1079,6 +1082,12 @@ PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
 	 * process virtual address space.
 	 */
 	ensure(userMap->ReserveSpace(0, PAGE_SIZE));
+
+	/* BSS object is used for BSS binary sections which must be initialized to zeros*/
+	bssObj = NEW(MM::VMObject, GATE_AREA_ADDRESS, MM::VMObject::F_ZERO);
+	if (!bssObj) {
+		return -1;
+	}
 
 	/* Heap object is used for dynamic user space memory allocations */
 	heapObj = NEW(MM::VMObject, GATE_AREA_ADDRESS, MM::VMObject::F_HEAP);
@@ -1461,7 +1470,7 @@ PM::Thread::MapKernelStack(vaddr_t esp)
 		if (proc->userMap->IsMapped(va)) {
 			continue;
 		}
-		if (proc->userMap->Pagein(va)) {
+		if (proc->userMap->Pagein(va, 1)) {
 			return -1;
 		}
 	}

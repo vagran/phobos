@@ -16,8 +16,6 @@ extern "C" void AppStart(GApp *app);
 void
 AppStart(GApp *app)
 {
-	/* zero BSS */
-	memset(&_edata, 0, (u32)&_end - (u32)&_edata);
 	/* call global constructors */
 	CXA::ConstructStaticObjects();
 	/* Initialize PhobOS user space run-time support library */

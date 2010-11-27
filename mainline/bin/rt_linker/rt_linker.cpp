@@ -94,8 +94,11 @@ RTLinker::FindSectionByAddr(Elf *elf, Elf32_Word addr)
 
 RTLinker::DynObject_s::DynObject_s(DynObject *parent)
 {
+	memset(&scns, 0, sizeof(scns));
 	LIST_INIT(deps);
+	LIST_INIT(segments);
 	numDeps = 0;
+	flags = 0;
 	this->parent = parent;
 	if (parent) {
 		LIST_ADD(depList, this, parent->deps);
@@ -109,6 +112,23 @@ RTLinker::DynObject_s::~DynObject_s()
 		parent->numDeps--;
 		LIST_DELETE(depList, this, parent->deps);
 	}
+	ObjSegment *seg;
+	while ((seg = LIST_FIRST(ObjSegment, list, segments))) {
+		LIST_DELETE(list, seg, segments);
+		DELETE(seg);
+	}
+}
+
+RTLinker::ObjSegment *
+RTLinker::DynObject_s::AddSegment()
+{
+	ObjSegment *seg = NEW(ObjSegment);
+	if (!seg) {
+		return 0;
+	}
+	memset(seg, 0, sizeof(*seg));
+	LIST_ADD(list, seg, segments);
+	return seg;
 }
 
 Elf32_Dyn *
@@ -312,14 +332,94 @@ RTLinker::CreateObject(GFile *file, DynObject *parent)
 	}
 	ctx.obj->path = path;
 
+	if (ProcessSegments(&ctx)) {
+		Error("Filed to process segments");
+		return 0;
+	}
+
+	if (ProcessSections(&ctx)) {
+		Error("Filed to process sections");
+		return 0;
+	}
+
 	if (ProcessObjDeps(&ctx)) {
-		DELETE(ctx.obj);
-		ctx.obj = 0;
 		Error("Cannot process object dependencies");
 		return 0;
 	}
 
-	return ctx.obj;
+	return ctx.PopObject();
+}
+
+int
+RTLinker::ProcessSegments(ObjContext *ctx)
+{
+	if (!ctx->ehdr) {
+		if (!(ctx->ehdr = elf32_getehdr(ctx->elf))) {
+			Error("Cannot get ELF header: %s", elf_errmsg());
+			return -1;
+		}
+	}
+	if (!ctx->phdr) {
+		if (!(ctx->phdr = elf32_getphdr(ctx->elf))) {
+			Error("Cannot get program header: %s", elf_errmsg());
+			return -1;
+		}
+	}
+	/* iterate through program header entries */
+	for (int i = 0; i < ctx->ehdr->e_phnum; i++) {
+		Elf32_Phdr *phdr = (Elf32_Phdr *)((u8 *)ctx->phdr + ctx->ehdr->e_phentsize * i);
+		/* Skip not loadable segments */
+		if (phdr->p_type != PT_LOAD) {
+			continue;
+		}
+		ObjSegment *seg = ctx->obj->AddSegment();
+		if (!seg) {
+			Error("Cannot allocate segment descriptor");
+			return -1;
+		}
+		seg->fileOffset = phdr->p_offset;
+		seg->baseAddr = phdr->p_vaddr;
+		seg->fileSize = phdr->p_filesz;
+		seg->memSize = phdr->p_memsz;
+		seg->align = phdr->p_align;
+		seg->flags = phdr->p_flags;
+	}
+	return 0;
+}
+
+int
+RTLinker::ProcessSection(ObjContext *ctx, const char *name, ObjSection *scn)
+{
+	Elf_Scn *escn = FindSection(ctx->elf, name);
+	if (!escn) {
+		return -1;
+	}
+	Elf32_Shdr *shdr = elf32_getshdr(escn);
+	if (!shdr) {
+		return -1;
+	}
+	scn->baseAddr = shdr->sh_addr;
+	scn->size = shdr->sh_size;
+	return 0;
+}
+
+int
+RTLinker::ProcessSections(ObjContext *ctx)
+{
+	ProcessSection(ctx, ".plt", &ctx->obj->scns.plt);
+	ProcessSection(ctx, ".dynamic", &ctx->obj->scns.dyn);
+	ProcessSection(ctx, ".hash", &ctx->obj->scns.hash);
+	ProcessSection(ctx, ".dynsym", &ctx->obj->scns.dynsym);
+	ProcessSection(ctx, ".dynstr", &ctx->obj->scns.dynstr);
+	ProcessSection(ctx, ".rel.dyn", &ctx->obj->scns.rel_dyn);
+	ProcessSection(ctx, ".rel.plt", &ctx->obj->scns.rel_plt);
+	ProcessSection(ctx, ".data.rel.ro", &ctx->obj->scns.data_rel_ro);
+	ProcessSection(ctx, ".got", &ctx->obj->scns.got);
+	if (ctx->obj->scns.got.baseAddr) {
+		ctx->obj->flags |= DynObject::F_RELOCATABLE;
+	}
+	ProcessSection(ctx, ".got.plt", &ctx->obj->scns.got_plt);
+	return 0;
 }
 
 int
@@ -352,9 +452,13 @@ RTLinker::DestroyObjTree()
 	return 0;
 }
 
+int cowTest = 237;//temp
 int
 RTLinker::Link()
 {
+	printf("cow = %d\n", cowTest);//temp
+	cowTest = 238;//temp
+	printf("cow = %d\n", cowTest);//temp
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		 Error("ELF library initialization failed: %s", elf_errmsg());
 		 return -1;

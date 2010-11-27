@@ -129,11 +129,12 @@ public:
 	};
 
 	enum PageFaultCode {
-		PFC_P =			0x1,
-		PFC_W =			0x2,
-		PFC_U =			0x4,
-		PFC_RSVD =		0x8,
-		PFC_I =			0x10,
+		PFC_P =			0x1, /* 0 - The fault was caused by a non-present page */
+		PFC_W =			0x2, /* 1 - The access causing the fault was a write */
+		PFC_U =			0x4, /* 1 - The access causing the fault originated when
+							  * the processor was executing in user mode */
+		PFC_RSVD =		0x8, /* 1 - The fault was caused by reserved bits set to 1 in a page directory */
+		PFC_I =			0x10, /* 1 - The fault was caused by an instruction fetch */
 	};
 
 	MemChunk physMem[MEM_MAX_CHUNKS];
@@ -157,6 +158,7 @@ public:
 
 	enum PageAllocFlags {
 		PAF_NOWAIT =		0x1,
+		PAF_ZERO =			0x2, /* Zero page */
 	};
 
 	enum PageZone {
@@ -206,11 +208,14 @@ public:
 		class Entry : public Object {
 		public:
 			enum Flags {
-				F_SPACE =		0x1, /* space only allocation */
-				F_RESERVE =		0x2, /* space reservation */
-				F_NOCACHE =		0x4, /* disable caching */
-				F_SUBMAP =		0x8, /* entry describes submap */
-				F_USER =		0x10, /* accessible from user mode */
+				F_SPACE =			0x1, /* space only allocation */
+				F_RESERVE =			0x2, /* space reservation */
+				F_NOCACHE =			0x4, /* disable caching */
+				F_SUBMAP =			0x8, /* entry describes submap */
+				F_USER =			0x10, /* accessible from user mode */
+				F_ZERO =			0x20, /* Zero new pages */
+
+				F_SHADOWCREATED =	0x20, /* shadow object created for COW entry */
 			};
 
 			typedef struct {
@@ -230,16 +235,17 @@ public:
 			u32					flags;
 			MapEntryAllocator	*alloc;
 			int					protection;
+			SpinLock			shadowLock;
 
 			Entry(Map *map);
 			~Entry();
 			MemAllocator *CreateAllocator();
-			int MapPage(vaddr_t va, Page *pg = 0);
-			int MapPA(vaddr_t va, paddr_t pa);
+			int MapPage(vaddr_t va, Page *pg = 0, int isOwn = 1);
+			int MapPA(vaddr_t va, paddr_t pa, int ownPage = 1);
 			int Unmap(vaddr_t va);
 			int GetOffset(vaddr_t va, vaddr_t *offs);
 			int GetVA(vaddr_t offs, vaddr_t *va);
-			int Pagein(vaddr_t va, int numPages = 1);
+			int Pagein(vaddr_t va, int numPages = 1, int isWrite = 0);
 		};
 
 		ListEntry	list; /* global maps list */
@@ -341,10 +347,12 @@ public:
 		void SetAlt(); /* set this map as current alternative AS */
 		static void ResetAlt(); /* reset alternative AS mapping */
 		int AddPT(vaddr_t va); /* must be called with locked tables */
-		int Pagein(vaddr_t va); /* make this page resident */
+		int Pagein(vaddr_t va, int isWrite = 1); /* make this page resident */
 		inline u32 GetCR3() { return cr3; }
 		int AddPDE(vaddr_t va, PTE::PDEntry *pde);
-		int CheckPageProtection(vaddr_t va, Protection protection, int user);
+		/* protection checking functions return non-zero if not match */
+		int CheckPageProtection(vaddr_t va, int protection, int user);
+		int CheckPhysProtection(vaddr_t va, int protection, int user);
 	};
 
 	Map *kmemMap; /* kernel process virtual address space */
@@ -358,6 +366,9 @@ public:
 			F_STACK =		0x4,
 			F_HEAP =		0x8,
 			F_GATE =		0x10,
+			F_ZERO =		0x20,
+
+			F_COPY_TO_SHADOW = F_FILE | F_STACK | F_HEAP | F_GATE | F_ZERO,
 		};
 
 		ListEntry	list; /* list of all objects */
@@ -371,8 +382,8 @@ public:
 		 * entry in list of top-level objects.
 		 */
 		ListEntry	shadowList;
-		VMObject	*copyObj; /* object to copy changed pages from */
-		vaddr_t		copyOffset; /* offset in copy object */
+		VMObject	*backingObj; /* object to copy changed pages from */
+		vaddr_t		backingOffset; /* offset in copy object */
 		RefCount	refCount;
 		SpinLock	lock;
 		Pager		*pager; /* backing storage */
@@ -390,11 +401,20 @@ public:
 		inline vsize_t GetSize() { return size; }
 		int InsertPage(Page *pg, vaddr_t offset);
 		Page *LookupPage(vaddr_t offset);
+		/*
+		 * Return positive non-zero if the object has the page either resident
+		 * or in its pager. If 'ppg' is non-zero then try to page it in if it is
+		 * not resident. Return a copy of the page if 'copyPage' not a zero.
+		 * Return negative value if error occurred.
+		 */
+		int HasPage(vaddr_t offset, Page **ppg = 0, int copyPage = 0);
 		int RemovePage(Page *pg);
 		int CreatePager(Handle pagingHandle = 0);
-		int Pagein(vaddr_t offset, Page **ppg = 0, int numPages = 1);
-		int Pageout(vaddr_t offset, Page **ppg = 0, int numPages = 1);
+		int Pagein(vaddr_t offset, Page **ppg, int isWrite = 0);
+		int Pageout(vaddr_t offset, Page **ppg = 0);
+		int Map(Map::Entry *e); /* Map all resident pages in specified entry */
 		int Unmap(Map::Entry *e); /* Unmap all resident pages in specified entry */
+		VMObject *CreateShadow(vaddr_t offset, vsize_t size);
 	};
 
 	class Pager : public Object {
@@ -458,6 +478,7 @@ private:
 	static PTE::PTEntry *PTmap, *altPTmap;
 	static PTE::PDEntry *PTD, *PTDpde, *altPTD, *altPTDpde;
 	static PTE::PTEntry *quickMapPTE;
+	static SpinLock quickMapLock;
 	static InitState initState;
 	Page *pages;
 	u32 pagesRange, firstPage;
@@ -549,6 +570,7 @@ public:
 	static void *QuickMapEnter(paddr_t pa);
 	static void QuickMapRemove(vaddr_t va);
 	static void ZeroPage(paddr_t pa);
+	static void CopyPage(paddr_t dst, paddr_t src);
 
 	MM(); /* XXX destructor required */
 	Page *AllocatePage(int flags = 0, PageZone zone = ZONE_REST);

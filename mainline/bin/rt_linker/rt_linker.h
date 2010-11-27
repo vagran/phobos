@@ -15,17 +15,43 @@ phbSource("$Id$");
 
 class RTLinker : public Object {
 private:
+	/* Loadable segments */
+	typedef struct {
+		ListEntry list;
+		off_t fileOffset;
+		vaddr_t baseAddr;
+		u32 fileSize, memSize;
+		u32 align;
+		u32 flags;
+	} ObjSegment;
+
+	/* Sections */
+	typedef struct {
+		vaddr_t baseAddr;
+		vsize_t size;
+	} ObjSection;
+
 	struct DynObject_s;
 	typedef struct DynObject_s DynObject;
 	struct DynObject_s {
+		enum Flags {
+			F_RELOCATABLE =		0x1,
+		};
 		ListEntry depList;
 		ListHead deps; /* dependencies */
 		int numDeps;
 		CString path;
 		DynObject *parent;
+		ListHead segments;
+		struct {
+			ObjSection plt, dyn, hash, dynsym, dynstr, rel_dyn, rel_plt,
+				data_rel_ro, got, got_plt;
+		} scns;
+		u32 flags;
 
 		DynObject_s(DynObject *parent);
 		~DynObject_s();
+		ObjSegment *AddSegment();
 	};
 
 	class ObjContext {
@@ -36,6 +62,8 @@ private:
 		Elf_Data *lastDTBlock;
 		DynObject *obj;
 		Elf_Scn *dynStrScn;
+		Elf32_Ehdr *ehdr;
+		Elf32_Phdr *phdr;
 
 		ObjContext(GFile *file = 0) {
 			if (file) {
@@ -47,6 +75,8 @@ private:
 			dynStrScn = 0;
 			lastDTBlock = 0;
 			obj = 0;
+			ehdr = 0;
+			phdr = 0;
 		}
 
 		~ObjContext() {
@@ -56,6 +86,15 @@ private:
 			if (elf) {
 				elf_end(elf);
 			}
+			if (obj) {
+				DELETE(obj);
+			}
+		}
+
+		DynObject *PopObject() {
+			DynObject *obj = this->obj;
+			this->obj = 0;
+			return obj;
 		}
 	};
 
@@ -71,6 +110,9 @@ private:
 	int GetDepChain(DynObject *obj, CString &s);
 	DynObject *GetNextObject(DynObject *prev = 0);
 	int DestroyObjTree();
+	int ProcessSegments(ObjContext *ctx);
+	int ProcessSections(ObjContext *ctx);
+	int ProcessSection(ObjContext *ctx, const char *name, ObjSection *scn);
 public:
 	RTLinker();
 	~RTLinker();

@@ -199,7 +199,7 @@ public:
 		u32 numThreads, numAliveThreads;
 		SpinLock thrdListLock;
 		MM::Map *map, *userMap, *gateMap;
-		MM::VMObject *heapObj;
+		MM::VMObject *bssObj, *heapObj;
 		u32 priority;
 		vaddr_t entryPoint;
 		GM::GateArea *gateArea;
