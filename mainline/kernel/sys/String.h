@@ -84,6 +84,12 @@ public:
 	int Find(char c, int from = 0); /* return index of the first occurrence, -1 if not found */
 	int Truncate(int newLen);
 	inline void Empty() { *this = (char *)0; }
+	/* return number of characters in the result */
+	int SubStr(String &dst, int start, int end = -1);
+	/* return number of characters in found token, 0 if not found */
+	int GetToken(String &dst, int start, int *pEnd = 0, const char *sep = " \t");
+	int Scanf(const char *fmt, ...) __format(scanf, 2, 3);
+	int ScanfV(const char *fmt, va_list args) __format(scanf, 2, 0);
 };
 
 typedef class String<KMemAllocator> KString;

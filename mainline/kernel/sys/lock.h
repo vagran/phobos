@@ -294,7 +294,7 @@ class AtomicInt : public Object {
 private:
 	value_t value;
 public:
-	inline AtomicInt() { value = 0; }
+	inline AtomicInt(value_t initial = 0) { value = initial; }
 	inline value_t operator =(value_t x) { AtomicOp::Set(&value, x); return x; }
 	inline void operator ++() { AtomicOp::Inc(&value); }
 	inline int operator --() { return AtomicOp::Dec(&value); }

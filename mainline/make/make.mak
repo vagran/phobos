@@ -28,6 +28,7 @@ endif
 
 ########
 ifdef APP
+
 ifndef LINK_SCRIPT
 ifeq ($(STATIC),1)
 LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.app.ld
@@ -35,10 +36,18 @@ else
 LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.dynapp.ld
 endif
 endif
+
+ifneq ($(NO_INSTALL),1)
+ifndef INSTALL_DIR
+INSTALL_DIR = /bin
+endif
+endif
+
 BINARY_NAME = $(APP)
 export PROFILE_NAME = APP
 IS_PROFILE_ROOT = 1
 LINK_FILES += $(APP_RUNTIME_LIB) 
+
 ifeq ($(STATIC),1)
 LINK_FLAGS += -Bstatic
 LINK_FILES += $(COMMON_LIB) $(USER_LIB)
@@ -48,6 +57,7 @@ LINK_FLAGS += -Bdynamic
 LINK_FILES += $(subst .a,.sl,$(COMMON_LIB) $(USER_LIB))
 LINK_FILES += $(foreach lib,$(LIBS),$(PHOBOS_ROOT)/lib/$(lib)/build/$(TARGET)/lib$(lib).sl)
 endif
+
 REQUIRE_RUNTIME_LIB = 1
 
 ########
@@ -59,17 +69,22 @@ LINK_FLAGS += -r
 
 ########
 else ifdef LIB
+
 ifndef LINK_SCRIPT
 LINK_SCRIPT = $(PHOBOS_ROOT)/make/link.lib.ld
 endif
-BINARY_NAME = lib$(LIB).a 
+
+BINARY_NAME = lib$(LIB).a
+
 ifneq ($(STATIC),1)
 LINK_FLAGS += -Bdynamic
 BINARY_NAME += lib$(LIB).sl
 LINK_FILES += $(foreach lib,$(LIBS),$(PHOBOS_ROOT)/lib/$(lib)/build/$(TARGET)/lib$(lib).sl)
 endif
+
 export PROFILE_NAME = LIB
 IS_PROFILE_ROOT = 1
+
 ifneq ($(NO_INSTALL),1)
 ifndef INSTALL_DIR
 INSTALL_DIR = $(LIBS_INSTALL_DIR)

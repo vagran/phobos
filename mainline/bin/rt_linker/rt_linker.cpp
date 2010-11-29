@@ -452,13 +452,9 @@ RTLinker::DestroyObjTree()
 	return 0;
 }
 
-int cowTest = 237;//temp
 int
 RTLinker::Link()
 {
-	printf("cow = %d\n", cowTest);//temp
-	cowTest = 238;//temp
-	printf("cow = %d\n", cowTest);//temp
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		 Error("ELF library initialization failed: %s", elf_errmsg());
 		 return -1;
@@ -473,8 +469,6 @@ RTLinker::Link()
 		Error("Failed to build dynamic objects tree");
 		return -1;
 	}
-
-
 
 	return 0;
 }

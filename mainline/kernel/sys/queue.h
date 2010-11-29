@@ -173,6 +173,8 @@ public:
 
 #define TREE_INIT(root) {(root).rootnode = 0;}
 
+#define TREE_ROOT_INIT	{0}
+
 #define TREE_ISEMPTY(root) (!(root).rootnode)
 
 #define TREE_DATA(type, entry, value) ((value) ? ((type *)(((u8 *)(value)) - OFFSETOF(type, entry))) : 0)

@@ -16,10 +16,10 @@ extern "C" void AppStart(GApp *app);
 void
 AppStart(GApp *app)
 {
-	/* call global constructors */
-	CXA::ConstructStaticObjects();
 	/* Initialize PhobOS user space run-time support library */
 	ULib::Initialize(app);
+	/* call global constructors */
+	CXA::ConstructStaticObjects();
 	/* call Main() function */
 	app->ExitThread(Main(app));
 	/* NOT REACHED */

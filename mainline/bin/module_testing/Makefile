@@ -8,4 +8,6 @@ APP = module_test
 INSTALL_DIR = /bin
 STATIC = 1
 
+INCLUDES += .
+
 include $(PHOBOS_ROOT)/make/make.mak

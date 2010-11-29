@@ -427,6 +427,90 @@ String<Allocator>::Truncate(int newLen)
 	return Realloc(len + 1);
 }
 
+template <class Allocator>
+int
+String<Allocator>::SubStr(String &dst, int start, int end)
+{
+	if (start >= len || end <= start) {
+		dst = (char *)0;
+		return 0;
+	}
+	if (end == -1 || end > len) {
+		end = len;
+	}
+	int copyLen = end - start;
+	char *pDst = dst.LockBuffer(copyLen);
+	memcpy(pDst, &buf[start], copyLen);
+	dst.ReleaseBuffer(copyLen);
+	return copyLen;
+}
+
+template <class Allocator>
+int
+String<Allocator>::GetToken(String &dst, int start, int *pEnd, const char *sep)
+{
+	while (start < len) {
+		const char *psep = sep;
+		while (*psep) {
+			if (buf[start] == *psep) {
+				break;
+			}
+			psep++;
+		}
+		if (!*psep) {
+			break;
+		}
+		start++;
+	}
+	if (start >= len) {
+		dst = (char *)0;
+		return 0;
+	}
+	int end = start + 1;
+	while (end < len) {
+		const char *psep = sep;
+		while (*psep) {
+			if (buf[end] == *psep) {
+				break;
+			}
+			psep++;
+		}
+		if (*psep) {
+			break;
+		}
+		end++;
+	}
+	int tokLen = end - start;
+	assert(tokLen);
+	char *pDst = dst.LockBuffer(tokLen);
+	memcpy(pDst, &buf[start], tokLen);
+	dst.ReleaseBuffer(tokLen);
+	if (pEnd) {
+		*pEnd = end;
+	}
+	return tokLen;
+}
+
+template <class Allocator>
+int
+String<Allocator>::Scanf(const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	ret = ScanfV(fmt, ap);
+	va_end(ap);
+	return(ret);
+}
+
+template <class Allocator>
+int
+String<Allocator>::ScanfV(const char *fmt, va_list args)
+{
+	return vsscanf(buf, fmt, args);
+}
+
 #ifdef KERNEL
 /* Instantiate KString */
 template class String<KMemAllocator>;

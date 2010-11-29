@@ -9,7 +9,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
-#include "module_test.h"
+#include <module_test.h>
 
 /**************************************************/
 /* Test static objects construction */
@@ -39,6 +39,7 @@ TestStaticObj()
 }
 
 /**************************************************/
+/* Test initialized and uninitialized data segments */
 
 #define TEST_BSS_SIZE (1024 * 1024)
 volatile u8 testBssArea[TEST_BSS_SIZE];
@@ -52,8 +53,12 @@ TestDataSegments()
 	for (size_t i = 0; i < sizeof(testBssArea); i++) {
 		mt_assert(!testBssArea[i]);
 	}
-	testBssArea[0] = MT_BYTE_VALUE;
-	mt_assert(testBssArea[0] == MT_BYTE_VALUE);
+	for (size_t i = 0; i < sizeof(testBssArea); i++) {
+		testBssArea[i] = MT_BYTE_VALUE;
+	}
+	for (size_t i = 0; i < sizeof(testBssArea); i++) {
+		mt_assert(testBssArea[i] == MT_BYTE_VALUE);
+	}
 
 	/* Test copy-on-write functionality */
 	mt_assert(cowTestArea == MT_DWORD_VALUE);
@@ -76,6 +81,97 @@ Main(GApp *app)
 
 	TestStaticObj();
 
+	mtMan.RunTests();
+
 	mtlog("Module testing successfully finished");
+	return 0;
+}
+
+/**************************************************/
+
+MTestMan mtMan;
+
+mtid_t MTestMan::nextId = 1;
+
+Tree<mtid_t>::TreeRoot MTestMan::tests = TREE_ROOT_INIT;
+
+u32 MTestMan::numTests = 0;
+
+mtid_t MTestMan::curTestID = 0;
+
+MTestMan::TestRegistrator::TestRegistrator(MTestFactory factory,
+	const char *name, const char *desc)
+{
+	mtid_t id = GenID();
+	if (MTestMan::RegisterTest(id, factory, name, desc)) {
+		mtlog("Failed to register test '%s'", name);
+	}
+}
+
+MTestMan::MTestMan()
+{
+
+}
+
+MTestMan::~MTestMan()
+{
+	MTestEntry *te;
+	while ((te = TREE_ROOT(MTestEntry, tree, tests))) {
+		TREE_DELETE(tree, te, tests);
+		DELETE(te);
+	}
+}
+
+int
+MTestMan::RegisterTest(mtid_t id, MTestFactory factory, const char *name,
+		const char *desc)
+{
+	MTestEntry *te = NEW(MTestEntry);
+	if (!te) {
+		return -1;
+	}
+	memset(te, 0, sizeof(*te));
+	TREE_ADD(tree, te, tests, id);
+	te->name = name;
+	te->desc = desc;
+	te->factory = factory;
+	return 0;
+}
+
+MTest *
+MTestMan::GetCurTest()
+{
+	if (!curTestID) {
+		return 0;
+	}
+	MTestEntry *te = GetTestEntry(curTestID);
+	return te ? te->obj : 0;
+}
+
+MTestMan::MTestEntry *
+MTestMan::GetTestEntry(mtid_t id)
+{
+	return TREE_FIND(id, MTestEntry, tree, tests);
+}
+
+void
+MTestMan::SetTestObj(mtid_t id, MTest *obj)
+{
+	MTestEntry *te = GetTestEntry(id);
+	te->obj = obj;
+}
+
+int
+MTestMan::RunTests()
+{
+	MTestEntry *te;
+	TREE_FOREACH(MTestEntry, tree, te, tests) {
+		curTestID = TREE_KEY(tree, te);
+		MTest *test = te->factory(curTestID, te->name, te->desc);
+		/* whole work is done in MTest object constructor */
+		te->obj = 0;
+		DELETE(test);
+	}
+	curTestID = 0;
 	return 0;
 }

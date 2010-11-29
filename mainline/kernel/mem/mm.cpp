@@ -901,8 +901,9 @@ MM::OnPageFault(Frame *frame)
 			PM::Thread *thrd = PM::Thread::GetCurrent();
 			assert(thrd);
 			thrd->Fault(PM::PFLT_PAGE_FAULT,
-				"Access to address 0x%08lx, code = 0x%lx (%s in %s mode, %s)",
+				"Access to address 0x%08lx, code = 0x%lx (%s%s in %s mode, %s)",
 				va, frame->code, frame->code & PFC_W ? "Write" : "Read",
+				frame->code & PFC_I ? " (instruction fetch)" : "",
 				frame->code & PFC_U ? "user" : "kernel",
 				frame->code & PFC_P ? "protection violation" : "page not present");
 		} else {

@@ -91,8 +91,20 @@ void operator delete[](void *p);
 
 #define DELETE(ptr)					delete (ptr)
 
+#define alloca					__builtin_alloca
+
+#define ALLOCA(type, conut) 	((type *)alloca(sizeof(type) * (count)))
+
 #define ZALLOC(type,  count)	({ \
 	type *p = ALLOC(type, count); \
+	if (p) { \
+		memset(p, 0, sizeof(type) * (count)); \
+	} \
+	p; \
+})
+
+#define ZALLOCA(type,  count)	({ \
+	type *p = ALLOCA(type, count); \
 	if (p) { \
 		memset(p, 0, sizeof(type) * (count)); \
 	} \
