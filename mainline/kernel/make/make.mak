@@ -8,7 +8,7 @@ include $(PHOBOS_ROOT)/make/makevar.mak
 
 COMPILE_FLAGS = -pipe -Werror -Wall -Wno-invalid-offsetof \
 	-DKERNEL -fno-stack-protector -fno-default-inline -fno-builtin \
-	-DLOAD_ADDRESS=$(LOAD_ADDRESS) \
+	-DLOAD_ADDRESS=$(KERNEL_LOAD_ADDRESS) \
 	-DKERNEL_ADDRESS=$(KERNEL_ADDRESS)
 COMPILE_FLAGS_CXX = -fno-exceptions -fno-rtti
 COMPILE_FLAGS_C =
@@ -66,7 +66,7 @@ all: $(OBJ_DIR) $(OBJS) $(IMAGE) $(SUBDIRS_TARGET) $(LIB_FILE)
 
 ifeq ($(MAKEIMAGE),1)
 $(IMAGE): $(OBJ_DIR) $(SUBDIRS_TARGET) $(LINK_SCRIPT) $(LINK_FILES)
-	$(LD) $(LINK_FLAGS) --defsym LOAD_ADDRESS=$(LOAD_ADDRESS) \
+	$(LD) $(LINK_FLAGS) --defsym LOAD_ADDRESS=$(KERNEL_LOAD_ADDRESS) \
 		--defsym KERNEL_ADDRESS=$(KERNEL_ADDRESS) \
 		-T $(LINK_SCRIPT) -o $@ $(wildcard $(OBJ_DIR)/*.o) $(LINK_FILES)
 endif

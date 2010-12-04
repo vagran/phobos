@@ -227,7 +227,8 @@ public:
 				F_USER =			0x10, /* accessible from user mode */
 				F_ZERO =			0x20, /* Zero new pages */
 
-				F_SHADOWCREATED =	0x20, /* shadow object created for COW entry */
+				F_SHADOWCREATED =	0x40, /* shadow object created for COW entry */
+				F_USERRESERVED =	0x80, /* Space reserved by PM::ReserveSpace() call */
 			};
 
 			typedef struct {
