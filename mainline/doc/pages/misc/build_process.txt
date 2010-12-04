@@ -1,0 +1,55 @@
+---//$Id$//
+
+====== PhobOS build process ======
+
+PhobOS build system designed with the approach to provide as simple building framework as possible. In order to build some application in the simplest case you need a makefile with the following content:
+<code make Makefile>
+# Include standard source files head here, e.g.:
+# /bin/myapp/Makefile
+# $Id$
+#
+# This file is a part of PhobOS operating system.
+# Copyright (c)AST 2009. Written by Artemy Lebedev.
+
+APP = myapp
+
+include $(PHOBOS_ROOT)/make/make.mak
+</code>
+//$(PHOBOS_ROOT)/make/make.mak// file should be included in each makefile. Optional additional parameters can be configured by variables set before include root makefile (see [[misc:build_process#Makefiles variables|Makefiles variables]] section). All C, C++ and assembler sources in the same directory will be compiled automatically.
+
+===== Makefiles variables =====
+
+These variables could be defined in makefiles before //make.mak// file is included.
+
+''APP'' -- binary executable name. If defined the binary application executable image is built.
+
+''LIB'' -- library file name. If defined the library image is built.
+
+''STATIC'' -- if defined as 1, the statically linked binary is built in case of application profile and only archive with object files for library profile. If not defined or defined as 0, the dynamically linked binary is built for application and both archive and shared library are built for library profile.
+
+''COMPILE_FLAGS'' -- additional flags for gcc common for all languages files.
+
+''COMPILE_FLAGS_CXX'' -- additional flags for gcc for C++ source files.
+
+''COMPILE_FLAGS_C'' -- additional flags for gcc for C source files.
+
+''COMPILE_FLAGS_ASM'' -- additional flags for gcc for assembler source files.
+
+''SRCS'' -- additional source files to be compiled.
+
+''LINK_FLAGS'' -- additional flags for linker.
+
+''LINK_FILES'' -- additional files to link with the result image.
+
+''LINK_SCRIPTS'' -- additional linker scripts to pass to linker.
+
+''INSTALL_DIR'' -- installation directory in the filesystem image.
+
+''INCLUDES'' -- additional include files search directories.
+
+''LIBS'' -- additional libraries to link the resulted image with.
+
+''LOAD_ADDRESS'' -- virtual load address for application binary image.
+
+''SUBDIRS'' -- subdirectories where to launch child make process with the given goal.
+

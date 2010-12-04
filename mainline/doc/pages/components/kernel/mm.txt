@@ -8,12 +8,18 @@ Main functionality of memory manager is implemented in MM class. This class cons
 
 ''MM::Map::Allocate'' method allocates kernel virtual memory block and maps it to physical memory. ''MM::Map::AllocateSpace'' method allocates pure space in virtual space map. ''MM::Map::Free'' method can be used to free both types of space. ''MM::Map::ReserveSpace'' and ''MM::Map::UnReserveSpace'' methods allow space reservation in a map.
 
+For detailed information about memory layout in a process user address space see [[components:system:executable_loading|Executable image loading]] page.
+
 ^ Virtual memory layout ^
 | {{components:kernel:mem_layout.png|Phobos memory layout}} |
 
 ===== Pagers =====
-Memory objects can be backed by pagers. However an can have no pager associated with it - in such case all its pages are always resident in memory. Pager is represented by ''MM::Pager'' base class. The class is an abstraction layer between backing storage object (file or swap) and a memory object. The memory object has ''pagerOffset'' member which identifies position of the object projection to backing storage object. It can be either some direct offset value (e.g. in case of file mapping) or some abstract identifier which is interpreted by the corresponding pager implementation. The following common methods are used for interfacing with a pager:
+Memory objects can be backed by pagers. However an object can have no pager associated with it - in such case all its pages are always resident in memory. A pager is represented by ''MM::Pager'' base class. The class is an abstraction layer between backing storage object (file or swap) and a memory object. The memory object has ''pagerOffset'' member which identifies position of the object projection to backing storage object. It can be either some direct offset value (e.g. in case of file mapping) or some abstract identifier which is interpreted by the corresponding pager implementation. The following common methods are used for interfacing with a pager:
   * ''HasPage'' -- return ''TRUE'' if the page is present in the pager backing storage object.
   * ''GetPage'' -- load page from the pager backing storage object to the provided memory page.
   * ''PutPage'' -- save the provided memory page to the pager backing storage object.
 
+===== User space dynamical memory =====
+VM object for representing all the process dynamical memory (heap object) is ''PM::Process::heapObj''. It is created with size equal to ''GATE_AREA_ADDRESS'' so it able to cover process address space from zero up to gate objects area. However the minimal allocation address should be after ''.data'' section of executable image (for ELF executables we create separate heap mappings for all memory segments without reflection in the file). When mapping memory chunks the base address of the mapping is always equal to the chunk offset in the heap object.
+
+The overall memory allocation policy is that memory is allocated by large blocks (using buddy allocator) on the kernel side using ''GApp::AllocateHeap()'' method. These large blocks are used by some bucket or slab allocators on the user space side (in library).

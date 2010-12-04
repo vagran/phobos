@@ -1,11 +1,17 @@
 ---//$Id$//
 ====== PhobOS ======
 
-PhobOS – object-oriented operating system completely written in C++. During its design author attempted to get the best ideas from Linux, FreeBSD and Windows(((many things noted there which should not be done in your OS :-))) design and implement them using object-oriented programming principles. The system is designed to support only one architecture - x86 PC. Another idea is to implement support only for the most recent hardware and system software (BIOS and firmware) standards and do not support obsolete legacy devices, interface and specifications. When the choice is made between performance (several CPU cycles) and code quality and portability the second case is chosen. Many original ideas were used in the system concept development (e.g. the most magic and tricky area - [[components:kernel:syscalls|kernel system calls]] interface).
+PhobOS – object-oriented operating system completely written in C++. During its design author attempted to get the best ideas from Linux, FreeBSD and Windows design and implement them using object-oriented programming principles. The system is designed to support only one architecture - x86 PC. Another idea is to implement support only for the most recent hardware and system software (BIOS and firmware) standards and do not support obsolete legacy devices, interface and specifications. When the choice is made between performance (several CPU cycles) and code quality and portability the second case is chosen. Many original ideas were used in the system concept development (e.g. the most magic and tricky area - [[components:kernel:syscalls|kernel system calls]] interface).
+
+There are used some [[misc:third_party|third parties' components]] in the system. Mostly they are open source libraries modified to fit in PhobOS system concept.
 
 ====== Components ======
 
   * [[components:kernel:kernel]]
+  * [[components:system:system]]
+
+====== Other information ======
+  * [[misc:build_process|PhobOS build process]]
 
 ====== Project diaries ======
 The project development history was briefly logged in [[diary|project diaries]].

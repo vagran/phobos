@@ -16,3 +16,5 @@ Such approach has the following advantages:
 PhobOS system calls entry points code is defined in file ''kernel/gate/gate.S''. Each gate object virtual methods table is replaced by new table which has elements which point to entries in **dispatch table**. A dispatch table contains entries which are copied from code between ''GateEntryStart'' and ''GateEntryEnd'' labels. It has ''GM::GateArea::MAX_GATE_METHODS'' entries. This is the limit of total number of all virtual methods of a gate object.
 
 Since ''sysexit'' instruction is used to switch back in user mode and register ''%edx'' is used for user instruction pointer argument, the gate methods return value size is limited to 32 bits.
+
+When user data passed to the kernel in user-space buffers (or the buffers are provided to get data from the kernel) the buffers mapping is verified by ''PM::Process::CheckUserBuf()'' and ''PM::Process::CheckUserString()'' methods. They verify that the buffer pages are accessible by the process (user/supervisor, read/write, execute-disable flags checked).

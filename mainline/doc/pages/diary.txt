@@ -4,6 +4,555 @@
 Here is briefly logged the history of the project development.
 
 ===== Revisions history =====
+r156 | vagran | 2010-11-15 09:20:24 EET
+Changed paths:
+	M /mainline/Makefile
+	M /mainline/bin/rt_linker/Makefile
+	M /mainline/bin/rt_linker/rt_linker.cpp
+	A /mainline/bin/rt_linker/rt_linker.h
+	M /mainline/include/user.h
+	M /mainline/kernel/gate/core/GProcess.h
+	M /mainline/kernel/gate/core/GVFS.cpp
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/sys/String.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/lib/common/CommonLib.cpp
+	M /mainline/lib/common/String.cpp
+	M /mainline/lib/elf/32.newphdr.cpp
+	M /mainline/lib/elf/begin.cpp
+	M /mainline/lib/elf/cook.cpp
+	M /mainline/lib/elf/end.cpp
+	M /mainline/lib/elf/getarsym.cpp
+	M /mainline/lib/elf/getdata.cpp
+	M /mainline/lib/elf/input.cpp
+	M /mainline/lib/elf/libelf.h
+	M /mainline/lib/elf/newscn.cpp
+	M /mainline/lib/elf/nlist.cpp
+	M /mainline/lib/elf/opt.delscn.cpp
+	M /mainline/lib/elf/private.h
+	M /mainline/lib/elf/rawdata.cpp
+	M /mainline/lib/elf/update.cpp
+	M /mainline/lib/elf/x.remscn.cpp
+	M /mainline/lib/user/user.cpp
+	M /mainline/make/make.mak
+	M /mainline/make/makevar.mak
+	M /mainline/mfs/Makefile
+
+Fixed infinite loop in memcmp(). Memory filesystem is not now built twice.
+----------------------------------------------------------------------------
+r155 | vagran | 2010-11-14 00:49:18 EET
+Changed paths:
+	M /mainline/bin/rt_linker/Makefile
+	M /mainline/kernel/gate/core/App.h
+	M /mainline/kernel/gate/core/GProcess.cpp
+	M /mainline/kernel/gate/core/GProcess.h
+	M /mainline/kernel/gate/core/GVFS.cpp
+	M /mainline/kernel/gate/core/GVFS.h
+	M /mainline/kernel/sys/String.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/lib/Makefile
+	M /mainline/lib/common/String.cpp
+	M /mainline/lib/elf
+	M /mainline/lib/elf/begin.cpp
+	M /mainline/lib/elf/checksum.cpp
+	M /mainline/lib/elf/cntl.cpp
+	M /mainline/lib/elf/cook.cpp
+	M /mainline/lib/elf/data.cpp
+	M /mainline/lib/elf/end.cpp
+	M /mainline/lib/elf/errmsg.cpp
+	M /mainline/lib/elf/errno.cpp
+	M /mainline/lib/elf/fill.cpp
+	M /mainline/lib/elf/flag.cpp
+	M /mainline/lib/elf/gelfehdr.cpp
+	M /mainline/lib/elf/gelfphdr.cpp
+	M /mainline/lib/elf/gelfshdr.cpp
+	M /mainline/lib/elf/gelftrans.cpp
+	M /mainline/lib/elf/getarhdr.cpp
+	M /mainline/lib/elf/getaroff.cpp
+	M /mainline/lib/elf/getarsym.cpp
+	M /mainline/lib/elf/getbase.cpp
+	M /mainline/lib/elf/getdata.cpp
+	M /mainline/lib/elf/getident.cpp
+	M /mainline/lib/elf/getscn.cpp
+	M /mainline/lib/elf/hash.cpp
+	M /mainline/lib/elf/input.cpp
+	M /mainline/lib/elf/kind.cpp
+	M /mainline/lib/elf/libelf.h
+	M /mainline/lib/elf/ndxscn.cpp
+	M /mainline/lib/elf/newdata.cpp
+	M /mainline/lib/elf/newscn.cpp
+	M /mainline/lib/elf/next.cpp
+	M /mainline/lib/elf/nextscn.cpp
+	M /mainline/lib/elf/nlist.cpp
+	A /mainline/lib/elf/nlist.h
+	M /mainline/lib/elf/opt.delscn.cpp
+	M /mainline/lib/elf/private.h
+	M /mainline/lib/elf/rand.cpp
+	M /mainline/lib/elf/rawdata.cpp
+	M /mainline/lib/elf/rawfile.cpp
+	M /mainline/lib/elf/strptr.cpp
+	M /mainline/lib/elf/swap64.cpp
+	M /mainline/lib/elf/update.cpp
+	A /mainline/lib/elf/verdef.h
+	M /mainline/lib/elf/verdef_32_tof.cpp
+	M /mainline/lib/elf/verdef_32_tom.cpp
+	M /mainline/lib/elf/verdef_64_tof.cpp
+	M /mainline/lib/elf/verdef_64_tom.cpp
+	A /mainline/lib/elf/verneed.h
+	M /mainline/lib/elf/version.cpp
+	M /mainline/lib/elf/x.elfext.cpp
+	M /mainline/lib/elf/x.movscn.cpp
+	M /mainline/lib/elf/x.remscn.cpp
+	M /mainline/make/make.mak
+
+Ticket #19. Libelf ported to PhobOS.
+
+//This the great day. It is the first third party software ported to PhobOS platform! Although I want to write anything from scratches, sometimes it is very reasonable to use some existing stuff. So probably there will be more ports in the future.//
+----------------------------------------------------------------------------
+r154 | vagran | 2010-11-13 13:37:04 EET
+Changed paths:
+	M /mainline/bin/rt_linker/rt_linker.cpp
+	M /mainline/include/user.h
+	M /mainline/kernel/gate/core/App.cpp
+	M /mainline/kernel/gate/core/GVFS.cpp
+	M /mainline/kernel/gate/core/GVFS.h
+	M /mainline/kernel/make/make.mak
+	A /mainline/kernel/sys/Stack.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/vfs/vfs.cpp
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/make/makevar.mak
+
+Ticket #6: Partially implemented: files reading and basic operations in order to unblock other tickets.
+----------------------------------------------------------------------------
+r153 | vagran | 2010-11-10 08:26:43 EET
+Changed paths:
+	M /mainline/Makefile
+	M /mainline/bin/rt_linker/rt_linker.cpp
+	A /mainline/etc
+	A /mainline/etc/Makefile
+	A /mainline/etc/test.txt
+	M /mainline/include/user.h
+	M /mainline/kernel/fs/ext2/ext2fs.cpp
+	M /mainline/kernel/fs/ext2/ext2fs.h
+	M /mainline/kernel/fs/fs.h
+	M /mainline/kernel/gate/core/App.cpp
+	M /mainline/kernel/gate/core/App.h
+	A /mainline/kernel/gate/core/GVFS.cpp
+	A /mainline/kernel/gate/core/GVFS.h
+	M /mainline/kernel/gate/gate.h
+	M /mainline/kernel/kern/error.cpp
+	M /mainline/kernel/kern/gm.h
+	M /mainline/kernel/kern/tm.h
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/sys/error.h
+	M /mainline/kernel/vfs/vfs.cpp
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/lib/Makefile
+	A /mainline/lib/elf/32.fsize.cpp
+	A /mainline/lib/elf/32.getehdr.cpp
+	A /mainline/lib/elf/32.getphdr.cpp
+	A /mainline/lib/elf/32.getshdr.cpp
+	A /mainline/lib/elf/32.newehdr.cpp
+	A /mainline/lib/elf/32.newphdr.cpp
+	A /mainline/lib/elf/32.xlatetof.cpp
+	A /mainline/lib/elf/64.xlatetof.cpp
+	A /mainline/lib/elf/Makefile
+	A /mainline/lib/elf/assert.cpp
+	A /mainline/lib/elf/begin.cpp
+	A /mainline/lib/elf/byteswap.h
+	A /mainline/lib/elf/checksum.cpp
+	A /mainline/lib/elf/cntl.cpp
+	A /mainline/lib/elf/cook.cpp
+	A /mainline/lib/elf/data.cpp
+	A /mainline/lib/elf/end.cpp
+	A /mainline/lib/elf/errmsg.cpp
+	A /mainline/lib/elf/errno.cpp
+	A /mainline/lib/elf/errors.h
+	A /mainline/lib/elf/ext_types.h
+	A /mainline/lib/elf/fill.cpp
+	A /mainline/lib/elf/flag.cpp
+	A /mainline/lib/elf/gelf.h
+	A /mainline/lib/elf/gelfehdr.cpp
+	A /mainline/lib/elf/gelfphdr.cpp
+	A /mainline/lib/elf/gelfshdr.cpp
+	A /mainline/lib/elf/gelftrans.cpp
+	A /mainline/lib/elf/getarhdr.cpp
+	A /mainline/lib/elf/getaroff.cpp
+	A /mainline/lib/elf/getarsym.cpp
+	A /mainline/lib/elf/getbase.cpp
+	A /mainline/lib/elf/getdata.cpp
+	A /mainline/lib/elf/getident.cpp
+	A /mainline/lib/elf/getscn.cpp
+	A /mainline/lib/elf/hash.cpp
+	A /mainline/lib/elf/input.cpp
+	A /mainline/lib/elf/kind.cpp
+	A /mainline/lib/elf/libelf.h
+	A /mainline/lib/elf/ndxscn.cpp
+	A /mainline/lib/elf/newdata.cpp
+	A /mainline/lib/elf/newscn.cpp
+	A /mainline/lib/elf/next.cpp
+	A /mainline/lib/elf/nextscn.cpp
+	A /mainline/lib/elf/nlist.cpp
+	A /mainline/lib/elf/opt.delscn.cpp
+	A /mainline/lib/elf/private.h
+	A /mainline/lib/elf/rand.cpp
+	A /mainline/lib/elf/rawdata.cpp
+	A /mainline/lib/elf/rawfile.cpp
+	A /mainline/lib/elf/strptr.cpp
+	A /mainline/lib/elf/swap64.cpp
+	A /mainline/lib/elf/sys_elf.h
+	A /mainline/lib/elf/update.cpp
+	A /mainline/lib/elf/verdef_32_tof.cpp
+	A /mainline/lib/elf/verdef_32_tom.cpp
+	A /mainline/lib/elf/verdef_64_tof.cpp
+	A /mainline/lib/elf/verdef_64_tom.cpp
+	A /mainline/lib/elf/version.cpp
+	A /mainline/lib/elf/x.elfext.cpp
+	A /mainline/lib/elf/x.movscn.cpp
+	A /mainline/lib/elf/x.remscn.cpp
+	M /mainline/make/make.mak
+
+Ticket #6: user space VFS interface implementation in progress.
+----------------------------------------------------------------------------
+r152 | vagran | 2010-10-30 18:50:26 EEST
+Changed paths:
+	M /mainline/bin/Makefile
+	M /mainline/bin/init/Makefile
+	A /mainline/bin/rt_linker
+	A /mainline/bin/rt_linker/Makefile
+	A /mainline/bin/rt_linker/rt_linker.cpp
+	M /mainline/kernel/gate/core/App.cpp
+	M /mainline/kernel/gate/core/App.h
+	M /mainline/kernel/gate/core/GProcess.cpp
+	M /mainline/kernel/gate/core/GProcess.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/kern/elf.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/sys/String.h
+	M /mainline/kernel/sys/elf.h
+	M /mainline/lib/common/BuddyAllocator.cpp
+	M /mainline/lib/common/String.cpp
+	A /mainline/lib/elf
+	M /mainline/lib/startup/AppStartup.cpp
+	M /mainline/lib/startup/Makefile
+	M /mainline/make/link.app.ld
+	M /mainline/make/make.mak
+	M /mainline/make/makevar.mak
+
+Ticket #7: implementation started. Shared libraries conceptualization done. Interpretable images loading by the kernel implemented. Process arguments implemented.
+----------------------------------------------------------------------------
+r151 | vagran | 2010-10-20 22:55:52 EEST
+Changed paths:
+	M /mainline/bin/init/init.cpp
+	M /mainline/include/user.h
+	M /mainline/kernel/gate/core/App.cpp
+	M /mainline/kernel/gate/core/App.h
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	D /mainline/kernel/lib/BuddyAllocator.cpp
+	D /mainline/kernel/lib/SlabAllocator.cpp
+	M /mainline/kernel/sys/MemAllocator.h
+	A /mainline/kernel/sys/SSlabAllocator.h
+	M /mainline/kernel/sys/String.h
+	M /mainline/kernel/sys/stdlib.h
+	M /mainline/kernel/unit_test/Makefile
+	A /mainline/kernel/unit_test/sslab.cpp
+	A /mainline/lib/common/BuddyAllocator.cpp
+	A /mainline/lib/common/SSlabAllocator.cpp
+	A /mainline/lib/common/SlabAllocator.cpp
+	M /mainline/lib/startup/AppStartup.cpp
+	M /mainline/lib/user/mem.cpp
+	M /mainline/lib/user/mem.h
+	M /mainline/lib/user/user.cpp
+
+Ticket #18: Scalable slab allocator implemented for using as user space memory allocator.
+----------------------------------------------------------------------------
+r150 | vagran | 2010-10-06 23:18:07 EEST
+Changed paths:
+	M /mainline/bin/init/init.cpp
+	M /mainline/kernel/gate/core/App.cpp
+	M /mainline/kernel/gate/core/App.h
+	M /mainline/kernel/gate/io/GConsoleStream.cpp
+	M /mainline/kernel/gate/io/GConsoleStream.h
+	M /mainline/kernel/kern/error.cpp
+	M /mainline/kernel/kern/gm.h
+	M /mainline/kernel/sys/error.h
+
+Ticket #16 fixed.
+GApp::Wait() method implemented. The method provides functionality similar to select() POSIX call.
+----------------------------------------------------------------------------
+r149 | vagran | 2010-10-06 21:53:21 EEST
+Changed paths:
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/gate/core/App.cpp
+	M /mainline/kernel/gate/core/App.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/kern/elf.cpp
+	A /mainline/kernel/kern/error.cpp
+	M /mainline/kernel/kern/gm.cpp
+	M /mainline/kernel/kern/gm.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/make/link.ld
+	M /mainline/kernel/sys/String.h
+	M /mainline/kernel/sys/error.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/lib/common/String.cpp
+
+Ticket #17 fixed. 'Error' class implemented. GApp::GetLastError() and GApp::GetLastErrorStr() methods implemented.
+----------------------------------------------------------------------------
+r148 | vagran | 2010-10-04 23:54:11 EEST
+Changed paths:
+	M /mainline/bin/init/init.cpp
+	M /mainline/kernel/dev/chr/KbdConsole.cpp
+	M /mainline/kernel/dev/chr/KbdConsole.h
+	M /mainline/kernel/dev/chr/KbdDev.cpp
+	M /mainline/kernel/dev/chr/KbdDev.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/dev/device.h
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+
+Ticket #14 fixed: PM::SleepMultiple() method implemented. Now any thread can sleep on any waiting channels.
+----------------------------------------------------------------------------
+r147 | vagran | 2010-10-02 22:04:40 EEST
+Changed paths:
+	M /mainline/bin/init/init.cpp
+	A /mainline/kernel/dev/chr/KbdConsole.cpp
+	A /mainline/kernel/dev/chr/KbdConsole.h
+	A /mainline/kernel/dev/chr/KbdController.cpp
+	A /mainline/kernel/dev/chr/KbdController.h
+	A /mainline/kernel/dev/chr/KbdDev.cpp
+	A /mainline/kernel/dev/chr/KbdDev.h
+	A /mainline/kernel/dev/chr/KbdLayout.cpp
+	A /mainline/kernel/dev/chr/KbdLayout.h
+	M /mainline/kernel/dev/device.cpp
+	M /mainline/kernel/dev/device.h
+	D /mainline/kernel/gate/App.cpp
+	D /mainline/kernel/gate/App.h
+	D /mainline/kernel/gate/GProcess.cpp
+	D /mainline/kernel/gate/GProcess.h
+	D /mainline/kernel/gate/GateStream.cpp
+	D /mainline/kernel/gate/GateStream.h
+	M /mainline/kernel/gate/Makefile
+	A /mainline/kernel/gate/core
+	A /mainline/kernel/gate/core/App.cpp
+	A /mainline/kernel/gate/core/App.h
+	A /mainline/kernel/gate/core/GProcess.cpp
+	A /mainline/kernel/gate/core/GProcess.h
+	A /mainline/kernel/gate/core/GTime.cpp
+	A /mainline/kernel/gate/core/GTime.h
+	A /mainline/kernel/gate/core/Makefile
+	M /mainline/kernel/gate/gate.h
+	A /mainline/kernel/gate/io
+	A /mainline/kernel/gate/io/GConsoleStream.cpp
+	A /mainline/kernel/gate/io/GConsoleStream.h
+	A /mainline/kernel/gate/io/GateStream.cpp
+	A /mainline/kernel/gate/io/GateStream.h
+	A /mainline/kernel/gate/io/Makefile
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/kern/gm.cpp
+	M /mainline/kernel/kern/im.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/kern/tm.h
+	A /mainline/kernel/sys/Fifo.h
+	M /mainline/kernel/sys/defs.h
+	M /mainline/kernel/sys/lock.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/unit_test/queue.cpp
+	M /mainline/kernel/vfs/vfs.h
+	M /mainline/lib/common/StringTree.cpp
+
+Ticket #9 fixed.
+Keyboard driver implemented, old 8042 controller support.
+----------------------------------------------------------------------------
+r146 | vagran | 2010-09-28 22:05:49 EEST
+Changed paths:
+	M /mainline/kernel/gate/GProcess.cpp
+	M /mainline/kernel/kern/lock.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/sys/lock.h
+
+Mutex fixed to use spin loop when process management is not yet completely initialized. CheckPageProtection() fixed to return 0 in case of success.
+----------------------------------------------------------------------------
+r145 | vagran | 2010-09-28 19:03:27 EEST
+Changed paths:
+	M /mainline/bin/init/init.cpp
+	M /mainline/kernel/gate/App.cpp
+	M /mainline/kernel/gate/GProcess.cpp
+	M /mainline/kernel/gate/GateStream.cpp
+	M /mainline/kernel/kern/gm.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/mem/pte.h
+
+Fixed ticket #11. PM::Process::CheckUserBuf() and PM::Process::CheckUserString() methods implemented to validate user buffers.
+----------------------------------------------------------------------------
+r144 | vagran | 2010-09-27 21:26:04 EEST
+Changed paths:
+	M /mainline/kernel/gate/App.cpp
+	M /mainline/kernel/gate/GateStream.cpp
+	M /mainline/kernel/gate/GateStream.h
+	M /mainline/kernel/gate/gate.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/sys/queue.h
+	D /mainline/svn-commit.tmp
+
+Removing accidently committed file.
+----------------------------------------------------------------------------
+r143 | vagran | 2010-09-25 21:22:04 EEST
+Changed paths:
+	M /mainline/Makefile
+	M /mainline/bin/init/init.cpp
+	A /mainline/include/user.h
+	M /mainline/kernel/gate/App.cpp
+	M /mainline/kernel/gate/App.h
+	A /mainline/kernel/gate/GProcess.cpp
+	A /mainline/kernel/gate/GProcess.h
+	A /mainline/kernel/gate/GateStream.cpp
+	A /mainline/kernel/gate/GateStream.h
+	M /mainline/kernel/kern/elf.cpp
+	D /mainline/kernel/kern/object.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/lib/Makefile
+	D /mainline/kernel/lib/String.cpp
+	D /mainline/kernel/lib/common
+	D /mainline/kernel/lib/gcc.cpp
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/make/unit_test.mak
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/sys/MemAllocator.h
+	M /mainline/kernel/sys/String.h
+	M /mainline/kernel/sys/elf.h
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/kernel/unit_test/Makefile
+	M /mainline/lib/Makefile
+	A /mainline/lib/common
+	A /mainline/lib/common/CommonLib.cpp
+	M /mainline/lib/common/Makefile
+	A /mainline/lib/common/String.cpp
+	A /mainline/lib/common/StringTree.cpp
+	R /mainline/lib/common/Tree.cpp
+	A /mainline/lib/common/gcc.cpp
+	A /mainline/lib/common/object.cpp
+	M /mainline/lib/startup/AppStartup.cpp
+	A /mainline/lib/user
+	A /mainline/lib/user/Makefile
+	A /mainline/lib/user/mem.cpp
+	A /mainline/lib/user/mem.h
+	A /mainline/lib/user/user.cpp
+	M /mainline/make/make.mak
+	M /mainline/make/makevar.mak
+	M /mainline/mfs/Makefile
+	A /mainline/svn-commit.tmp
+
+Fixed ticket #10.
+ELF BSS section mapping implemented.
+String class significantly enhanced. Convenient mechanism for passing strings from the kernel to the user space developed.
+Common code for the kernel and user processes placed in common library. User library created for user processes specific run-time support code.
+----------------------------------------------------------------------------
+r142 | vagran | 2010-09-24 22:33:24 EEST
+Changed paths:
+	M /mainline/kernel/gate/App.h
+	M /mainline/kernel/kdb/debugger.cpp
+	A /mainline/kernel/lib/common/StringTree.cpp
+	M /mainline/kernel/lib/common/Tree.cpp
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/sys/queue.h
+	M /mainline/kernel/sys/stdlib.h
+	M /mainline/kernel/unit_test/CTest.h
+	M /mainline/kernel/unit_test/Makefile
+	M /mainline/kernel/unit_test/main.cpp
+	M /mainline/kernel/unit_test/queue.cpp
+
+StringTree class implemented. Now we have convenient and fast way to store and search strings.
+----------------------------------------------------------------------------
+r141 | vagran | 2010-09-13 22:48:48 EEST
+Changed paths:
+	M /mainline/kernel/gate/App.h
+	M /mainline/kernel/gate/gate.S
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+
+Ticket #1: Properly handle thread and process exit.
+
+GApp::ExitThread method implemented. When a thread exits its state advanced to S_TERMINATED. When the last alive thread of a process terminated, the process is terminated. All resources are freed only when threads and processes objects destroyed.
+Bug fixed: Gate methods arguments were not properly passed when invoking from kernel.
+Bug fixed: %ebx register clobbered in gate method entry for user-space calls.
+
+----------------------------------------------------------------------------
+r140 | vagran | 2010-09-12 20:57:55 EEST
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/gate/App.cpp
+	M /mainline/kernel/gate/App.h
+	M /mainline/kernel/kdb/debugger.cpp
+	M /mainline/kernel/kern/im.cpp
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/kern/tm.cpp
+	M /mainline/kernel/kern/trap_hi.cpp
+	M /mainline/kernel/sys/cpu_instr.h
+	M /mainline/lib/startup/AppStartup.cpp
+
+Ticket #3
+Fix hardware interrupts recursion. Occurs when qemu debugger is in tracing mode after sti() executed. Leads to stack overflow and tripple fault.
+Fixed: When the kernel is stopped in the Qemu debugger, all the pending interrupts from Real-Time Clock are accumulated and are send in one huge batch when the kernel resumed. It leaded to recursion in traps/interrupts handlers (new interrupt was issued just after EOI was send to PIC).
+----------------------------------------------------------------------------
+r139 | vagran | 2010-08-29 22:45:42 EEST
+Changed paths:
+	M /mainline/kernel/dev/sys/cpu.cpp
+	M /mainline/kernel/dev/sys/cpu.h
+	M /mainline/kernel/dev/sys/lapic.h
+	M /mainline/kernel/gate/gate.S
+	M /mainline/kernel/init/main.cpp
+	M /mainline/kernel/kern/gm.cpp
+	M /mainline/kernel/kern/gm.h
+	M /mainline/kernel/kern/pm.cpp
+	M /mainline/kernel/kern/pm.h
+	M /mainline/kernel/kern/trap.S
+	M /mainline/kernel/kern/trap_hi.cpp
+	A /mainline/kernel/lib/String.cpp
+	M /mainline/kernel/lib/stdlib.cpp
+	M /mainline/kernel/make/make.mak
+	M /mainline/kernel/mem/mm.cpp
+	M /mainline/kernel/mem/mm.h
+	M /mainline/kernel/mem/segments.cpp
+	A /mainline/kernel/sys/String.h
+	M /mainline/kernel/sys/sys.h
+	M /mainline/make/make.mak
+
+Threads and processes faults implemented.
+----------------------------------------------------------------------------
+r138 | vagran | 2010-08-01 14:12:31 EEST
+Changed paths:
+	A /mainline/doc/pages/components/kernel/gm.txt
+	M /mainline/doc/pages/components/kernel/kernel.txt
+	M /mainline/doc/pages/components/kernel/mm.txt
+	A /mainline/doc/pages/components/kernel/syscalls.txt
+	M /mainline/doc/pages/diary.txt
+	M /mainline/doc/pages/start.txt
+
+Documentation update.
+
+----------------------------------------------------------------------------
 r137 | vagran | 2010-08-01 14:05:29 EEST
 Changed paths:
 	M /mainline/kernel/kern/pm.h
