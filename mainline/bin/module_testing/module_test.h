@@ -11,6 +11,10 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#ifndef MT_NAME
+#define MT_NAME		"Module testing"
+#endif /* MT_NAME */
+
 enum MTestValues {
 	MT_BYTE_VALUE =		(u8)42, /* The meaning of the life */
 	MT_BYTE_VALUE2 =	(u8)~MT_BYTE_VALUE,
@@ -104,12 +108,12 @@ inline void __mt_logv(const char *func, u32 line, const char *fmt, va_list args)
 inline void
 __mt_logv(const char *func, u32 line, const char *fmt, va_list args)
 {
-	CString s = "Module testing";
+	CString s = MT_NAME;
 	MTest *test = MTestMan::GetCurTest();
 	if (test) {
-		s.AppendFormat(" (%s):", test->GetName());
+		s.AppendFormat(" (%s): ", test->GetName());
 	} else {
-		s += ':';
+		s += ": ";
 	}
 	s.AppendFormatV(fmt, args);
 	printf("%s\n", s.GetBuffer());

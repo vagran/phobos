@@ -933,6 +933,10 @@ PM::Process::GetStream(const char *name)
 int
 PM::Process::CheckUserBuf(void *buf, u32 size, MM::Protection protection)
 {
+	if (!size) {
+		return 0;
+	}
+
 	PM::Thread *thrd = PM::Thread::GetCurrent();
 	PM::Process *proc = thrd->GetProcess();
 	MM::Map *map = proc->GetUserMap();
@@ -941,7 +945,11 @@ PM::Process::CheckUserBuf(void *buf, u32 size, MM::Protection protection)
 	if (thrd->IsKernelStack((vaddr_t)buf, size)) {
 		thrd->Fault(PM::PFLT_INVALID_BUFFER,
 			"Invalid buffer - %lu bytes at 0x%08lx, "
-			"access denied to the kernel stack", size, (u32)buf);
+			"access denied to the kernel stack, requested access: %c%c%c",
+			size, (u32)buf,
+			(protection & MM::PROT_READ) ? 'r' : '-',
+			(protection & MM::PROT_WRITE) ? 'w' : '-',
+			(protection & MM::PROT_EXEC) ? 'x' : '-');
 		return -1;
 	}
 
@@ -1083,8 +1091,12 @@ PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
 	 */
 	ensure(userMap->ReserveSpace(0, PAGE_SIZE));
 
-	/* BSS object is used for BSS binary sections which must be initialized to zeros*/
-	bssObj = NEW(MM::VMObject, GATE_AREA_ADDRESS, MM::VMObject::F_ZERO);
+	/*
+	 * BSS object is used for BSS binary sections which must be initialized to
+	 * zeros, and for user heap allocations which also must be zeroed.
+	 */
+	bssObj = NEW(MM::VMObject, GATE_AREA_ADDRESS,
+		MM::VMObject::F_HEAP | MM::VMObject::F_ZERO);
 	if (!bssObj) {
 		return -1;
 	}
@@ -1105,13 +1117,20 @@ PM::Process::Initialize(u32 priority, const char *name, int isKernelProc)
 }
 
 void *
-PM::Process::AllocateHeap(u32 size, int prot)
+PM::Process::AllocateHeap(u32 size, int prot, void *location, int getZeroed)
 {
 	if (prot & ~(MM::PROT_READ | MM::PROT_WRITE | MM::PROT_EXEC)) {
 		ERROR(E_INVAL, "Invalid protection value specified");
 		return 0;
 	}
-	MM::Map::Entry *e = userMap->InsertObjectOffs(heapObj, size, 0, prot);
+	MM::Map::Entry *e;
+	MM::VMObject *obj = getZeroed ? bssObj : heapObj;
+	if (location) {
+		e = userMap->InsertObjectAt(obj, (vaddr_t)location, (vaddr_t)location,
+			size, prot);
+	} else {
+		e = userMap->InsertObjectOffs(obj, size, 0, prot);
+	}
 	if (!e) {
 		ERROR(E_FAULT, "Failed to allocate entry for heap object");
 		return 0;
@@ -1128,7 +1147,7 @@ PM::Process::GetHeapEntry(vaddr_t va)
 		ERROR(E_INVAL, "Heap entry not found for specified address (0x%08lx)", va);
 		return 0;
 	}
-	if (e->object != heapObj) {
+	if (e->object != heapObj && e->object != bssObj) {
 		ERROR(E_INVAL, "The entry doesn't belong to heap object (0x%08lx)", va);
 		return 0;
 	}
@@ -1141,6 +1160,40 @@ PM::Process::FreeHeap(void *p)
 	MM::Map::Entry *e = GetHeapEntry((vaddr_t)p);
 	if (!e) {
 		ERROR(E_FAULT, "Cannot find heap entry");
+		return -1;
+	}
+	if (userMap->Free(e)) {
+		ERROR(E_FAULT, "Map allocator Free() method failed");
+		return -1;
+	}
+	return 0;
+}
+
+void *
+PM::Process::ReserveSpace(u32 size, vaddr_t va)
+{
+	MM::Map::Entry *e = userMap->AllocateSpace(size, &va, va != 0);
+	if (!e) {
+		ERROR(E_NOMEM, "Cannot allocate space in the user map (0x%lx @ %08lx)",
+			size, va);
+		return 0;
+	}
+	e->flags |= MM::Map::Entry::F_USERRESERVED;
+	return (void *)e->base;
+}
+
+int
+PM::Process::UnReserveSpace(void *p)
+{
+	MM::Map::Entry *e = userMap->Lookup((vaddr_t)p, 0);
+	if (!e) {
+		ERROR(E_INVAL, "Map entry not found for specified address (0x%08lx)",
+			(vaddr_t)p);
+		return -1;
+	}
+	if (!(e->flags & MM::Map::Entry::F_USERRESERVED)) {
+		ERROR(E_INVAL, "Map entry is not space reservation entry (0x%08lx)",
+			(vaddr_t)p);
 		return -1;
 	}
 	if (userMap->Free(e)) {

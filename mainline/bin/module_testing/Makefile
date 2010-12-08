@@ -10,4 +10,6 @@ STATIC = 1
 
 INCLUDES += .
 
+COMPILE_FLAGS += -DMT_STATIC
+
 include $(PHOBOS_ROOT)/make/make.mak

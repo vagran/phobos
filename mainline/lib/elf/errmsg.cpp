@@ -39,11 +39,11 @@ static nl_catd _libelf_cat = (nl_catd)0;
 static const char domain[] = "libelf";
 #endif /* HAVE_DGETTEXT || HAVE_CATGETS */
 
-#if PIC
+#if __PIC
 static const char *_messages[] = {
-#else /* PIC */
+#else /* __PIC */
 static const char *const _messages[] = {
-#endif /* PIC */
+#endif /* __PIC */
 #define __err__(a,b)	b,
 #include "errors.h"		/* include string tables from errors.h */
 #undef __err__

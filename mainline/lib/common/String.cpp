@@ -31,7 +31,7 @@ template <class Allocator>
 String<Allocator>::String(Object *obj, StringProvider str, void *arg) : info(this,
 	(StringProvider)&String<Allocator>::Get)
 {
-	Initialize((obj->*str)(0, 0, arg));
+	Initialize((obj->*str)(0, 0, arg) + 1);
 	(obj->*str)(LockBuffer(), bufLen, arg);
 	ReleaseBuffer();
 }
@@ -40,7 +40,7 @@ template <class Allocator>
 String<Allocator>::String(const StringInfo &str) : info(this,
 	(StringProvider)&String<Allocator>::Get)
 {
-	Initialize((str.obj->*str.str)(0, 0, str.arg));
+	Initialize((str.obj->*str.str)(0, 0, str.arg) + 1);
 	(str.obj->*str.str)(LockBuffer(), bufLen, str.arg);
 	ReleaseBuffer();
 }
@@ -62,6 +62,7 @@ String<Allocator>::Initialize(int len)
 	bufLen = roundup2(len, ALLOC_GRAN);
 	if (len <= (int)sizeof(staticBuf)) {
 		buf = staticBuf;
+		bufLen = sizeof(staticBuf);
 	} else {
 		buf = (char *)malloc(bufLen);
 	}
@@ -184,6 +185,7 @@ String<Allocator>::Realloc(int len)
 			mfree(buf);
 			buf = staticBuf;
 		}
+		bufLen = sizeof(staticBuf);
 	} else {
 		if (buf != staticBuf) {
 			buf = (char *)mrealloc(buf, bufLen);
@@ -431,7 +433,7 @@ template <class Allocator>
 int
 String<Allocator>::SubStr(String &dst, int start, int end)
 {
-	if (start >= len || end <= start) {
+	if (start >= len || (end != -1 && end <= start)) {
 		dst = (char *)0;
 		return 0;
 	}

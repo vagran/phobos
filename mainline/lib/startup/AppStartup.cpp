@@ -9,6 +9,9 @@
 #include <sys.h>
 phbSource("$Id$");
 
+extern "C" void *__dso_handle;
+void *__dso_handle;
+
 extern int Main(GApp *app);
 
 extern "C" void AppStart(GApp *app);

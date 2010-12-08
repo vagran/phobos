@@ -1,5 +1,5 @@
 /*
- * /make/link.app.ld
+ * /make/link.dynapp.ld
  * $Id$
  *
  * This file is a part of PhobOS operating system.

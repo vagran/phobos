@@ -17,13 +17,12 @@ DECLARE_GCLASS(GProcess);
 
 class GProcess : public GateObject {
 private:
-
+	PM::Process *refProc;
 public:
-	GProcess();
+	GProcess(PM::Process *refProc = 0);
 	virtual ~GProcess();
 
 	virtual PM::pid_t GetPID();
-	virtual PM::pid_t GetThreadID();
 	virtual DECL_STR_PROV(GetName);
 	virtual DECL_STR_PROV(GetArgs);
 	virtual int SetArgs(const char *args);

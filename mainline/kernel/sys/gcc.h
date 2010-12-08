@@ -26,8 +26,6 @@ typedef struct {
 
 #define VTABLE(obj)		(*(FUNC_PTR **)(obj))
 
-extern "C" void *__dso_handle;
-
 class CXA {
 public:
 	typedef struct {

@@ -9,7 +9,10 @@
 #include <sys.h>
 phbSource("$Id$");
 
+#ifdef KERNEL
+/* For application binaries it is defined in startup library */
 void *__dso_handle;
+#endif /* KERNEL */
 
 extern "C" CXA::CallbackList _CTOR_LIST, _DTOR_LIST;
 

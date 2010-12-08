@@ -197,9 +197,9 @@ GApp::GetVFS()
 }
 
 void *
-GApp::AllocateHeap(u32 size, int prot)
+GApp::AllocateHeap(u32 size, int prot, void *location, int getZeroed)
 {
-	return proc->AllocateHeap(size, prot);
+	return proc->AllocateHeap(size, prot, location, getZeroed);
 }
 
 u32
@@ -212,4 +212,36 @@ int
 GApp::FreeHeap(void *p)
 {
 	return proc->FreeHeap(p);
+}
+
+void *
+GApp::ReserveSpace(u32 size, vaddr_t va)
+{
+	return proc->ReserveSpace(size, va);
+}
+
+int
+GApp::UnReserveSpace(void *p)
+{
+	return proc->UnReserveSpace(p);
+}
+
+GProcess *
+GApp::CreateProcess(const char *path, const char *name, int priority,
+	const char *args)
+{
+	if (proc->CheckUserString(path) || proc->CheckUserString(name)) {
+		return 0;
+	}
+	PM::Process *newProc = pm->CreateProcess(path, name, priority, args);
+	if (!newProc) {
+		ERROR(E_FAULT, "Cannot create process");
+		return 0;
+	}
+	GProcess *gproc = GNEW(gateArea, GProcess, newProc);
+	if (!gproc) {
+		ERROR(E_NOMEM, "Cannot create GProcess object");
+	}
+	gproc->AddRef();
+	return gproc;
 }

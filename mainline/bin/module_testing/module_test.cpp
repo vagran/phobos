@@ -67,6 +67,26 @@ TestDataSegments()
 }
 
 /**************************************************/
+/* Launch the child process - dynamic module testing binary */
+
+#define NUM_DYN_ARGS	16
+
+void
+TestDyn()
+{
+	CString args;
+
+	args.Format("%d", NUM_DYN_ARGS);
+	for (int i = 0; i < NUM_DYN_ARGS; i++) {
+		args.AppendFormat(" mt_arg%d", i);
+	}
+	GProcess *proc = uLib->GetApp()->CreateProcess("/bin/module_test_dyn",
+		"Dynamical module testing binary", PM::DEF_PRIORITY, args);
+	mt_assert(proc);
+	proc->Release();
+}
+
+/**************************************************/
 
 int
 Main(GApp *app)
@@ -82,6 +102,10 @@ Main(GApp *app)
 	TestStaticObj();
 
 	mtMan.RunTests();
+
+#ifdef MT_STATIC
+	TestDyn();
+#endif
 
 	mtlog("Module testing successfully finished");
 	return 0;

@@ -45,9 +45,15 @@ public:
 	virtual GTime *GetTime();
 	virtual GVFS *GetVFS();
 
-	virtual void *AllocateHeap(u32 size, int prot = MM::PROT_READ | MM::PROT_WRITE);
+	virtual void *AllocateHeap(u32 size, int prot = MM::PROT_READ | MM::PROT_WRITE,
+		void *location = 0, int getZeroed = 0);
 	virtual u32 GetHeapSize(void *p);
 	virtual int FreeHeap(void *p);
+	virtual void *ReserveSpace(u32 size, vaddr_t va = 0);
+	virtual int UnReserveSpace(void *p);
+
+	virtual GProcess *CreateProcess(const char *path, const char *name = 0,
+		int priority = PM::DEF_PRIORITY, const char *args = 0);
 
 	DECLARE_GCLASS_IMP(GApp);
 };

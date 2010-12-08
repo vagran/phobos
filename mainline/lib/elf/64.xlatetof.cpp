@@ -282,11 +282,11 @@ typedef xlator xltab[ELF_T_NUM][2];
 /*
  * translation table (64-bit, version 1 -> version 1)
  */
-#if PIC
+#if __PIC
 static xltab
-#else /* PIC */
+#else /* __PIC */
 static const xltab
-#endif /* PIC */
+#endif /* __PIC */
 xlate64_11[/*encoding*/] = {
     {
 	{ byte_copy,        byte_copy       },
@@ -341,11 +341,11 @@ xlate64_11[/*encoding*/] = {
 /*
  * main translation table (64-bit)
  */
-#if PIC
+#if __PIC
 static xltab*
-#else /* PIC */
+#else /* __PIC */
 static const xltab *const
-#endif /* PIC */
+#endif /* __PIC */
 xlate64[EV_CURRENT - EV_NONE][EV_CURRENT - EV_NONE] = {
     { xlate64_11, },
 };

@@ -118,7 +118,7 @@ else
 $(error Target not supported: $(TARGET))
 endif
 
-SRCS = $(wildcard *.S *.c *.cpp)
+SRCS += $(wildcard *.S *.c *.cpp)
 OBJS_LOCAL = $(subst .S,.o,$(subst .c,.o,$(subst .cpp,.o,$(SRCS))))
 OBJS = $(foreach obj,$(OBJS_LOCAL),$(OBJ_DIR)/$(obj))
 OBJS_SO = $(subst .o,.so,$(OBJS))
@@ -173,15 +173,17 @@ $(OBJ_DIR)/%.o: %.cpp
 $(OBJ_DIR)/%.o: %.S
 	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -o $@ $<
 
+PIC_FLAGS += -fpic -D__PIC=1
+
 # Position-independent objects
 $(OBJ_DIR)/%.so: %.c
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) -fpic -D__PIC -o $@ $<
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_C) $(PIC_FLAGS) -o $@ $<
 
 $(OBJ_DIR)/%.so: %.cpp
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) -fpic -D__PIC -o $@ $<
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_CXX) $(PIC_FLAGS) -o $@ $<
 
 $(OBJ_DIR)/%.so: %.S
-	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) -fpic -D__PIC -o $@ $<
+	$(CC) -c $(INCLUDE_FLAGS) $(COMPILE_FLAGS) $(COMPILE_FLAGS_ASM) $(PIC_FLAGS) -o $@ $<
 
 $(SUBDIRS_TARGET):
 	@$(MAKE) -C $(patsubst %.dir,%,$@) $(MAKECMDGOALS)

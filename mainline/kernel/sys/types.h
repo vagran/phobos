@@ -69,8 +69,7 @@ typedef void (*FUNC_PTR)();
 /* variable arguments */
 typedef u8* va_list;
 
-#define va_roundup2(size, balign)		(((size) + (balign) - 1) & (~((balign) - 1)))
-#define va_size(arg)		va_roundup2(sizeof(arg), sizeof(int))
+#define va_size(arg)		roundup2(sizeof(arg), sizeof(int))
 #define va_start(va, arg)	((va) = ((u8 *)&arg) + va_size(arg))
 #define va_end(va)
 #define va_arg(va, type)	((va) += va_size(type), *(type *)((va) - va_size(type)))

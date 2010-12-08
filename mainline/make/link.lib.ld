@@ -1,12 +1,10 @@
 /*
- * /make/link.app.ld
+ * /make/link.lib.ld
  * $Id$
  *
  * This file is a part of PhobOS operating system.
  * Copyright (c)AST 2009. Written by Artemy Lebedev.
  */
-
-ENTRY(AppStart)
 
 PHDRS
 {
@@ -55,14 +53,14 @@ SECTIONS {
 	. = ALIGN(4);
 	.rel.plt . : { *(.rel.plt) } :rodata
 
-	. = ALIGN(4);
-	.data.rel.ro . : { *(.data.rel.ro.*) } :rodata
-
 	. = ALIGN(0x1000);
 	
 	.data . : {
 		*(.data)
 	} :data
+	
+	. = ALIGN(4);
+	.data.rel.ro . : { *(.data.rel.ro.*) } :data
 
 	. = ALIGN(4);
 	.got . : {

@@ -243,9 +243,12 @@ public:
 		GStream *GetStream(const char *name);
 		int CheckUserBuf(void *buf, u32 size, MM::Protection protection = MM::PROT_READ);
 		int CheckUserString(const char *str);
-		void *AllocateHeap(u32 size, int prot = MM::PROT_READ | MM::PROT_WRITE);
+		void *AllocateHeap(u32 size, int prot = MM::PROT_READ | MM::PROT_WRITE,
+			void *location = 0, int getZeroed = 0);
 		int FreeHeap(void *p);
 		u32 GetHeapSize(void *p);
+		void *ReserveSpace(u32 size, vaddr_t va = 0);
+		int UnReserveSpace(void *p);
 		inline KString *GetArgs() { return &args; }
 	};
 
