@@ -16,6 +16,9 @@ phbSource("$Id$");
 extern volatile u32 shlibBSS, shlibDATA, shlibBSS2, shlibDATA2;
 extern const u32 shlibConstDATA;
 extern volatile u32 execData; /* Defined in executable */
+extern volatile u32 constrCalled, destrCalled;
+
+extern volatile u32 shlib2DATA;
 
 u32 mtShlibGetDATA();
 u32 mtShlibGetBSS();
@@ -29,5 +32,7 @@ int mtShlibTestOwnVars();
 int mtShlib2ExecFunc();
 int mtShlibTestWeakFunc();
 int mtShlibTestFuncPointer();
+int mtShlib2Test();
+int mtShlibTestSecLib();
 
 #endif /* MODULE_TEST_LIB_H_ */

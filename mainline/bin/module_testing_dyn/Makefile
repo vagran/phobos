@@ -12,7 +12,7 @@ INCLUDES += ../module_testing $(PHOBOS_ROOT)/lib/module_testing
 VPATH = ../module_testing
 SRCS += module_test.cpp proc_args.cpp
 
-LIBS += module_testing
+LIBS += module_testing module_testing2
 
 COMPILE_FLAGS += -DMT_DYNAMIC -DMT_NAME="\"Module testing (dyn)\""
 

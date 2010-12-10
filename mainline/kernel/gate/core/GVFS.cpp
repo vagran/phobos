@@ -122,6 +122,9 @@ GFile::Seek(off_t offset, u32 flags, off_t *newOffset)
 	} else {
 		curPos = newPos;
 	}
+	if (newOffset) {
+		*newOffset = curPos;
+	}
 	return curPos;
 }
 

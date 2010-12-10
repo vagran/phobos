@@ -22,8 +22,20 @@ Main(GApp *app)
 		return rc;
 	}
 	EntryFunc ef = (EntryFunc)lkr.GetEntry();
+	lkr.CallConstructors();
 	return ef(app);
 }
+
+/* Symbols which are never imported from other modules */
+const char *RTLinker::localSyms[] = {
+	"LOAD_ADDRESS",
+	"_SL_CTOR_LIST",
+	"_SL_CTOR_END",
+	"_SL_DTOR_LIST",
+	"_SL_DTOR_END",
+	"__dso_handle",
+	0
+};
 
 RTLinker::RTLinker()
 {
@@ -49,6 +61,19 @@ RTLinker::Error(const char *msg, ...)
 	va_list va;
 	va_start(va, msg);
 	ErrorV(msg, va);
+}
+
+int
+RTLinker::IsSymImportable(char *name)
+{
+	char **syms = const_cast<char **>(localSyms);
+	while (*syms) {
+		if (!strcmp(*syms, name)) {
+			return 0;
+		}
+		syms++;
+	}
+	return 1;
 }
 
 Elf_Scn *
@@ -112,6 +137,8 @@ RTLinker::DynObject_s::DynObject_s(RTLinker *linker, DynObject *parent) :
 	LIST_INIT(deps);
 	LIST_INIT(segments);
 	LIST_INIT(sections);
+	LIST_INIT(depGraph);
+	LIST_INIT(depRevGraph);
 	numDeps = 0;
 	flags = 0;
 	this->parent = parent;
@@ -119,6 +146,7 @@ RTLinker::DynObject_s::DynObject_s(RTLinker *linker, DynObject *parent) :
 		LIST_ADD(depList, this, parent->deps);
 		parent->numDeps++;
 	}
+	constrCalled = 0;
 }
 
 RTLinker::DynObject_s::~DynObject_s()
@@ -136,6 +164,15 @@ RTLinker::DynObject_s::~DynObject_s()
 	while ((scn = LIST_FIRST(ObjSection, list, sections))) {
 		LIST_DELETE(list, scn, sections);
 		DELETE(scn);
+	}
+	ObjDepGraph *dep;
+	while ((dep = LIST_FIRST(ObjDepGraph, list, depGraph))) {
+		LIST_DELETE(list, dep, depGraph);
+		DELETE(dep);
+	}
+	while ((dep = LIST_FIRST(ObjDepGraph, list, depRevGraph))) {
+		LIST_DELETE(list, dep, depRevGraph);
+		DELETE(dep);
 	}
 }
 
@@ -196,6 +233,52 @@ RTLinker::DynObject_s::FindSectionByAddr(vaddr_t addr)
 			return scn;
 		}
 	}
+	return 0;
+}
+
+int
+RTLinker::DynObject_s::AddDependency(DynObject *obj)
+{
+	ObjDepGraph *dep = NEW(ObjDepGraph);
+	if (!dep) {
+		return -1;
+	}
+	memset(dep, 0, sizeof(*dep));
+	dep->obj = obj;
+	LIST_ADD(list, dep, depGraph);
+	return 0;
+}
+
+int
+RTLinker::DynObject_s::AddDependant(DynObject *obj)
+{
+	ObjDepGraph *dep = NEW(ObjDepGraph);
+	if (!dep) {
+		return -1;
+	}
+	memset(dep, 0, sizeof(*dep));
+	dep->obj = obj;
+	LIST_ADD(list, dep, depRevGraph);
+	return 0;
+}
+
+int
+RTLinker::DynObject_s::CallConsturctors()
+{
+	Elf32_Dyn *dt = linkCtx.FindDynTag(DT_INIT);
+	if (dt) {
+		ConstrFunc func = (ConstrFunc)(dt->d_un.d_ptr + linkCtx.offset);
+		func();
+	}
+	if ((dt = linkCtx.FindDynTag(DT_INIT_ARRAY))) {
+		ConstrFunc *funcs = (ConstrFunc *)(dt->d_un.d_ptr + linkCtx.offset);
+		if ((dt = linkCtx.FindDynTag(DT_INIT_ARRAYSZ))) {
+			for (u32 i = 0; i < dt->d_un.d_val; i++) {
+				funcs[i]();
+			}
+		}
+	}
+	constrCalled = 1;
 	return 0;
 }
 
@@ -350,6 +433,8 @@ RTLinker::ProcessObjDeps(ObjContext *ctx)
 				curObjName.GetBuffer());
 			return -1;
 		}
+		ctx->obj->AddDependency(obj);
+		obj->AddDependant(ctx->obj);
 	}
 
 	return 0;
@@ -480,16 +565,18 @@ RTLinker::ProcessSections(ObjContext *ctx)
 {
 	Elf_Scn *scn = 0;
 	while ((scn = elf_nextscn(ctx->elf, scn))) {
-		ObjSection *ps = ctx->obj->AddSection();
-		ps->idx = elf_ndxscn(scn);
 		Elf32_Shdr *shdr;
 		if ((shdr = elf32_getshdr(scn))) {
+			if (!(shdr->sh_flags & SHF_ALLOC)) {
+				continue;
+			}
+			ObjSection *ps = ctx->obj->AddSection();
+			ps->idx = elf_ndxscn(scn);
 			ps->type = shdr->sh_type;
 			ps->baseAddr = shdr->sh_addr;
 			ps->size = shdr->sh_size;
+			ps->flags = shdr->sh_flags;
 		} else {
-			LIST_DELETE(list, ps, ctx->obj->sections);
-			DELETE(ps);
 			Error("Cannot get section header");
 			return -1;
 		}
@@ -646,16 +733,16 @@ RTLinker::ObjLinkContext::Initialize()
 	/* Symbols table */
 	Elf32_Dyn *dt = FindDynTag(DT_SYMTAB);
 	if (dt) {
+		scn = obj->FindSectionByAddr(dt->d_un.d_ptr);
+		if (!scn) {
+			obj->Error("Symbol section not found (0x%08lx)", dt->d_un.d_ptr);
+			return -1;
+		}
 		symtab = (Elf32_Sym *)(dt->d_un.d_ptr + offset);
 		if ((dt = FindDynTag(DT_SYMENT))) {
 			symSize = dt->d_un.d_val;
 		} else {
 			symSize = sizeof(Elf32_Sym);
-		}
-		scn = obj->FindSectionByAddr(dt->d_un.d_ptr);
-		if (!scn) {
-			obj->Error("Symbol section not found (0x%08lx)", dt->d_un.d_ptr);
-			return -1;
 		}
 		numSyms = scn->size / symSize;
 	}
@@ -749,6 +836,11 @@ RTLinker::FindSymbol(char *name, DynObject **pObj)
 			symIdx != STN_UNDEF;
 			symIdx = ctx->chain[symIdx]) {
 			sym = ctx->GetSym(symIdx);
+			if (!sym) {
+				Error("Symbol index in hash table is not valid: %lu in '%s'",
+					symIdx, obj->path.GetBuffer());
+				break;
+			}
 			/* Search only for GLOBAL and WEAK symbols */
 			if (ELF32_ST_BIND(sym->st_info) != STB_GLOBAL &&
 				ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
@@ -804,9 +896,11 @@ RTLinker::ProcessRelEntry(ObjLinkContext *ctx, Elf32_Sword *location,
 	}
 	vaddr_t globValue;
 	if (locSym) {
-		DynObject *globObj = ctx->obj;
-		Elf32_Sym *globSym = FindSymbol(ctx->GetStr(locSym->st_name), &globObj);
-		if (globSym) {
+		char *symName = ctx->GetStr(locSym->st_name);
+		DynObject *globObj;
+		Elf32_Sym *globSym;
+		if (IsSymImportable(symName) && (globObj = ctx->obj) &&
+			(globSym = FindSymbol(symName, &globObj))) {
 			/* We use external WEAK symbol only if do not have any own definition */
 			if (locSym->st_shndx && ELF32_ST_BIND(globSym->st_info) == STB_WEAK) {
 				globValue = locSym->st_value + ctx->offset;
@@ -821,7 +915,7 @@ RTLinker::ProcessRelEntry(ObjLinkContext *ctx, Elf32_Sword *location,
 				/* Unresolved weak symbols have a zero value */
 				globValue = 0;
 			} else {
-				Error("Cannot resolve symbol '%s'", ctx->GetStr(locSym->st_name));
+				Error("Cannot resolve symbol '%s'", symName);
 				return -1;
 			}
 		}
@@ -985,6 +1079,56 @@ RTLinker::LinkObjects()
 			Error("Failed to link object '%s'", s.GetBuffer());
 			return -1;
 		}
+	}
+	return 0;
+}
+
+RTLinker::DynObject *
+RTLinker::DepGraphNext(size_t depOffs, size_t flagOffs)
+{
+	DynObject *obj;
+	int minDeps = 0;
+	DynObject *minDepsObj;
+	int numNotTraversed = 0;
+	FOREACH_DYNOBJECT(obj) {
+		if (*FIELDAT(obj, int, flagOffs)) {
+			continue;
+		}
+		numNotTraversed++;
+		int numDeps = 0;
+		ObjDepGraph *dep;
+		LIST_FOREACH(ObjDepGraph, list, dep, *FIELDAT(obj, ListHead, depOffs)) {
+			if (*FIELDAT(dep->obj, int, flagOffs)) {
+				continue;
+			}
+			numDeps++;
+		}
+		if (!numDeps) {
+			/* Independent object found, return it */
+			*FIELDAT(obj, int, flagOffs) = 1;
+			return obj;
+		}
+		if (!minDeps || numDeps < minDeps) {
+			minDeps = numDeps;
+			minDepsObj = obj;
+		}
+	}
+	if (!minDeps) {
+		/* All objects traversed */
+		return 0;
+	}
+	/* Circular dependencies, return object with minimal number of dependencies */
+	*FIELDAT(minDepsObj, int, flagOffs) = 1;
+	return minDepsObj;
+}
+
+int
+RTLinker::CallConstructors()
+{
+	DynObject *obj;
+	while((obj = DepGraphNext(OFFSETOF(DynObject, depGraph),
+		OFFSETOF(DynObject, constrCalled)))) {
+		obj->CallConsturctors();
 	}
 	return 0;
 }

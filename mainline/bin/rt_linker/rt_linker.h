@@ -15,6 +15,8 @@ phbSource("$Id$");
 
 class RTLinker : public Object {
 private:
+	typedef void (*ConstrFunc)();
+
 	/* Loadable segments */
 	typedef struct {
 		ListEntry list;
@@ -32,6 +34,7 @@ private:
 		u32 idx;
 		vaddr_t baseAddr;
 		vsize_t size;
+		u32 flags;
 		Elf32_Word type;
 	} ObjSection;
 
@@ -97,6 +100,9 @@ private:
 		vaddr_t entry; /* program entry point */
 		void *loadAddr; /* real load address */
 		ObjLinkContext linkCtx;
+		ListHead depGraph; /* Objects I depend on */
+		ListHead depRevGraph; /* Objects dependent on me */
+		int constrCalled; /* constructors called for this object */
 
 		DynObject_s(RTLinker *linker, DynObject *parent);
 		~DynObject_s();
@@ -106,6 +112,9 @@ private:
 		ObjSection *FindSectionByAddr(vaddr_t addr);
 		void ErrorV(const char *msg, va_list args) __format(printf, 2, 0);
 		void Error(const char *msg, ...) __format(printf, 2, 3);
+		int AddDependency(DynObject *obj);
+		int AddDependant(DynObject *obj);
+		int CallConsturctors();
 	};
 
 	/* Object initialization context */
@@ -153,7 +162,15 @@ private:
 		}
 	};
 
+	/* Object dependencies graph entry */
+	typedef struct {
+		ListEntry list; /* Object dependencies list */
+		DynObject *obj; /* Object which a given object depends on */
+	} ObjDepGraph;
+
 	DynObject *dynTree;
+
+	static const char *localSyms[];
 
 	DynObject *CreateObject(GFile *file, DynObject *parent = 0);
 	int BuildObjTree(char *targetName);
@@ -176,6 +193,9 @@ private:
 	int ProcessRelEntry(ObjLinkContext *ctx, Elf32_Sword *location, Elf32_Word info,
 		Elf32_Sword *addend = 0);
 	Elf32_Sym *FindSymbol(char *name, DynObject **pObj);
+	int IsSymImportable(char *name);
+	/* Objects dependency graph traversal method */
+	DynObject *DepGraphNext(size_t depOffs, size_t flagOffs);
 public:
 	RTLinker();
 	~RTLinker();
@@ -184,6 +204,7 @@ public:
 	vaddr_t GetEntry();
 	void ErrorV(const char *msg, va_list args) __format(printf, 2, 0);
 	void Error(const char *msg, ...) __format(printf, 2, 3);
+	int CallConstructors();
 };
 
 #define FOREACH_DYNOBJECT(obj) for (obj = GetNextObject(); obj; \

@@ -1329,7 +1329,7 @@ MM::VMObject::Map(Map::Entry *e)
 	TREE_FOREACH(Page, objEntry, pg, pages) {
 		vaddr_t offset = TREE_KEY(objEntry, pg) << PAGE_SHIFT;
 		vaddr_t va;
-		/* Unmap only pages which belong to specified entry */
+		/* Map only pages which belong to specified entry */
 		if (!e->GetVA(offset, &va)) {
 			e->MapPage(va, pg);
 		}
@@ -1526,6 +1526,7 @@ MM::Map::~Map()
 	}
 	FreeSubmaps(&submaps);
 	if (freeTables) {
+		FreePageTables();
 		mfree(pdpt);
 		mfree(ptd);
 	}
@@ -1916,6 +1917,22 @@ int
 MM::Map::UnReserveSpace(vaddr_t base)
 {
 	return alloc.UnReserve(base);
+}
+
+/* Free private page tables */
+void
+MM::Map::FreePageTables()
+{
+	for (u32 i = 0; i < (KERNEL_ADDRESS >> PD_SHIFT); i ++) {
+		PTE::PDEntry *pde = &ptd[i];
+		if (!pde->fields.present) {
+			continue;
+		}
+		Page *pg = mm->GetPage(ptd[i].raw);
+		assert(pg);
+		pg->Unwire();
+		mm->FreePage(pg);
+	}
 }
 
 int

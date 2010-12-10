@@ -22,6 +22,18 @@ SECTIONS {
 		*(.text.*)
 		*(.gnu.linkonce.t.*)
 	} :text
+	
+	. = ALIGN(4);
+	.init . : {
+		*(.init)
+		*(.init.*)
+	} :text
+	
+	. = ALIGN(4);
+	.fini . : {
+		*(.fini)
+		*(.fini.*)
+	} :text
 
 	. = ALIGN(4);
 	.plt . : {
@@ -72,6 +84,24 @@ SECTIONS {
 		*(.got.plt)
 	} :data
 
+	/* place global constructors and destructors list in writable section */
+	. = ALIGN(4);
+	.ctors . : {
+		_SL_CTOR_LIST = .;
+		LONG((_SL_CTOR_END - _SL_CTOR_LIST) / 4 - 2)
+		*(SORT(.ctors))
+		LONG(0)
+		_SL_CTOR_END = .;
+	} :data
+	. = ALIGN(4);
+	.dtors . : {
+		_SL_DTOR_LIST = .;
+		LONG((_SL_DTOR_END - _SL_DTOR_LIST) / 4 - 2)
+		*(SORT(.dtors))
+		LONG(0)
+		_SL_DTOR_END = .;
+	} :data
+	
 	. = ALIGN(0x1000);
 
 	.bss . : {

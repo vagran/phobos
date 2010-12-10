@@ -30,6 +30,8 @@
 
 #define SIZEOFARRAY(name)	(sizeof(name) / sizeof((name)[0]))
 
+#define FIELDAT(obj, type, offs) ((type *)((u8 *)(obj) + (offs)))
+
 #define BIN(x) ((x & 0x1) | ((x & 0x10) ? 0x2 : 0) | \
 	((x & 0x100) ? 0x4 : 0) | ((x & 0x1000) ? 0x8 : 0) | \
 	((x & 0x10000) ? 0x10 : 0) | ((x & 0x100000) ? 0x20 : 0) | \

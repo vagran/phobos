@@ -27,6 +27,18 @@ SECTIONS {
 	} :text
 	
 	. = ALIGN(4);
+	.init . : {
+		*(.init)
+		*(.init.*)
+	} :text
+	
+	. = ALIGN(4);
+	.fini . : {
+		*(.fini)
+		*(.fini.*)
+	} :text
+	
+	. = ALIGN(4);
 	.plt . : {
 		*(.plt)
 	} :text

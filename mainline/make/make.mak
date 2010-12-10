@@ -46,7 +46,7 @@ endif
 BINARY_NAME = $(APP)
 export PROFILE_NAME = APP
 IS_PROFILE_ROOT = 1
-LINK_FILES += $(APP_RUNTIME_LIB) 
+LINK_FILES += $(APP_RUNTIME_LIB)
 
 ifeq ($(STATIC),1)
 LINK_FLAGS += -Bstatic
@@ -65,6 +65,7 @@ else ifdef OBJ
 BINARY_NAME = $(OBJ)
 export PROFILE_NAME = OBJ
 IS_PROFILE_ROOT = 1
+
 LINK_FLAGS += -r
 
 ########
@@ -77,8 +78,9 @@ endif
 BINARY_NAME = lib$(LIB).a
 
 ifneq ($(STATIC),1)
-LINK_FLAGS += -Bdynamic
+LINK_FLAGS += -Bdynamic -init __sl_initialize -fini __sl_finalize
 BINARY_NAME += lib$(LIB).sl
+LINK_FILES += $(SL_RUNTIME_LIB) 
 LINK_FILES += $(foreach lib,$(LIBS),$(PHOBOS_ROOT)/lib/$(lib)/build/$(TARGET)/lib$(lib).sl)
 endif
 
@@ -135,17 +137,11 @@ endif
 
 .PHONY: all clean install FORCE $(SUBDIRS_TARGET) $(BINARY_NAME)
 
-all: $(BINARY) $(SUBDIRS_TARGET) $(OBJ_DIR) $(OBJS)
+all: $(BINARY) $(SUBDIRS_TARGET)
 
 ifdef BINARY
 # Phony file name targets depends on absolute paths of the files
 $(BINARY_NAME): % : $(OBJ_DIR)/%
-
-# The executable binary
-$(filter-out %.a %.sl, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
-	$(LINK_SCRIPTS) $(LINK_FILES) $(OBJS)
-	$(LD) $(LINK_FLAGS) -o $@ --start-group $(LINK_FILES) $(OBJS) --end-group \
-	--dynamic-linker $(RT_LINKER_DIR)/$(RT_LINKER_NAME)
 
 # Archive files for static linkage
 $(filter %.a, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(OBJS)
@@ -157,10 +153,26 @@ $(filter %.sl, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
 	$(LD) $(LINK_FLAGS) -fpic -shared -o $@ \
 	--start-group $(LINK_FILES) $(OBJS_SO) --end-group \
 	-soname=$(@F)
+
+# Relocatable static object file
+$(filter %.o, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_FILES) $(OBJS)
+	$(LD) $(LINK_FLAGS) -o $@ \
+	--start-group $(LINK_FILES) $(OBJS) --end-group
+
+# Relocatable dynamic object file
+$(filter %.so, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_FILES) $(OBJS_SO)
+	$(LD) $(LINK_FLAGS) -o $@ \
+	--start-group $(LINK_FILES) $(OBJS_SO) --end-group
+
+# The executable binary
+$(filter-out %.a %.sl %.o %.so, $(BINARY)): $(SUBDIRS_TARGET) $(OBJ_DIR) $(LINK_SCRIPT) \
+	$(LINK_SCRIPTS) $(LINK_FILES) $(OBJS)
+	$(LD) $(LINK_FLAGS) -o $@ --start-group $(LINK_FILES) $(OBJS) --end-group \
+	--dynamic-linker $(RT_LINKER_DIR)/$(RT_LINKER_NAME)
 endif
 
 # Build dependencies - static and dynamic libraries
-$(filter %.a %.sl, $(LINK_FILES)):
+$(filter %.a %.sl %.o %.so, $(LINK_FILES)):
 	$(MAKE) -C $(abspath $(@D)/../..) $(@F)
 
 # Relocatable objects

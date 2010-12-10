@@ -396,7 +396,7 @@ GateEntry(void *entryAddr, GateObject *obj)
 int
 GateObject::Initialize()
 {
-	CalculateVtableSize();
+	__CalculateVtableSize();
 	origVtable = VTABLE(this);
 	VTABLE(this) = gateArea->GetVtable();
 	callStats = (CallStatEntry *)MM::malloc(sizeof(CallStatEntry) * vtableSize);

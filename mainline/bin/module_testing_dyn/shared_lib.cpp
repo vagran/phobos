@@ -13,6 +13,7 @@ phbSource("$Id$");
 #include <module_test_lib.h>
 
 volatile u32 execData;
+volatile u32 constrCalled, destrCalled;
 
 class MTSharedLib : public MTest {
 private:
@@ -48,6 +49,11 @@ MT_DEFINE(MTSharedLib, "Shared library support")
 	mt_assert(!mtShlibTestWeakFunc());
 
 	mt_assert(!mtShlibTestFuncPointer());
+
+	mt_assert(!mtShlibTestSecLib());
+
+	mt_assert(constrCalled == 1);
+	mt_assert(destrCalled == 0);
 }
 
 /* Called from shared library */

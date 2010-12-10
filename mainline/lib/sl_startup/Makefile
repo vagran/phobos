@@ -1,9 +1,9 @@
-# /lib/Makefile
+# /phobos/lib/shlib_startup/Makefile
 # $Id$
 #
 # This file is a part of PhobOS operating system.
 # Copyright (c)AST 2009. Written by Artemy Lebedev.
 
-SUBDIRS = startup sl_startup user common elf module_testing module_testing2
+OBJ = $(SL_RUNTIME_LIB_NAME)
 
 include $(PHOBOS_ROOT)/make/make.mak

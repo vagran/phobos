@@ -57,6 +57,22 @@ mtShlibTestOwnVars()
 	return shlibBSS2 || shlibDATA2 != MT_DWORD_VALUE;
 }
 
+int
+mtShlibTestSecLib()
+{
+	if (shlib2DATA != MT_DWORD_VALUE) {
+		return -1;
+	}
+	shlibDATA = MT_DWORD_VALUE2;
+	if (mtShlib2Test()) {
+		return -1;
+	}
+	if (shlibDATA != MT_DWORD_VALUE) {
+		return -1;
+	}
+	return 0;
+}
+
 /******************************************************************************/
 /* Weak symbols linking */
 
@@ -120,3 +136,14 @@ mtShlibTestFuncPointer()
 	}
 	return 0;
 }
+
+/******************************************************************************/
+/* Global objects constructors and destructors */
+
+class ShlibObj {
+public:
+	ShlibObj() { constrCalled++; }
+	~ShlibObj() { destrCalled++; }
+};
+
+static ShlibObj shlibObj;

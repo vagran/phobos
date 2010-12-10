@@ -120,10 +120,10 @@ extern GM *gm;
 /* must be included in class declaration AFTER all specific virtual methods */
 #define DECLARE_GCLASS_IMP(className) \
 	typedef void (className::*GCLASS_METHOD_T(className))(); \
-	virtual u32 GetID() { return GCLASS_ID(className); } \
-	virtual u32 GetSize() { return sizeof(className); } \
-	virtual u32 GetVtableSize() { return vtableSize; } \
-	virtual u32 CalculateVtableSize(); \
+	virtual u32 __GetID() { return GCLASS_ID(className); } \
+	virtual u32 __GetSize() { return sizeof(className); } \
+	virtual u32 __GetVtableSize() { return vtableSize; } \
+	virtual u32 __CalculateVtableSize(); \
 	virtual volatile void __CONCAT(className, _vtableEnd)() {};
 
 /* must be included in class definition */
@@ -131,7 +131,7 @@ extern GM *gm;
 	u32 GCLASS_ID(className); \
 	static GM::GClassRegistrator __UID(GClassRegistrator) \
 		(__STR(className), &GCLASS_ID(className)); \
-	u32 className::CalculateVtableSize() \
+	u32 className::__CalculateVtableSize() \
 	{ \
 		volatile GCLASS_METHOD_T(className) m = \
 			(GCLASS_METHOD_T(className)) \

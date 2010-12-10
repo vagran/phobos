@@ -41,7 +41,7 @@ public:
 	virtual ~GFile();
 
 	virtual int Truncate();
-	virtual u32 GetSize(off_t *pSize);
+	virtual u32 GetSize(off_t *pSize = 0);
 	virtual int Rename(const char *name);
 	virtual DECL_STR_PROV(GetName);
 	virtual DECL_STR_PROV(GetPath);

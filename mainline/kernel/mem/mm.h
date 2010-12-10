@@ -327,6 +327,7 @@ public:
 		int FreeSubmaps(ListHead *submaps);
 		int AddEntry(Entry *e);
 		int DeleteEntry(Entry *e);
+		void FreePageTables();
 	public:
 		Map(Map *copyFrom = 0);
 		Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree);

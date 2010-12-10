@@ -29,6 +29,10 @@ export APP_RUNTIME_LIB_NAME = apprt
 export APP_RUNTIME_LIB_DIR = $(PHOBOS_ROOT)/lib/startup
 export APP_RUNTIME_LIB = $(APP_RUNTIME_LIB_DIR)/build/$(TARGET)/lib$(APP_RUNTIME_LIB_NAME).a
 
+export SL_RUNTIME_LIB_NAME = slrt.so
+export SL_RUNTIME_LIB_DIR = $(PHOBOS_ROOT)/lib/sl_startup
+export SL_RUNTIME_LIB = $(SL_RUNTIME_LIB_DIR)/build/$(TARGET)/$(SL_RUNTIME_LIB_NAME)
+
 export COMMON_LIB_DIR = $(PHOBOS_ROOT)/lib/common
 export COMMON_LIB_NAME = common
 export COMMON_LIB = $(COMMON_LIB_DIR)/build/$(TARGET)/lib$(COMMON_LIB_NAME).a
@@ -58,4 +62,4 @@ MFS_IMAGE = $(PHOBOS_ROOT)/mfs/image/$(TARGET)/$(MFS_IMAGE_NAME)
 MFS_BLOCK_SIZE = 1024
 MFS_IMAGE_LABEL = PhobOS_MFS
 # MFS image size in kilobytes
-MFS_IMAGE_SIZE = 7000
+MFS_IMAGE_SIZE = 8000
