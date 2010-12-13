@@ -14,8 +14,10 @@ phbSource("$Id$");
 #include <libelf.h>
 
 class RTLinker : public Object {
-private:
+public:
 	typedef void (*ConstrFunc)();
+	typedef void (*DestrFunc)();
+	typedef void (*ExitFunc)(void *arg);
 
 	/* Loadable segments */
 	typedef struct {
@@ -40,6 +42,7 @@ private:
 
 	struct DynObject_s;
 	typedef struct DynObject_s DynObject;
+	typedef DynObject *DSOHandle;
 
 	/* Linking context */
 	class ObjLinkContext {
@@ -84,11 +87,14 @@ private:
 	struct DynObject_s {
 		enum Flags {
 			F_RELOCATABLE =		0x1, /* Load address could be different from base address */
+			F_RUNTIME_LOADED =	0x2, /* Loaded by LoadLibrary() method */
 		};
 
 		RTLinker *linker;
 		ListEntry depList;
 		ListHead deps; /* dependencies */
+		/* Objects involved in current LoadLibrary() of FreeLibrary() call */
+		ListEntry rtList;
 		int numDeps;
 		CString path;
 		DynObject *parent;
@@ -103,6 +109,10 @@ private:
 		ListHead depGraph; /* Objects I depend on */
 		ListHead depRevGraph; /* Objects dependent on me */
 		int constrCalled; /* constructors called for this object */
+		int destrCalled; /* destructors called */
+		u32 refCount; /* Number of LoadLibrary() called for this object */
+		u32 rtDepCount; /* Number of references from libraries loaded by LoadLibrary() */
+		ListHead exitFuncs;
 
 		DynObject_s(RTLinker *linker, DynObject *parent);
 		~DynObject_s();
@@ -114,7 +124,13 @@ private:
 		void Error(const char *msg, ...) __format(printf, 2, 3);
 		int AddDependency(DynObject *obj);
 		int AddDependant(DynObject *obj);
+		int DeleteDependency(DynObject *obj);
+		int DeleteDependant(DynObject *obj);
 		int CallConsturctors();
+		int CallDestructors();
+		int UnMapSegments();
+		Elf32_Sym *FindSymbol(const char *name, u32 *pHash = 0);
+		int AddExitFunc(ExitFunc func, void *arg = 0);
 	};
 
 	/* Object initialization context */
@@ -162,22 +178,55 @@ private:
 		}
 	};
 
+	/* Run-time objects loading context */
+	class RTLoadContext {
+	public:
+		ListHead rtObjs; /* Object involved in current LoadLibrary() call */
+		DynObject *reqObj; /* requested object */
+
+		RTLoadContext();
+		~RTLoadContext();
+		/*
+		 * Release resource of the context, prevent them from deallocation
+		 * when destroying the context
+		 */
+		DynObject *Release();
+	};
+
+	class RTUnloadContext {
+	public:
+		ListHead rtObjs; /* Object involved in current FreeLibrary() call */
+		DynObject *reqObj; /* requested object */
+
+		RTUnloadContext(DynObject *reqObj);
+		~RTUnloadContext();
+	};
+
 	/* Object dependencies graph entry */
 	typedef struct {
 		ListEntry list; /* Object dependencies list */
-		DynObject *obj; /* Object which a given object depends on */
+		DynObject *obj; /* Object which a graph edge points to or from */
 	} ObjDepGraph;
 
+	/* Object exit functions */
+	typedef struct {
+		ListEntry list;
+		ExitFunc func;
+		void *arg;
+	} ObjExitFunc;
+
+private:
 	DynObject *dynTree;
 
 	static const char *localSyms[];
 
-	DynObject *CreateObject(GFile *file, DynObject *parent = 0);
+	DynObject *CreateObject(GFile *file, DynObject *parent = 0,
+		RTLoadContext *rtCtx = 0);
 	int BuildObjTree(char *targetName);
 	Elf_Scn *FindSection(Elf *elf, const char *name);
 	Elf_Scn *FindSection(Elf *elf, Elf32_Word type);
 	Elf_Scn *FindSectionByAddr(Elf *elf, Elf32_Word addr);
-	int ProcessObjDeps(ObjContext *ctx);
+	int ProcessObjDeps(ObjContext *ctx, RTLoadContext *rtCtx = 0);
 	Elf32_Dyn *FindDynTag(ObjContext *ctx, Elf32_Sword tag, Elf32_Dyn *prev = 0);
 	int GetDepChain(DynObject *obj, CString &s);
 	DynObject *GetNextObject(DynObject *prev = 0);
@@ -185,17 +234,22 @@ private:
 	int ProcessSegments(ObjContext *ctx);
 	int ProcessSections(ObjContext *ctx);
 	int LoadSegments(); /* Load to memory everything which must be loaded */
+	int RTLoadSegments(RTLoadContext *rtCtx); /* Load segments for run-time loaded objects */
 	int LoadSegments(DynObject *obj);
 	int LinkObjects();
+	int RTLinkObjects(RTLoadContext *rtCtx);
 	int LinkObject(ObjLinkContext *ctx);
 	int ProcessRelTable(ObjLinkContext *ctx, void *table, u32 numEntries,
 		u32 entrySize, int hasAddend);
 	int ProcessRelEntry(ObjLinkContext *ctx, Elf32_Sword *location, Elf32_Word info,
 		Elf32_Sword *addend = 0);
-	Elf32_Sym *FindSymbol(char *name, DynObject **pObj);
+	Elf32_Sym *FindSymbol(const char *name, DynObject **pObj);
 	int IsSymImportable(char *name);
 	/* Objects dependency graph traversal method */
 	DynObject *DepGraphNext(size_t depOffs, size_t flagOffs);
+	GFile *OpenFile(char *name, char *rpath = 0);
+	int FindUnloadDeps(RTUnloadContext *rtCtx, DynObject *reqObj = 0);
+	int CallDestructors(RTUnloadContext *rtCtx);
 public:
 	RTLinker();
 	~RTLinker();
@@ -205,6 +259,16 @@ public:
 	void ErrorV(const char *msg, va_list args) __format(printf, 2, 0);
 	void Error(const char *msg, ...) __format(printf, 2, 3);
 	int CallConstructors();
+
+	virtual DSOHandle LoadLibrary(const char *path, DSOHandle refDso = 0);
+	/*
+	 * If *refDso == 0, all objects are searched, otherwise only *refDso object
+	 * is searched for the symbol. If refDso != 0 there is returned object where
+	 * the symbol was found.
+	 */
+	virtual void *GetSymbolAddress(const char *symbolName, DSOHandle *refDso = 0);
+	virtual int FreeLibrary(DSOHandle dso);
+	virtual int AtExit(DSOHandle dso, ExitFunc func, void *arg = 0);
 };
 
 #define FOREACH_DYNOBJECT(obj) for (obj = GetNextObject(); obj; \

@@ -1,5 +1,5 @@
 /*
- * /phobos/bin/module_testing_dyn/heap.cpp
+ * /phobos/bin/module_testing/dynamic/heap.cpp
  * $Id$
  *
  * This file is a part of PhobOS operating system.

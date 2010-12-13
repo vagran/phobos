@@ -112,6 +112,16 @@ typedef struct {
 
 #define LIST_ROTATE(entry, var, head) {(head).first = &(var)->entry;}
 
+#define LIST_HAS(type, entry, var, head) ({ \
+	type *__elem; \
+	LIST_FOREACH(type, entry, __elem, head) { \
+		if (__elem == (var)) { \
+			break; \
+		} \
+	} \
+	__elem == (var); \
+})
+
 /* condition should use var1 and var2, TRUE if var2 should precede var1 */
 #define LIST_SORT(type, entry, var1, var2, head, condition) { \
 	if (!LIST_ISEMPTY(head)) { \

@@ -32,3 +32,15 @@ __sl_finalize()
 		_SL_DTOR_LIST.func[i]();
 	}
 }
+
+RTLinker::DSOHandle
+GetDSO(RTLinker **linker)
+{
+	if (__dso_handle) {
+		if (linker) {
+			*linker = ((RTLinker::DynObject *)__dso_handle)->linker;
+		}
+		return (RTLinker::DSOHandle)__dso_handle;
+	}
+	return 0;
+}

@@ -11,6 +11,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
+/* Memory barrier */
 #define Barrier() { \
 	ASM ("" ::: "memory"); \
 	mfence(); \
@@ -289,7 +290,7 @@ public:
 	operator int() { return flag; }
 };
 
-template <typename value_t>
+template <typename value_t = u32>
 class AtomicInt : public Object {
 private:
 	value_t value;

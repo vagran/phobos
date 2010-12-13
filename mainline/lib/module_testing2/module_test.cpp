@@ -23,3 +23,14 @@ mtShlib2Test()
 	shlibDATA = MT_DWORD_VALUE;
 	return 0;
 }
+
+RTLinker::DSOHandle
+mtShlibGetDSOHandle2()
+{
+	return GetDSO();
+}
+
+/******************************************************************************/
+/* Global objects constructors and destructors */
+
+static ShlibObj shlibObj(0, &shlibObjCurOrder, &shlibObjError);

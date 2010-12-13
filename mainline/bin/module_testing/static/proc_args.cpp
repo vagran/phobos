@@ -1,5 +1,5 @@
 /*
- * /phobos/bin/module_testing/proc_args.cpp
+ * /phobos/bin/module_testing/static/proc_args.cpp
  * $Id$
  *
  * This file is a part of PhobOS operating system.

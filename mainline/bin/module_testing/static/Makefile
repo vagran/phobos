@@ -1,9 +1,15 @@
-# /phobos/bin/module_testing/Makefile
+# /phobos/bin/module_testing/static/Makefile
 # $Id$
 #
 # This file is a part of PhobOS operating system.
 # Copyright (c)AST 2009. Written by Artemy Lebedev.
 
-SUBDIRS= static dynamic sl_rtload
+APP = module_test
+INSTALL_DIR = /bin
+STATIC = 1
+
+INCLUDES += ..
+
+COMPILE_FLAGS += -DMT_STATIC
 
 include $(PHOBOS_ROOT)/make/make.mak

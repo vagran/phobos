@@ -58,6 +58,10 @@ LINK_FILES += $(subst .a,.sl,$(COMMON_LIB) $(USER_LIB))
 LINK_FILES += $(foreach lib,$(LIBS),$(PHOBOS_ROOT)/lib/$(lib)/build/$(TARGET)/lib$(lib).sl)
 endif
 
+ifeq ($(EXPORTABLE),1)
+LINK_FLAGS += -E
+endif
+
 REQUIRE_RUNTIME_LIB = 1
 
 ########
@@ -82,6 +86,10 @@ LINK_FLAGS += -Bdynamic -init __sl_initialize -fini __sl_finalize
 BINARY_NAME += lib$(LIB).sl
 LINK_FILES += $(SL_RUNTIME_LIB) 
 LINK_FILES += $(foreach lib,$(LIBS),$(PHOBOS_ROOT)/lib/$(lib)/build/$(TARGET)/lib$(lib).sl)
+endif
+
+ifeq ($(EXPORTABLE),1)
+LINK_FLAGS += -E
 endif
 
 export PROFILE_NAME = LIB

@@ -1,5 +1,5 @@
 /*
- * /phobos/bin/module_testing/module_test.cpp
+ * /phobos/bin/module_testing/static/module_test.cpp
  * $Id$
  *
  * This file is a part of PhobOS operating system.

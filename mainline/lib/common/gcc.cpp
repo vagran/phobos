@@ -19,6 +19,15 @@ extern "C" CXA::CallbackList _CTOR_LIST, _DTOR_LIST;
 ASMCALL int
 __cxa_atexit(void (*func)(void *), void * arg, void *dso_handle)
 {
+#if !defined(KERNEL) && defined (__PIC)
+	static RTLinker *linker;
+	if (!linker) {
+		if (!GetDSO(&linker)) {
+			return -1;
+		}
+	}
+	linker->AtExit(*(RTLinker::DSOHandle *)dso_handle, func, arg);
+#endif /* !defined(KERNEL) && defined (__PIC) */
 	return 0;
 }
 

@@ -23,7 +23,7 @@
 #define _GELF_H
 
 #if __LIBELF_INTERNAL__
-#include "libelf.h"
+#include <libelf.h>
 #else /* __LIBELF_INTERNAL__ */
 #include <libelf/libelf.h>
 #endif /* __LIBELF_INTERNAL__ */

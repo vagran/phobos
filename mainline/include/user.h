@@ -83,6 +83,12 @@ static inline void mfree(void *p) {
 	return uLib->mfree(p);
 }
 
+#ifndef UNIT_TEST
+#include <rt_linker.h>
+
+extern "C" RTLinker::DSOHandle GetDSO(RTLinker **linker = 0);
+#endif /* UNIT_TEST */
+
 #endif /* KERNEL */
 
 #endif /* USER_H_ */

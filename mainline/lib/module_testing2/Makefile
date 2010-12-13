@@ -8,4 +8,6 @@ LIB = module_testing2
 
 INCLUDES += $(PHOBOS_ROOT)/bin/module_testing
 
+EXPORTABLE = 1
+
 include $(PHOBOS_ROOT)/make/make.mak

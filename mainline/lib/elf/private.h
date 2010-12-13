@@ -68,7 +68,7 @@ struct ar_hdr {
 
 #endif /* HAVE_AR_H */
 
-#include "libelf.h"
+#include <libelf.h>
 
 #if HAVE_STRUCT_NLIST_DECLARATION
 # undef nlist

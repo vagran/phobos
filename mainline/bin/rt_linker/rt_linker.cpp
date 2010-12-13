@@ -9,7 +9,7 @@
 #include <sys.h>
 phbSource("$Id$");
 
-#include "rt_linker.h"
+#include <rt_linker.h>
 
 typedef int (*EntryFunc)(GApp *app);
 
@@ -34,6 +34,7 @@ const char *RTLinker::localSyms[] = {
 	"_SL_DTOR_LIST",
 	"_SL_DTOR_END",
 	"__dso_handle",
+	"GetDSO",
 	0
 };
 
@@ -139,8 +140,11 @@ RTLinker::DynObject_s::DynObject_s(RTLinker *linker, DynObject *parent) :
 	LIST_INIT(sections);
 	LIST_INIT(depGraph);
 	LIST_INIT(depRevGraph);
+	LIST_INIT(exitFuncs);
 	numDeps = 0;
 	flags = 0;
+	refCount = 0;
+	rtDepCount = 0;
 	this->parent = parent;
 	if (parent) {
 		LIST_ADD(depList, this, parent->deps);
@@ -155,6 +159,7 @@ RTLinker::DynObject_s::~DynObject_s()
 		parent->numDeps--;
 		LIST_DELETE(depList, this, parent->deps);
 	}
+	UnMapSegments();
 	ObjSegment *seg;
 	while ((seg = LIST_FIRST(ObjSegment, list, segments))) {
 		LIST_DELETE(list, seg, segments);
@@ -167,13 +172,37 @@ RTLinker::DynObject_s::~DynObject_s()
 	}
 	ObjDepGraph *dep;
 	while ((dep = LIST_FIRST(ObjDepGraph, list, depGraph))) {
+		dep->obj->DeleteDependant(this);
 		LIST_DELETE(list, dep, depGraph);
 		DELETE(dep);
 	}
 	while ((dep = LIST_FIRST(ObjDepGraph, list, depRevGraph))) {
+		dep->obj->DeleteDependency(this);
 		LIST_DELETE(list, dep, depRevGraph);
 		DELETE(dep);
 	}
+	ObjExitFunc *ef;
+	while ((ef = LIST_FIRST(ObjExitFunc, list, exitFuncs))) {
+		LIST_DELETE(list, ef, exitFuncs);
+		DELETE(ef);
+	}
+}
+
+int
+RTLinker::DynObject_s::UnMapSegments()
+{
+	ObjSegment *seg;
+	LIST_FOREACH(ObjSegment, list, seg, segments) {
+		if (seg->map) {
+			uLib->GetVFS()->UnMap(seg->map);
+			seg->map = 0;
+			if (seg->memSize > roundup2(seg->fileSize, PAGE_SIZE)) {
+				void *base = (u8 *)seg->map + roundup2(seg->fileSize, PAGE_SIZE);
+				uLib->GetApp()->FreeHeap(base);
+			}
+		}
+	}
+	return 0;
 }
 
 RTLinker::ObjSegment *
@@ -263,6 +292,34 @@ RTLinker::DynObject_s::AddDependant(DynObject *obj)
 }
 
 int
+RTLinker::DynObject_s::DeleteDependency(DynObject *obj)
+{
+	ObjDepGraph *dep;
+	LIST_FOREACH(ObjDepGraph, list, dep, depGraph) {
+		if (dep->obj == obj) {
+			LIST_DELETE(list, dep, depGraph);
+			DELETE(dep);
+			return 0;
+		}
+	}
+	return -1;
+}
+
+int
+RTLinker::DynObject_s::DeleteDependant(DynObject *obj)
+{
+	ObjDepGraph *dep;
+	LIST_FOREACH(ObjDepGraph, list, dep, depRevGraph) {
+		if (dep->obj == obj) {
+			LIST_DELETE(list, dep, depRevGraph);
+			DELETE(dep);
+			return 0;
+		}
+	}
+	return -1;
+}
+
+int
 RTLinker::DynObject_s::CallConsturctors()
 {
 	Elf32_Dyn *dt = linkCtx.FindDynTag(DT_INIT);
@@ -279,6 +336,79 @@ RTLinker::DynObject_s::CallConsturctors()
 		}
 	}
 	constrCalled = 1;
+	return 0;
+}
+
+int
+RTLinker::DynObject_s::CallDestructors()
+{
+	/* Firstly functions registered by atexit() must be called (according to ABI) */
+	ObjExitFunc *ef;
+	LIST_FOREACH(ObjExitFunc, list, ef, exitFuncs) {
+		(ef->func)(ef->arg);
+	}
+
+	Elf32_Dyn *dt;
+	if ((dt = linkCtx.FindDynTag(DT_FINI_ARRAY))) {
+		DestrFunc *funcs = (DestrFunc *)(dt->d_un.d_ptr + linkCtx.offset);
+		if ((dt = linkCtx.FindDynTag(DT_INIT_ARRAYSZ))) {
+			for (int i = dt->d_un.d_val - 1; i >= 0; i--) {
+				funcs[i]();
+			}
+		}
+	}
+	if ((dt = linkCtx.FindDynTag(DT_FINI))) {
+		DestrFunc func = (DestrFunc)(dt->d_un.d_ptr + linkCtx.offset);
+		func();
+	}
+	destrCalled = 1;
+	return 0;
+}
+
+Elf32_Sym *
+RTLinker::DynObject_s::FindSymbol(const char *name, u32 *pHash)
+{
+	if (!linkCtx.buckets || !linkCtx.chain) {
+		return 0;
+	}
+	u32 hash;
+	if (pHash) {
+		hash = *pHash;
+		assert(hash == elf_hash((const u8 *)name));
+	} else {
+		hash = elf_hash((const u8 *)name);
+	}
+
+	/* Use symbols hash table */
+	Elf32_Sym *sym;
+	u32 symIdx;
+	for (symIdx = linkCtx.buckets[hash % linkCtx.numBuckets];
+		symIdx != STN_UNDEF;
+		symIdx = linkCtx.chain[symIdx]) {
+		if (!(sym = linkCtx.GetSym(symIdx))) {
+			Error("Symbol index in hash table is not valid: %lu", symIdx);
+			return 0;
+		}
+
+		if (strcmp(name, linkCtx.GetStr(sym->st_name))) {
+			continue;
+		}
+		return sym;
+	}
+	return 0;
+}
+
+int
+RTLinker::DynObject_s::AddExitFunc(ExitFunc func, void *arg)
+{
+	ObjExitFunc *ef = NEW(ObjExitFunc);
+	if (!ef) {
+		return -1;
+	}
+	memset(ef, 0, sizeof(*ef));
+	ef->func = func;
+	ef->arg = arg;
+	LIST_ADD(list, ef, exitFuncs);
 	return 0;
 }
 
@@ -347,8 +477,59 @@ RTLinker::GetDepChain(DynObject *obj, CString &s)
 	return 0;
 }
 
+GFile *
+RTLinker::OpenFile(char *name, char *rpath)
+{
+	/*
+	 * According to ELF specification:
+	 * If a shared object name has one or more slash (/) characters anywhere in
+	 * the name, such as /usr/lib/lib2 or directory/file, the dynamic linker
+	 * uses that string directly as the path name. If the name has no slashes,
+	 * such as lib1, three facilities specify shared object path searching.
+	 */
+	GFile *file = 0;
+	if (strchr(name, '/')) {
+		file = uLib->GetVFS()->CreateFile(name, GVFS::CF_READ);
+	} else {
+		CString path;
+
+		if (rpath) {
+			char *curPath = rpath;
+			while (curPath && *curPath) {
+				char *nextPath = strchr(curPath, ':');
+				if (nextPath) {
+					memcpy(path.LockBuffer(nextPath - curPath), curPath,
+						nextPath - curPath);
+					path.ReleaseBuffer(nextPath - curPath);
+				} else {
+					path = curPath;
+				}
+				if (path[path.GetLength() - 1] != '/') {
+					path += '/';
+				}
+				path += name;
+				if ((file = uLib->GetVFS()->CreateFile(path.GetBuffer(),
+					GVFS::CF_READ))) {
+					break;
+				}
+				curPath = nextPath;
+				if (curPath) {
+					curPath++;
+				}
+			}
+		}
+		if (!file) {
+			path = __STR(RT_LINKER_DEFDIR);
+			path += '/';
+			path += name;
+			file = uLib->GetVFS()->CreateFile(path.GetBuffer(), GVFS::CF_READ);
+		}
+	}
+	return file;
+}
+
 int
-RTLinker::ProcessObjDeps(ObjContext *ctx)
+RTLinker::ProcessObjDeps(ObjContext *ctx, RTLoadContext *rtCtx)
 {
 	Elf32_Dyn *dt;
 	if (!ctx->dynStrScn) {
@@ -373,60 +554,15 @@ RTLinker::ProcessObjDeps(ObjContext *ctx)
 	Elf32_Dyn *dep = 0;
 	while ((dep = FindDynTag(ctx, DT_NEEDED, dep))) {
 		char *name = elf_strptr(ctx->elf, elf_ndxscn(ctx->dynStrScn), dep->d_un.d_val);
-		/*
-		 * According to ELF specification:
-		 * If a shared object name has one or more slash (/) characters anywhere in the name, such as
-		 * /usr/lib/lib2 or directory/file, the dynamic linker uses that string directly as the path
-		 * name. If the name has no slashes, such as lib1, three facilities specify shared object path
-		 * searching.
-		 *
-		 */
-		GFile *file = 0;
-		if (strchr(name, '/')) {
-			file = uLib->GetVFS()->CreateFile(name, GVFS::CF_READ);
-		} else {
-			CString path;
 
-			if (rpath) {
-				char *curPath = rpath;
-				while (curPath && *curPath) {
-					char *nextPath = strchr(curPath, ':');
-					if (nextPath) {
-						memcpy(path.LockBuffer(nextPath - curPath), curPath,
-							nextPath - curPath);
-						path.ReleaseBuffer(nextPath - curPath);
-					} else {
-						path = curPath;
-					}
-					if (path[path.GetLength() - 1] != '/') {
-						path += '/';
-					}
-					path += name;
-					if ((file = uLib->GetVFS()->CreateFile(path.GetBuffer(),
-						GVFS::CF_READ))) {
-						break;
-					}
-					curPath = nextPath;
-					if (curPath) {
-						curPath++;
-					}
-				}
-			}
-			if (!file) {
-				path = __STR(RT_LINKER_DEFDIR);
-				path += '/';
-				path += name;
-				file = uLib->GetVFS()->CreateFile(path.GetBuffer(), GVFS::CF_READ);
-			}
-		}
-
+		GFile *file = OpenFile(name, rpath);
 		if (!file) {
 			Error("Cannot find dependency file: '%s', required by '%s'", name,
 				curObjName.GetBuffer());
 			return -1;
 		}
 
-		DynObject *obj = CreateObject(file, ctx->obj);
+		DynObject *obj = CreateObject(file, ctx->obj, rtCtx);
 		file->Release();
 		if (!obj) {
 			Error("Cannot create object instance: '%s', required by '%s'", name,
@@ -459,7 +595,7 @@ RTLinker::GetNextObject(DynObject *prev)
 }
 
 RTLinker::DynObject *
-RTLinker::CreateObject(GFile *file, DynObject *parent)
+RTLinker::CreateObject(GFile *file, DynObject *parent, RTLoadContext *rtCtx)
 {
 	ObjContext ctx(file);
 
@@ -499,6 +635,13 @@ RTLinker::CreateObject(GFile *file, DynObject *parent)
 		return 0;
 	}
 	ctx.obj->path = path;
+	if (rtCtx) {
+		ctx.obj->flags |= DynObject::F_RUNTIME_LOADED;
+		if (LIST_HAS(DynObject, rtList, parent, rtCtx->rtObjs)) {
+			AtomicOp::Inc(&ctx.obj->rtDepCount);
+		}
+		LIST_ADD(rtList, ctx.obj, rtCtx->rtObjs);
+	}
 
 	if (ProcessSegments(&ctx)) {
 		Error("Filed to process segments");
@@ -510,7 +653,7 @@ RTLinker::CreateObject(GFile *file, DynObject *parent)
 		return 0;
 	}
 
-	if (ProcessObjDeps(&ctx)) {
+	if (ProcessObjDeps(&ctx, rtCtx)) {
 		Error("Cannot process object dependencies");
 		return 0;
 	}
@@ -685,7 +828,7 @@ RTLinker::LoadSegments(DynObject *obj)
 			}
 			vaddr_t base = seg->baseAddr + offset + roundup2(seg->fileSize, PAGE_SIZE);
 			vsize_t size = seg->memSize - roundup2(seg->fileSize, PAGE_SIZE);
-			if (!uLib->GetApp()->AllocateHeap( size, prot, (void *)base, 1)) {
+			if (!uLib->GetApp()->AllocateHeap(size, prot, (void *)base, 1)) {
 				Error("Failed to create BSS chunk (0x%lx @ 0x%08lx)", size, base);
 				return -1;
 			}
@@ -709,6 +852,19 @@ RTLinker::LoadSegments()
 	}
 	DynObject *obj;
 	FOREACH_DYNOBJECT(obj) {
+		if (LoadSegments(obj)) {
+			Error("Failed to load segments for '%s'", obj->path.GetBuffer());
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int
+RTLinker::RTLoadSegments(RTLoadContext *rtCtx)
+{
+	DynObject *obj;
+	LIST_FOREACH(DynObject, rtList, obj, rtCtx->rtObjs) {
 		if (LoadSegments(obj)) {
 			Error("Failed to load segments for '%s'", obj->path.GetBuffer());
 			return -1;
@@ -775,6 +931,20 @@ RTLinker::ObjLinkContext::Initialize()
 		buckets = ht;
 		chain = ht + numBuckets;
 	}
+
+	/* Initialize __dso_handle variable of the object */
+	Elf32_Sym *sym = obj->FindSymbol((char *)"__dso_handle");
+	if (sym) {
+		if (ELF32_ST_TYPE(sym->st_info) != STT_OBJECT) {
+			obj->Error("__dso_handle symbol of wrong type (%d)",
+				ELF32_ST_TYPE(sym->st_info));
+			return -1;
+		}
+		*(DynObject **)(sym->st_value + offset) = obj;
+	} else {
+		obj->Error("__dso_handle symbol not found");
+		return -1;
+	}
 	return 0;
 }
 
@@ -817,53 +987,38 @@ RTLinker::ObjLinkContext::GetSym(u32 idx)
  * searched.
  */
 Elf32_Sym *
-RTLinker::FindSymbol(char *name, DynObject **pObj)
+RTLinker::FindSymbol(const char *name, DynObject **pObj)
 {
 	u32 hash = elf_hash((const u8 *)name);
 	Elf32_Sym *sym, *lastWeakSym = 0;
 	DynObject *obj, *lastWeakObj = 0;
 	FOREACH_DYNOBJECT(obj) {
+		/* Skip requesting object */
 		if (pObj && *pObj == obj) {
 			continue;
 		}
-		ObjLinkContext *ctx = &obj->linkCtx;
-		if (!ctx->buckets || !ctx->chain) {
+		if (!(sym = obj->FindSymbol(name, &hash))) {
 			continue;
 		}
-		/* Use symbols hash table */
-		u32 symIdx;
-		for (symIdx = ctx->buckets[hash % ctx->numBuckets];
-			symIdx != STN_UNDEF;
-			symIdx = ctx->chain[symIdx]) {
-			sym = ctx->GetSym(symIdx);
-			if (!sym) {
-				Error("Symbol index in hash table is not valid: %lu in '%s'",
-					symIdx, obj->path.GetBuffer());
-				break;
-			}
-			/* Search only for GLOBAL and WEAK symbols */
-			if (ELF32_ST_BIND(sym->st_info) != STB_GLOBAL &&
-				ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
-				continue;
-			}
-			if (strcmp(name, ctx->GetStr(sym->st_name))) {
-				continue;
-			}
-			/* Proceed to next object if symbol is undefined here */
-			if (sym->st_shndx == SHN_UNDEF) {
-				break;
-			}
-			if (ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
-				lastWeakSym = sym;
-				lastWeakObj = obj;
-				continue;
-			}
-			/* Symbol found */
-			if (pObj) {
-				*pObj = obj;
-			}
-			return sym;
+		/* Search only for GLOBAL and WEAK symbols */
+		if (ELF32_ST_BIND(sym->st_info) != STB_GLOBAL &&
+			ELF32_ST_BIND(sym->st_info) != STB_WEAK) {
+			continue;
 		}
+		/* Proceed to next object if symbol is undefined here */
+		if (sym->st_shndx == SHN_UNDEF) {
+			continue;
+		}
+		if (ELF32_ST_BIND(sym->st_info) == STB_WEAK) {
+			lastWeakSym = sym;
+			lastWeakObj = obj;
+			continue;
+		}
+		/* Symbol found */
+		if (pObj) {
+			*pObj = obj;
+		}
+		return sym;
 	}
 	if (lastWeakSym) {
 		if (pObj) {
@@ -939,7 +1094,11 @@ RTLinker::ProcessRelEntry(ObjLinkContext *ctx, Elf32_Sword *location,
 		*location = globValue + *addend - (Elf32_Sword)location;
 		break;
 	case R_386_COPY:
-		*location = *(Elf32_Sword *)globValue;
+		if (!locSym) {
+			Error("R_386_COPY relocation entry without local symbol");
+			return -1;
+		}
+		memcpy(location, (Elf32_Sword *)globValue, locSym->st_size);
 		break;
 	case R_386_GLOB_DAT:
 	case R_386_JMP_SLOT:
@@ -1083,6 +1242,32 @@ RTLinker::LinkObjects()
 	return 0;
 }
 
+int
+RTLinker::RTLinkObjects(RTLoadContext *rtCtx)
+{
+	/* Firstly initialize link contexts for all objects */
+	DynObject *obj;
+	LIST_FOREACH(DynObject, rtList, obj, rtCtx->rtObjs) {
+		if (obj->linkCtx.Initialize()) {
+			CString s;
+			GetDepChain(obj, s);
+			Error("Failed to initialize object linking context: '%s'",
+				s.GetBuffer());
+			return -1;
+		}
+	}
+
+	LIST_FOREACH(DynObject, rtList, obj, rtCtx->rtObjs) {
+		if (LinkObject(&obj->linkCtx)) {
+			CString s;
+			GetDepChain(obj, s);
+			Error("Failed to link object '%s'", s.GetBuffer());
+			return -1;
+		}
+	}
+	return 0;
+}
+
 RTLinker::DynObject *
 RTLinker::DepGraphNext(size_t depOffs, size_t flagOffs)
 {
@@ -1134,6 +1319,158 @@ RTLinker::CallConstructors()
 }
 
 int
+RTLinker::CallDestructors(RTUnloadContext *rtCtx)
+{
+	DynObject *obj;
+	FOREACH_DYNOBJECT(obj) {
+		obj->destrCalled = 1;
+	}
+	LIST_FOREACH(DynObject, rtList, obj, rtCtx->rtObjs) {
+		obj->destrCalled = 0;
+	}
+	while((obj = DepGraphNext(OFFSETOF(DynObject, depRevGraph),
+		OFFSETOF(DynObject, destrCalled)))) {
+		obj->CallDestructors();
+	}
+	return 0;
+}
+
+RTLinker::RTLoadContext::RTLoadContext()
+{
+	LIST_INIT(rtObjs);
+	reqObj = 0;
+}
+
+RTLinker::RTLoadContext::~RTLoadContext()
+{
+	DynObject *obj;
+	while ((obj = LIST_FIRST(DynObject, rtList, rtObjs))) {
+		LIST_DELETE(rtList, obj, rtObjs);
+		DELETE(obj);
+	}
+}
+
+RTLinker::DynObject *
+RTLinker::RTLoadContext::Release()
+{
+	LIST_INIT(rtObjs);
+	DynObject *obj = reqObj;
+	reqObj = 0;
+	return obj;
+}
+
+RTLinker::RTUnloadContext::RTUnloadContext(DynObject *reqObj)
+{
+	LIST_INIT(rtObjs);
+	this->reqObj = reqObj;
+}
+
+RTLinker::RTUnloadContext::~RTUnloadContext()
+{
+
+}
+
+RTLinker::DSOHandle
+RTLinker::LoadLibrary(const char *path, DSOHandle refDso)
+{
+	GFile *file = OpenFile((char *)path);
+	if (!file) {
+		Error("Library file not found: '%s'", path);
+		return 0;
+	}
+	DynObject *parent = refDso ? refDso : dynTree;
+	RTLoadContext rtCtx;
+
+	rtCtx.reqObj = CreateObject(file, parent, &rtCtx);
+	file->Release();
+	if (!rtCtx.reqObj) {
+		Error("Failed to create objects for '%s'", path);
+		return 0;
+	}
+	if (!(rtCtx.reqObj->flags & DynObject::F_RUNTIME_LOADED)) {
+		return rtCtx.Release();
+	}
+	if (AtomicOp::Add(&rtCtx.reqObj->refCount, 1)) {
+		return rtCtx.Release();
+	}
+
+	if (RTLoadSegments(&rtCtx)) {
+		Error("Failed to load segments in the process memory");
+		return 0;
+	}
+
+	if (RTLinkObjects(&rtCtx)) {
+		Error("Failed to link loaded objects");
+		return 0;
+	}
+	CallConstructors();
+	return rtCtx.Release();
+}
+
+/*
+ * Fill list of objects which will be actually unloaded. Insert only those
+ * objects which have reference counters zeroed.
+ */
+int
+RTLinker::FindUnloadDeps(RTUnloadContext *rtCtx, DynObject *reqObj)
+{
+	DynObject *obj;
+
+	if (!reqObj) {
+		/* Use destrCalled as visited flag */
+		FOREACH_DYNOBJECT(obj) {
+			obj->destrCalled = 0;
+		}
+		reqObj = rtCtx->reqObj;
+	} else {
+		ensure(reqObj->rtDepCount);
+		AtomicOp::Dec(&reqObj->rtDepCount);
+	}
+	reqObj->destrCalled = 1;
+	if (!reqObj->rtDepCount) {
+		LIST_ADD(rtList, reqObj, rtCtx->rtObjs);
+	}
+
+	ObjDepGraph *dep;
+	LIST_FOREACH(ObjDepGraph, list, dep, reqObj->depGraph) {
+		obj = dep->obj;
+		if (obj->destrCalled) {
+			continue;
+		}
+		if (!(obj->flags & DynObject::F_RUNTIME_LOADED)) {
+			continue;
+		}
+		FindUnloadDeps(rtCtx, obj);
+	}
+	return 0;
+}
+
+int
+RTLinker::FreeLibrary(DSOHandle dso)
+{
+	if (!(dso->flags & DynObject::F_RUNTIME_LOADED)) {
+		return 0;
+	}
+	if (!dso->refCount) {
+		Error("Trying to free library more times than it was loaded: '%s'",
+			dso->path.GetBuffer());
+		return -1;
+	}
+	if (AtomicOp::Dec(&dso->refCount)) {
+		return 0;
+	}
+	RTUnloadContext rtCtx(dso);
+	FindUnloadDeps(&rtCtx);
+	CallDestructors(&rtCtx);
+	DynObject *obj;
+	while ((obj = LIST_FIRST(DynObject, rtList, rtCtx.rtObjs))) {
+		LIST_DELETE(rtList, obj, rtCtx.rtObjs);
+		DELETE(obj);
+	}
+	return 0;
+}
+
+int
 RTLinker::Link()
 {
 	if (elf_version(EV_CURRENT) == EV_NONE) {
@@ -1180,6 +1517,33 @@ RTLinker::Link()
 	return 0;
 }
 
+void *
+RTLinker::GetSymbolAddress(const char *symbolName, DSOHandle *refDso)
+{
+	Elf32_Sym *sym;
+	DynObject *obj;
+	if (refDso && *refDso) {
+		sym = (*refDso)->FindSymbol(symbolName);
+		obj = *refDso;
+	} else {
+		obj = 0;
+		sym = FindSymbol(symbolName, &obj);
+	}
+	if (sym) {
+		if (sym->st_shndx == SHN_UNDEF) {
+			return 0;
+		}
+		if (refDso) {
+			*refDso = obj;
+		}
+		if (sym->st_shndx == SHN_ABS) {
+			return (void *)sym->st_value;
+		}
+		return (void *)(sym->st_value + obj->linkCtx.offset);
+	}
+	return 0;
+}
+
 vaddr_t
 RTLinker::GetEntry()
 {
@@ -1187,4 +1551,10 @@ RTLinker::GetEntry()
 		return 0;
 	}
 	return dynTree->entry;
+}
+
+int
+RTLinker::AtExit(DSOHandle dso, ExitFunc func, void *arg)
+{
+	return dso->AddExitFunc(func, arg);
 }

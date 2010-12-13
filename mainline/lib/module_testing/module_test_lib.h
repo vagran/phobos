@@ -20,19 +20,43 @@ extern volatile u32 constrCalled, destrCalled;
 
 extern volatile u32 shlib2DATA;
 
-u32 mtShlibGetDATA();
-u32 mtShlibGetBSS();
-u32 mtShlibGetConstDATA();
+ASMCALL u32 mtShlibGetDATA();
+ASMCALL u32 mtShlibGetBSS();
+ASMCALL u32 mtShlibGetConstDATA();
 
-void mtShlibModExec();
+ASMCALL void mtShlibModExec();
 
-void mtShlibModLib(); /* Defined in executable */
+ASMCALL void mtShlibModLib(); /* Defined in executable */
 
-int mtShlibTestOwnVars();
-int mtShlib2ExecFunc();
-int mtShlibTestWeakFunc();
-int mtShlibTestFuncPointer();
-int mtShlib2Test();
-int mtShlibTestSecLib();
+ASMCALL int mtShlibTestOwnVars();
+ASMCALL int mtShlib2ExecFunc();
+ASMCALL int mtShlibTestWeakFunc();
+ASMCALL int mtShlibTestFuncPointer();
+ASMCALL int mtShlib2Test();
+ASMCALL int mtShlibTestSecLib();
+ASMCALL RTLinker::DSOHandle mtShlibGetDSOHandle();
+ASMCALL RTLinker::DSOHandle mtShlibGetDSOHandle2();
 
+extern volatile int shlibObjCurOrder, shlibObjError;
+
+class ShlibObj {
+public:
+	volatile int order, *curOrder, *error;
+	ShlibObj(int order, volatile int *curOrder, volatile int *error) {
+		this->order = order;
+		this->curOrder = curOrder;
+		this->error = error;
+		if (*curOrder != order) {
+			(*error)++;
+		}
+		(*curOrder)++;
+	}
+
+	~ShlibObj() {
+		(*curOrder)--;
+		if (*curOrder != order) {
+			(*error)++;
+		}
+	}
+};
 #endif /* MODULE_TEST_LIB_H_ */

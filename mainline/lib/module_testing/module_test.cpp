@@ -18,32 +18,32 @@ volatile u32 shlibBSS2;
 volatile u32 shlibDATA2 = MT_DWORD_VALUE;
 const u32 shlibConstDATA = MT_DWORD_VALUE2;
 
-u32
+ASMCALL u32
 mtShlibGetDATA()
 {
 	return shlibDATA;
 }
 
-u32
+ASMCALL u32
 mtShlibGetConstDATA()
 {
 	return shlibConstDATA;
 }
 
 
-u32
+ASMCALL u32
 mtShlibGetBSS()
 {
 	return shlibBSS;
 }
 
-void
+ASMCALL void
 mtShlibModExec()
 {
 	execData = MT_DWORD_VALUE;
 }
 
-int
+ASMCALL int
 mtShlib2ExecFunc()
 {
 	shlibDATA = 0;
@@ -51,13 +51,19 @@ mtShlib2ExecFunc()
 	return shlibDATA != MT_DWORD_VALUE;
 }
 
-int
+ASMCALL int
 mtShlibTestOwnVars()
 {
 	return shlibBSS2 || shlibDATA2 != MT_DWORD_VALUE;
 }
 
-int
+ASMCALL RTLinker::DSOHandle
+mtShlibGetDSOHandle()
+{
+	return GetDSO();
+}
+
+ASMCALL int
 mtShlibTestSecLib()
 {
 	if (shlib2DATA != MT_DWORD_VALUE) {
@@ -76,17 +82,17 @@ mtShlibTestSecLib()
 /******************************************************************************/
 /* Weak symbols linking */
 
-extern void mtShlibWeakFunc1() __attribute__((weak)); /* Not defined */
-extern void mtShlibWeakFunc2() __attribute__((weak)); /* Defined in library */
-extern void mtShlibWeakFunc3() __attribute__((weak)); /* Defined in executable */
+ASMCALL void mtShlibWeakFunc1() __attribute__((weak)); /* Not defined */
+ASMCALL void mtShlibWeakFunc2() __attribute__((weak)); /* Defined in library */
+ASMCALL void mtShlibWeakFunc3() __attribute__((weak)); /* Defined in executable */
 
-void
+ASMCALL void
 mtShlibWeakFunc2()
 {
 	shlibDATA = MT_DWORD_VALUE;
 }
 
-int
+ASMCALL int
 mtShlibTestWeakFunc()
 {
 	if (mtShlibWeakFunc1) {
@@ -123,7 +129,7 @@ typedef u32 (*mtHandler_t)();
 static volatile mtHandler_t mtHandler = mtTestHandler;
 static const mtHandler_t mtHandler2 = mtTestHandler;
 
-int
+ASMCALL int
 mtShlibTestFuncPointer()
 {
 	shlibDATA = 0;
@@ -140,10 +146,6 @@ mtShlibTestFuncPointer()
 /******************************************************************************/
 /* Global objects constructors and destructors */
 
-class ShlibObj {
-public:
-	ShlibObj() { constrCalled++; }
-	~ShlibObj() { destrCalled++; }
-};
+volatile int shlibObjCurOrder, shlibObjError;
 
-static ShlibObj shlibObj;
+static ShlibObj shlibObj(1, &shlibObjCurOrder, &shlibObjError);

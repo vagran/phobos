@@ -27,3 +27,15 @@ AppStart(GApp *app)
 	app->ExitThread(Main(app));
 	/* NOT REACHED */
 }
+
+RTLinker::DSOHandle
+GetDSO(RTLinker **linker)
+{
+	if (__dso_handle) {
+		if (linker) {
+			*linker = ((RTLinker::DynObject *)__dso_handle)->linker;
+		}
+		return (RTLinker::DSOHandle)__dso_handle;
+	}
+	return 0;
+}

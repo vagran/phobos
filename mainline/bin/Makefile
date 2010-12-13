@@ -6,7 +6,6 @@
 
 SUBDIRS= init \
 	rt_linker \
-	module_testing \
-	module_testing_dyn
+	module_testing
 
 include $(PHOBOS_ROOT)/make/make.mak
