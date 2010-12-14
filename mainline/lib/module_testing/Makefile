@@ -6,7 +6,7 @@
 
 LIB = module_testing
 
-LIBS += elf common module_testing2
+LIBS += module_testing2
 
 INCLUDES += $(PHOBOS_ROOT)/bin/module_testing
 

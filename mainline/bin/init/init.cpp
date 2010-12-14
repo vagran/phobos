@@ -28,7 +28,7 @@ Main(GApp *app)
 		u32 bitmap;
 
 		if (app->Wait(GateObject::OP_READ, objs, SIZEOFARRAY(objs), &bitmap,
-			time->S(2))) {
+			time->S(2)) < 0) {
 			s = "Wait failed\n";
 			out->Write((u8 *)s.GetBuffer(), s.GetLength());
 			s = GETSTR(app, GApp::GetLastErrorStr);

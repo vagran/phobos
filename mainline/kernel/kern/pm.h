@@ -186,6 +186,7 @@ public:
 	class Process : public Object {
 	public:
 		enum State {
+			S_NONE,
 			S_RUNNING,
 			S_STOPPED,
 			S_TERMINATED,
@@ -196,6 +197,7 @@ public:
 		ListEntry list; /* list of all processes in PM */
 		PIDEntry pid;
 		ListHead threads;
+		Thread *mainThread;
 		u32 numThreads, numAliveThreads;
 		SpinLock thrdListLock;
 		MM::Map *map, *userMap, *gateMap;
@@ -215,6 +217,7 @@ public:
 		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
 		MM::Map::Entry *GetHeapEntry(vaddr_t va);
+		void SetState(State state);
 	public:
 		Process();
 		~Process();
@@ -237,6 +240,7 @@ public:
 		inline GM::GateArea *GetGateArea() { return gateArea; }
 		int Stop();
 		int Resume();
+		int Terminate();
 		int Fault(ProcessFault flt, const char *msg = 0, ...) __format(printf, 3, 4);
 		int AddStream(GStream *stream);
 		int RemoveStream(GStream *stream);
@@ -250,6 +254,7 @@ public:
 		void *ReserveSpace(u32 size, vaddr_t va = 0);
 		int UnReserveSpace(void *p);
 		inline KString *GetArgs() { return &args; }
+		State GetState(u32 *pExitCode = 0, ProcessFault *pFault = 0);
 	};
 
 	class Runqueue : public Object {

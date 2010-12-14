@@ -150,18 +150,19 @@ PM::IntCreateProcess(Thread::ThreadEntry entry, void *arg, const char *name,
 	procListLock.Unlock();
 	if (entry) {
 		if (!isKernelProc) {
-			Thread *thrd = proc->CreateThread(entry, arg);
-			if (!thrd) {
+			proc->mainThread = proc->CreateThread(entry, arg);
+			if (!proc->mainThread) {
 				DestroyProcess(proc);
 				return 0;
 			}
 			if (runIt) {
-				thrd->Run();
+				proc->mainThread->Run();
 			}
 		} else {
 			kernInitThread = proc->CreateThread(entry, arg,
 				Thread::DEF_KERNEL_STACK_SIZE, KERNEL_PRIORITY);
 			ensure(kernInitThread);
+			proc->mainThread = kernInitThread;
 			if (runIt) {
 				kernInitThread->Run();
 			}
@@ -804,6 +805,7 @@ PM::Process::Process()
 	gateArea = 0;
 	heapObj = 0;
 	isKernelProc = 0;
+	mainThread = 0;
 	fault = PFLT_NONE;
 	state = S_STOPPED;
 }
@@ -854,9 +856,8 @@ PM::Process::TerminateThread(Thread *thrd, int exitCode)
 	thrdListLock.Lock();
 	numAliveThreads--;
 	thrdListLock.Unlock();
-	if (!numAliveThreads) {
-		Stop();
-		state = S_TERMINATED;
+	if (thrd == mainThread) {
+		Terminate();
 	}
 	return 0;
 }
@@ -884,6 +885,9 @@ PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize, u
 		return 0;
 	}
 	thrdListLock.Lock();
+	if (!mainThread) {
+		mainThread = thrd;
+	}
 	LIST_ADD(list, thrd, threads);
 	numThreads++;
 	numAliveThreads++;
@@ -894,7 +898,7 @@ PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize, u
 PM::Thread *
 PM::Process::GetThread()
 {
-	return LIST_FIRST(Thread, list, threads);
+	return mainThread;
 }
 
 int
@@ -1004,6 +1008,16 @@ PM::Process::CheckUserString(const char *str)
 	}
 }
 
+void
+PM::Process::SetState(State state)
+{
+	int changed = this->state != state;
+	this->state = state;
+	if (changed) {
+		pm->Wakeup(this);
+	}
+}
+
 int
 PM::Process::Stop()
 {
@@ -1015,7 +1029,7 @@ PM::Process::Stop()
 		}
 	}
 	thrdListLock.Unlock();
-	state = S_STOPPED;
+	SetState(S_STOPPED);
 	return 0;
 }
 
@@ -1025,7 +1039,7 @@ PM::Process::Resume()
 	if (state != S_STOPPED) {
 		return -1;
 	}
-	state = S_RUNNING;
+	SetState(S_RUNNING);
 	Thread *thrd;
 	thrdListLock.Lock();
 	LIST_FOREACH(Thread, list, thrd, threads) {
@@ -1034,7 +1048,14 @@ PM::Process::Resume()
 		}
 	}
 	thrdListLock.Unlock();
-	state = S_STOPPED;
+	return 0;
+}
+
+int
+PM::Process::Terminate()
+{
+	Stop();
+	SetState(S_TERMINATED);
 	return 0;
 }
 
@@ -1047,8 +1068,7 @@ PM::Process::Fault(ProcessFault flt, const char *msg, ...)
 		va_start(args, msg);
 		faultStr.FormatV(msg, args);
 	}
-	Stop();
-	state = S_TERMINATED;
+	Terminate();
 	klog(KLOG_WARNING, "Process %u (%s) failed: %s", GetID(), name.GetBuffer(),
 		faultStr.GetBuffer());
 	return 0;
@@ -1212,6 +1232,18 @@ PM::Process::GetHeapSize(void *p)
 		return 0;
 	}
 	return e->size;
+}
+
+PM::Process::State
+PM::Process::GetState(u32 *pExitCode, ProcessFault *pFault)
+{
+	if (pExitCode) {
+		*pExitCode = mainThread->exitCode;
+	}
+	if (pFault) {
+		*pFault = fault;
+	}
+	return state;
 }
 
 /***********************************************/

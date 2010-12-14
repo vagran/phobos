@@ -69,6 +69,41 @@ DEF_STR_PROV(GProcess::GetEnv)
 int
 GProcess::SetEnv(const char *name, char *value)
 {
-
+	//notimpl
 	return 0;
+}
+
+PM::Process::State
+GProcess::GetState(u32 *pExitCode, PM::ProcessFault *pFault)
+{
+	if (pExitCode && proc->CheckUserBuf(pExitCode, sizeof(*pExitCode),
+		MM::PROT_WRITE)) {
+		return PM::Process::S_NONE;
+	}
+	if (pFault && proc->CheckUserBuf(pFault, sizeof(*pFault),
+		MM::PROT_WRITE)) {
+		return PM::Process::S_NONE;
+	}
+	return refProc->GetState(pExitCode, pFault);
+}
+
+PM::waitid_t
+GProcess::GetWaitChannel(Operation op)
+{
+	if (op != OP_READ) {
+		return 0;
+	}
+	lastState = refProc->GetState();
+	return (PM::waitid_t)refProc;
+}
+
+int
+GProcess::OpAvailable(Operation op)
+{
+	if (op != OP_READ) {
+		return 0;
+	}
+	PM::Process::State state = refProc->GetState();
+	/* Check if state has changed since last wait call */
+	return (state == PM::Process::S_TERMINATED) || (state != lastState);
 }

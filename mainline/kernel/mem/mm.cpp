@@ -908,8 +908,12 @@ MM::OnPageFault(Frame *frame)
 				frame->code & PFC_P ? "protection violation" : "page not present");
 		} else {
 			printf("Unhandled page fault in kernel mode: "
-				"at 0x%08lx accessing address 0x%08lx, code = 0x%08lx\n",
-				frame->eip, va, frame->code);
+				"at 0x%08lx accessing address 0x%08lx, code = 0x%08lx "
+				"(%s%s, %s)\n",
+				frame->eip, va, frame->code,
+				frame->code & PFC_W ? "Write" : "Read",
+				frame->code & PFC_I ? " (instruction fetch)" : "",
+				frame->code & PFC_P ? "protection violation" : "page not present");
 			if (Debugger::debugFaults && sysDebugger) {
 				sysDebugger->Trap(frame);
 			}

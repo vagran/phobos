@@ -12,9 +12,6 @@ else
 
 LIB = $(COMMON_LIB_NAME)
 
-#//temp - test dependencies trees handling by run-time linker
-LIBS += elf
-
 include $(PHOBOS_ROOT)/make/make.mak
 
 endif

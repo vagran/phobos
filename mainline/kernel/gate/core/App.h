@@ -34,8 +34,11 @@ public:
 	virtual void ExitThread(int exitCode = 0) __noreturn;
 	virtual void Abort(char *msg = 0);
 	virtual int Sleep(u64 time);
+	/* Return -1 if error or number of alerted objects */
 	virtual int Wait(Operation op, GateObject **objects, int numObjects,
 		void *bitmap = 0, u64 timeout = 0);
+	/* Return -1 if error, 0 if timeout, 1 if object alerted */
+	virtual int Wait(Operation op, GateObject *obj, u64 timeout = 0);
 
 	virtual DECL_STR_PROV(GetLastErrorStr);
 	virtual Error::ErrorCode GetLastError();

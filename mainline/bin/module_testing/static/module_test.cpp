@@ -83,6 +83,12 @@ TestDyn()
 	GProcess *proc = uLib->GetApp()->CreateProcess("/bin/module_test_dyn",
 		"Dynamical module testing binary", PM::DEF_PRIORITY, args);
 	mt_assert(proc);
+	mt_assert(uLib->GetApp()->Wait(GProcess::OP_READ, proc) == 1);
+	PM::ProcessFault fault;
+	u32 exitCode;
+	mt_assert(proc->GetState(&exitCode, &fault) == PM::Process::S_TERMINATED);
+	mt_assert(fault == PM::PFLT_NONE);
+	mt_assert(exitCode == MT_DWORD_VALUE);
 	proc->Release();
 }
 
@@ -108,7 +114,7 @@ Main(GApp *app)
 #endif
 
 	mtlog("Module testing successfully finished");
-	return 0;
+	return MT_DWORD_VALUE;
 }
 
 /**************************************************/

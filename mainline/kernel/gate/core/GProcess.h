@@ -18,6 +18,7 @@ DECLARE_GCLASS(GProcess);
 class GProcess : public GateObject {
 private:
 	PM::Process *refProc;
+	PM::Process::State lastState; /* Used for wait on process */
 public:
 	GProcess(PM::Process *refProc = 0);
 	virtual ~GProcess();
@@ -29,6 +30,11 @@ public:
 	/* arg - variable name, dump entire environment if zero */
 	virtual DECL_STR_PROV(GetEnv);
 	virtual int SetEnv(const char *name, char *value); /* value = 0 for deleting */
+	virtual PM::Process::State GetState(u32 *pExitCode = 0, PM::ProcessFault *pFault = 0);
+
+	/* Wait on state change, return immediately if already terminated */
+	virtual PM::waitid_t GetWaitChannel(Operation op);
+	virtual int OpAvailable(Operation op);
 
 	DECLARE_GCLASS_IMP(GProcess);
 };

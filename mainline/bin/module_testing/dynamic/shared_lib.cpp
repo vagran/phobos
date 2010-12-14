@@ -76,6 +76,12 @@ MT_DEFINE(MTSharedLib, "Shared library support")
 	GProcess *proc = uLib->GetApp()->CreateProcess("/bin/sl_rtload_test",
 		"Shared libraries run-time loading module test", PM::DEF_PRIORITY, args);
 	mt_assert(proc);
+	mt_assert(uLib->GetApp()->Wait(GProcess::OP_READ, proc) == 1);
+	PM::ProcessFault fault;
+	u32 exitCode;
+	mt_assert(proc->GetState(&exitCode, &fault) == PM::Process::S_TERMINATED);
+	mt_assert(fault == PM::PFLT_NONE);
+	mt_assert(exitCode == MT_DWORD_VALUE);
 	proc->Release();
 }
 

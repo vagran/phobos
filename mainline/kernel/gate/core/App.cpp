@@ -103,16 +103,19 @@ GApp::Wait(Operation op, GateObject **objects, int numObjects, void *bitmap,
 		pm->ReserveSleepChannel(waitIds[i]);
 	}
 
-	int rc = -1;
+	int rc;
 	do {
 		/* Check if we have operation available for any object */
+		rc = 0;
 		for (int i = 0; i < numObjects; i++) {
 			if (objects[i]->OpAvailable(op)) {
-				rc = 0;
-				BitSet(bitmap, i);
+				if (bitmap) {
+					BitSet(bitmap, i);
+				}
+				rc++;
 			}
 		}
-		if (!rc) {
+		if (rc) {
 			break;
 		}
 
@@ -126,11 +129,13 @@ GApp::Wait(Operation op, GateObject **objects, int numObjects, void *bitmap,
 		if (wakenBy) {
 			for (int i = 0; i < numObjects; i++) {
 				if (objects[i]->OpAvailable(op)) {
-					BitSet(bitmap, i);
+					if (bitmap) {
+						BitSet(bitmap, i);
+					}
+					rc++;
 				}
 			}
 		}
-		rc = 0;
 	} while (0);
 
 	/* Free sleep channels */
@@ -138,6 +143,12 @@ GApp::Wait(Operation op, GateObject **objects, int numObjects, void *bitmap,
 		pm->FreeSleepChannel(waitIds[i]);
 	}
 	return rc;
+}
+
+int
+GApp::Wait(Operation op, GateObject *obj, u64 timeout)
+{
+	return Wait(op, &obj, 1, 0, timeout);
 }
 
 DEF_STR_PROV(GApp::GetLastErrorStr)
