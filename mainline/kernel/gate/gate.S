@@ -49,7 +49,6 @@ GateSysEntry:
 	movl	$KDATASEL, %ecx
 	movl	%ecx, %ds
 	movl	%ecx, %es
-	sti					/* sysenter clears IF */
 	pushl	%edx /* original stack pointer */
 	subl	$GATE_AREA_ADDRESS, %eax
 	xorl	%edx, %edx
@@ -65,30 +64,17 @@ GateSysEntry:
 	testl	%eax, %eax
 	je		CallFail
 
-	popl	%edx /* original stack pointer */
-	movl	%edx, %esp /* switch stack */
-	popl	%edx /* return address */
-	movl	(%esp), %ecx /* object pointer */
-	pushl	%eax /* method address */
-
-	pushl	%edx /* return address */
-	pushl	%ecx /* object pointer */
-	call	GateObjSetReturnAddress
-	addl	$0x8, %esp
-
-	popl	%eax /* method address */
-	call	*%eax
+	movl	(%esp), %edx /* original stack pointer */
+	leal	4(%edx), %esp /* switch stack, drop return address */
+	call	*%eax /* call original method */
 	pushl	%eax /* return value */
 
-	call	OnUserRet
-
-	movl	4(%esp), %ecx /* object pointer */
-	pushl	%ecx
 	call	GateObjGetReturnAddress
-	movl	%eax, %edx /* return address */
-	movl	4(%esp), %eax /* return value */
-	movl	%edx, 4(%esp) /* restore return address in user stack */
-	lea		8(%esp), %ecx /* user stack pointer */
+	pushl	%eax /* return address */
+	call	OnUserRet
+	popl	%edx /* return address */
+	popl	%eax /* return value */
+	movl	%esp, %ecx /* user stack pointer */
 
 	/* restore user segments selectors */
 	pushl	%ebx

@@ -32,8 +32,16 @@ private:
 	GApp *app;
 	GProcess *proc;
 	GVFS *vfs;
+	GTime *time;
 	GStream *sOut, *sIn, *sTrace, *sLog;
 	USlabAllocator alloc;
+
+	typedef struct {
+		GThread::ThreadFunc func;
+		void *arg;
+	} ThreadParams;
+
+	static void ThreadEntry(ThreadParams *params);
 public:
 	ULib(GApp *app);
 	~ULib();
@@ -42,6 +50,7 @@ public:
 	inline GApp *GetApp() { return app; }
 	inline GProcess *GetProcess() { return proc; }
 	inline GVFS *GetVFS() { return vfs; }
+	inline GTime *GetTime() { return time; }
 	inline MemAllocator *GetMemAllocator() { return &alloc; }
 
 	inline GStream *GetOut() { return sOut; }
@@ -55,6 +64,9 @@ public:
 
 	int StreamPrintfV(GStream *s, const char *fmt, va_list args) __format(printf, 3, 0);
 	int StreamPrintf(GStream *s, const char *fmt,...) __format(printf, 3, 4);
+
+	GThread *CreateThread(GProcess *proc, GThread::ThreadFunc func, void *arg = 0,
+		u32 stackSize = PM::Thread::DEF_STACK_SIZE, u32 priority = PM::DEF_PRIORITY);
 };
 
 extern ULib *uLib;

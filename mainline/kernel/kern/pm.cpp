@@ -178,50 +178,6 @@ PM::CreateProcess(Thread::ThreadEntry entry, void *arg, const char *name,
 	return IntCreateProcess(entry, arg, name, priority);
 }
 
-int
-PM::ProcessEntry(void *arg)
-{
-	Thread *thrd = Thread::GetCurrent();
-	Process *proc = thrd->GetProcess();
-
-	/* we are overwriting current stack bottom */
-	u32 *esp = (u32 *)(thrd->stackEntry->base + thrd->stackEntry->size);
-	/*
-	 * Prepare stack. The only argument for AppStart() and Main() functions of
-	 * an application is a pointer to GApp object in its gate area.
-	 */
-	proc->gateArea->Initialize();
-	GApp *app = proc->gateArea->GetApp();
-	app->AddRef(); /* bump user reference counter */
-
-	/* Create default streams */
-	/* XXX just temporal stub, provide terminal access for process */
-	ConsoleDev *videoTerm = (ConsoleDev *)devMan.GetDevice("syscons"/*//temp "vga" */, 0);
-	GNEW(proc->gateArea, GConsoleStream, "output", videoTerm, GConsoleStream::F_OUTPUT);
-	GNEW(proc->gateArea, GConsoleStream, "trace", videoTerm, GConsoleStream::F_OUTPUT);
-	GNEW(proc->gateArea, GConsoleStream, "log", videoTerm, GConsoleStream::F_OUTPUT);
-	GNEW(proc->gateArea, GConsoleStream, "input",
-		(ConsoleDev *)devMan.GetDevice("kbdcons", 0), GConsoleStream::F_INPUT);
-
-	*(--esp) = (u32)app;
-	/* push fake return address for debugger */
-	*(--esp) = 0;
-	ASM (
-		"movl	%0, %%ds\n" /* switch to user data segments */
-		"movl	%0, %%es\n"
-		"xorl	%%ebp, %%ebp\n" /* zero frame base for debugger */
-		"xorl	%0, %0\n"
-		"mov	%0, %%fs\n"
-		"mov	%0, %%gs\n"
-		"sysexit\n" /* jump to user land */
-		:
-		: "r"((u32)GDT::GetSelector(GDT::SI_UDATA, GDT::PL_USER)),
-		  "d"(proc->entryPoint), "c"(esp)
-		:
-	);
-	NotReached();
-}
-
 PM::Process *
 PM::CreateProcess(const char *path, const char *name, int priority, const char *args)
 {
@@ -270,9 +226,10 @@ PM::CreateProcess(const char *path, const char *name, int priority, const char *
 		}
 		break;
 	} while (1);
-	proc->SetEntryPoint(il->GetEntryPoint());
+	vaddr_t ep = il->GetEntryPoint();
 	il->Release();
-	Thread *thrd = proc->CreateThread(ProcessEntry, (void *)args);
+
+	Thread *thrd = proc->CreateUserThread(ep, Thread::DEF_STACK_SIZE, DEF_PRIORITY);
 	if (!thrd) {
 		DestroyProcess(proc);
 		return 0;
@@ -318,7 +275,7 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 	Thread *idleThread = kernelProc->CreateThread(IdleThread, this,
 		Thread::DEF_KERNEL_STACK_SIZE, IDLE_PRIORITY);
 	ensure(idleThread);
-	idleThread->Run();
+	idleThread->Run(cpu);
 	cpu->pcpu.idleThread = idleThread;
 	/* perform per-CPU gate management initialization */
 	gm->InitCPU();
@@ -334,24 +291,45 @@ PM::AttachCPU(Thread::ThreadEntry kernelProcEntry, void *arg)
 int
 PM::ValidateState()
 {
-	Thread *thrd = Thread::GetCurrent();
+	CPU *cpu = CPU::GetCurrent();
+	assert(cpu);
+	Runqueue *rq = CPU_RQ(cpu);
+	assert(rq);
+	Thread *thrd = rq->GetCurrentThread();
 	/* we are completed with a system call processing */
 	thrd->gateCallSP = 0;
 	thrd->gateCallRetAddr = 0;
 	thrd->gateObj = 0;
-
-	if (thrd->state != Thread::S_RUNNING) {
-		/* Currently active thread should be stopped, switch to another one */
-		CPU *cpu = CPU::GetCurrent();
-		assert(cpu);
-		Runqueue *rq = CPU_RQ(cpu);
-		assert(rq);
+	if (thrd->state != Thread::S_RUNNING || rq->needResched) {
+		/* Currently active thread could be stopped, switch to another one */
 		Thread *nextThrd = rq->SelectThread();
 		/* at least idle thread should be there */
 		assert(nextThrd);
 		nextThrd->SwitchTo();
 	}
 	return 0;
+}
+
+void
+PM::Tick(u32 ms)
+{
+	CPU *cpu = CPU::GetCurrent();
+	if (!cpu) {
+		return;
+	}
+	Runqueue *rq = CPU_RQ(cpu);
+	assert(rq);
+	Thread *thrd = rq->GetCurrentThread();
+	assert(thrd);
+	if (!thrd->rqQueue || thrd->isExpired) {
+		return;
+	}
+	if (thrd->sliceTicks > ms) {
+		thrd->sliceTicks -= ms;
+	} else {
+		thrd->sliceTicks = 0;
+		rq->ExpireThread(thrd);
+	}
 }
 
 CPU *
@@ -383,6 +361,8 @@ PM::StrProcessFault(ProcessFault flt)
 		return "Invalid user buffer provided to gate method";
 	case PFLT_ABORT:
 		return "Aborted by application request";
+	case PFLT_THREAD_ARGS:
+		return "Too many arguments provided to new thread";
 	}
 	return "Unknown fault";
 }
@@ -402,7 +382,7 @@ PM::SleepTimeout(Thread *thrd)
 	assert(thrd->waitTimeout);
 	thrd->waitTimeout = 0;
 	thrd->wakenBy = 0;
-	Wakeup(thrd);
+	WakeupThread(thrd);
 	tqLock.Unlock();
 	im->RestorePL(x);
 }
@@ -606,7 +586,7 @@ PM::Wakeup(SleepEntry *se)
 	while ((e = LIST_FIRST(ThreadElement, seList, se->threads))) {
 		Thread *thrd = e->thread;
 		thrd->wakenBy = TREE_KEY(tree, se);
-		Wakeup(thrd);
+		WakeupThread(thrd);
 	}
 	assert(se->numThreads == 1);
 	se->numThreads = 0;
@@ -617,7 +597,7 @@ PM::Wakeup(SleepEntry *se)
 
 /* must be called with tqLock */
 int
-PM::Wakeup(Thread *thrd)
+PM::WakeupThread(Thread *thrd)
 {
 	UnsleepThread(thrd);
 	thrd->Unsleep();
@@ -675,6 +655,7 @@ PM::Runqueue::Runqueue()
 	curThread = 0;
 	numQueued = 0;
 	numActive = 0;
+	needResched = 0;
 	memset(queuedMask, 0, sizeof(queuedMask));
 	memset(activeMask, 0, sizeof(activeMask));
 }
@@ -703,6 +684,7 @@ PM::Runqueue::AddThread(Thread *thrd)
 	BitSet(queuedMask, thrd->priority);
 	numQueued++;
 	numActive++;
+	needResched = 1;
 	qLock.Unlock();
 	IM::RestoreIntr(intr);
 	return 0;
@@ -714,6 +696,7 @@ PM::Runqueue::RemoveThread(Thread *thrd)
 	assert(CPU_RQ(thrd->cpu) == this);
 	u32 intr = IM::DisableIntr();
 	qLock.Lock();
+	assert(thrd->rqQueue);
 	Queue *queue = (Queue *)thrd->rqQueue;
 	ListHead *head = &queue->queue[thrd->priority];
 	LIST_DELETE(rqList, thrd, *head);
@@ -736,8 +719,44 @@ PM::Runqueue::RemoveThread(Thread *thrd)
 	}
 	assert(numQueued);
 	numQueued--;
-	thrd->cpu = 0;
 	thrd->state = Thread::S_NONE;
+	thrd->priority = thrd->nextPriority;
+	thrd->isActive = 0;
+	thrd->rqQueue = 0;
+	needResched = 1;
+	qLock.Unlock();
+	IM::RestoreIntr(intr);
+	return 0;
+}
+
+int
+PM::Runqueue::ExpireThread(Thread *thrd)
+{
+	u32 intr = IM::DisableIntr();
+	qLock.Lock();
+	assert(!thrd->isExpired);
+	thrd->isExpired = 1;
+	assert(thrd->rqQueue == qActive);
+	ListHead *head = &qActive->queue[thrd->priority];
+	LIST_DELETE(rqList, thrd, *head);
+	if (LIST_ISEMPTY(*head)) {
+		BitClear(activeMask, thrd->priority);
+	}
+	assert(numActive);
+	numActive--;
+	if (thrd->priority != thrd->nextPriority) {
+		if (LIST_ISEMPTY(qActive->queue[thrd->priority]) &&
+			LIST_ISEMPTY(qExpired->queue[thrd->priority])) {
+			BitClear(queuedMask, thrd->priority);
+		}
+		thrd->priority = thrd->nextPriority;
+		BitSet(queuedMask, thrd->priority);
+	}
+	thrd->sliceTicks = GetSliceTicks(thrd);
+	head = &qExpired->queue[thrd->priority];
+	LIST_ADD(rqList, thrd, *head);
+	thrd->rqQueue = qExpired;
+	needResched = 1;
 	qLock.Unlock();
 	IM::RestoreIntr(intr);
 	return 0;
@@ -752,6 +771,10 @@ PM::Runqueue::SelectThread()
 
 	u32 intr = IM::DisableIntr();
 	qLock.Lock();
+	needResched = 0;
+	if (numQueued > 2) {
+		printf("numQueued = %lu\n", numQueued);//temp
+	}
 	while (1) {
 		if (!numActive) {
 			/* start next round */
@@ -769,22 +792,32 @@ PM::Runqueue::SelectThread()
 		}
 		/* only idle thread should be left */
 		if (numQueued == 1) {
-			/* no more threads in running state */
+			/* no more threads in running state, just idle thread */
 			thrd = LIST_FIRST(Thread, rqList, qActive->queue[pri]);
 			assert(thrd);
+			thrd->isExpired = 1; /* prevent from expiration */
 			qLock.Unlock();
 			IM::RestoreIntr(intr);
 			return thrd;
 		}
+		/*
+		 * There are other threads in runqueue, expire idle thread in order to
+		 * start next round.
+		 */
+		if (numQueued > 2) {
+				printf("numQueued2 = %lu\n", numQueued);//temp
+			}
 		assert(numActive == 1);
 		numActive = 0;
 		thrd = LIST_FIRST(Thread, rqList, qActive->queue[pri]);
 		assert(thrd);
 		LIST_DELETE(rqList, thrd, qActive->queue[pri]);
 		LIST_ADD(rqList, thrd, qExpired->queue[pri]);
+		thrd->rqQueue = qExpired;
 	}
 	thrd = LIST_FIRST(Thread, rqList, qActive->queue[pri]);
 	assert(thrd);
+	assert(thrd->rqQueue == qActive);
 	qLock.Unlock();
 	IM::RestoreIntr(intr);
 	return thrd;
@@ -863,7 +896,8 @@ PM::Process::TerminateThread(Thread *thrd, int exitCode)
 }
 
 PM::Thread *
-PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize, u32 priority)
+PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize,
+	u32 priority)
 {
 	pid_t pid = pm->AllocatePID();
 	if (pid == INVALID_PID) {
@@ -893,6 +927,104 @@ PM::Process::CreateThread(Thread::ThreadEntry entry, void *arg, u32 stackSize, u
 	numAliveThreads++;
 	thrdListLock.Unlock();
 	return thrd;
+}
+
+int
+PM::Process::UserThreadEntry(UserThreadParams *params)
+{
+	/*
+	 * We will overwrite current stack bottom. So we need special actions in
+	 * order to use local variables and argument - we will move our frame
+	 * upper to the stack.
+	 */
+	const u32 frameShift = params->numArgs * sizeof(u32) + 256;
+
+	if (frameShift > 8192) {
+		Thread::GetCurrent()->Fault(PFLT_THREAD_ARGS);
+		pm->ValidateState();
+		NotReached();
+	}
+	memcpy((u8 *)&params - frameShift, &params, sizeof(UserThreadParams *));
+	ASM (
+		"subl %0, %%ebp\n"
+		"subl %0, %%esp\n"
+		:
+		: "r"(frameShift)
+		: "cc", "memory"
+	);
+	sti();
+
+	/* New block to ensure all local variables are allocated from here */
+	{
+		Thread *thrd = Thread::GetCurrent();
+		u32 *esp = (u32 *)(thrd->stackEntry->base + thrd->stackEntry->size);
+		/*
+		 * Prepare stack. Push all arguments in reverse order (C calling convention).
+		 * Initialize gating SS and pass pointer to GApp if it is main thread
+		 * creation.
+		 */
+		Process *proc = thrd->GetProcess();
+		if (proc->GetThread() == thrd) {
+			proc->gateArea->Initialize();
+			GApp *app = proc->gateArea->GetApp();
+			app->AddRef(); /* bump user reference counter */
+			*(--esp) = (u32)app;
+
+			/* Create default streams */
+			/* XXX just temporal stub, provide terminal access for process */
+			ConsoleDev *videoTerm = (ConsoleDev *)devMan.GetDevice("syscons"/*//temp "vga" */, 0);
+			GNEW(proc->gateArea, GConsoleStream, "output", videoTerm, GConsoleStream::F_OUTPUT);
+			GNEW(proc->gateArea, GConsoleStream, "trace", videoTerm, GConsoleStream::F_OUTPUT);
+			GNEW(proc->gateArea, GConsoleStream, "log", videoTerm, GConsoleStream::F_OUTPUT);
+			GNEW(proc->gateArea, GConsoleStream, "input",
+				(ConsoleDev *)devMan.GetDevice("kbdcons", 0), GConsoleStream::F_INPUT);
+		} else {
+			for (int i = params->numArgs - 1; i >= 0; i--) {
+				*(--esp) = params->args[i];
+			}
+		}
+		/* push fake return address for debugger */
+		*(--esp) = 0;
+
+		vaddr_t entry = params->entry;
+		MM::mfree(params);
+		ASM (
+			"movl	%0, %%ds\n" /* switch to user data segments */
+			"movl	%0, %%es\n"
+			"xorl	%%ebp, %%ebp\n" /* zero frame base for debugger */
+			"xorl	%0, %0\n"
+			"mov	%0, %%fs\n"
+			"mov	%0, %%gs\n"
+			"sysexit\n" /* jump to user land */
+			:
+			: "r"((u32)GDT::GetSelector(GDT::SI_UDATA, GDT::PL_USER)),
+			  "d"(entry), "c"(esp)
+			:
+		);
+		NotReached();
+	}
+}
+
+PM::Thread *
+PM::Process::CreateUserThread(vaddr_t entry, u32 stackSize, u32 priority,
+	u32 numArgs, ...)
+{
+	u32 paramSize = OFFSETOF(UserThreadParams, args) + numArgs * sizeof(u32);
+	UserThreadParams *params = (UserThreadParams *)MM::malloc(paramSize);
+	if (!params) {
+		ERROR(E_NOMEM, "Cannot allocate user thread parameters");
+		return 0;
+	}
+	memset(params, 0, paramSize);
+	params->entry = entry;
+	params->numArgs = numArgs;
+	va_list args;
+	va_start(args, numArgs);
+	for (u32 i = 0; i < numArgs; i++) {
+		params->args[i] = va_arg(args, u32);
+	}
+	return CreateThread((Thread::ThreadEntry)UserThreadEntry, params,
+		stackSize, priority);
 }
 
 PM::Thread *
@@ -1278,21 +1410,26 @@ PM::Thread::Thread(Process *proc)
 	stackObj = 0;
 	stackEntry = 0;
 	cpu = 0;
-	isActive = 1;
+	isActive = 0;
 	exitCode = 0;
 	fault = PFLT_NONE;
 	memset(&ctx, 0, sizeof(ctx));
 	priority = DEF_PRIORITY;
+	nextPriority = priority;
 	LIST_INIT(waitEntries);
 	numWaitEntries = 0;
 	waitString = 0;
 	waitTimeout = 0;
 	rqQueue = 0;
+	isExpired = 0;
 	curError = 0;
 	numErrors = 0;
 	gateObj = 0;
 	gateCallSP = 0;
 	gateCallRetAddr = 0;
+	gateCallMode = 0;
+	activationTime = 0;
+	runTime = 0;
 	state = S_NONE;
 }
 
@@ -1332,65 +1469,6 @@ PM::Thread::Exit(int exitCode)
 	NotReached();
 }
 
-/* return 0 for caller, 1 for restored thread */
-int
-PM::Thread::SaveContext(Context *ctx)
-{
-	int rc;
-	ASM (
-		/* save general purpose registers in stack */
-		"pushl	%%ebx\n"
-		"pushl	%%ecx\n"
-		"pushl	%%edx\n"
-		"pushl	%%esi\n"
-		"pushl	%%edi\n"
-		/* save context */
-		"movl	%%ebp, %0\n"
-		"movl	%%esp, %1\n"
-		"movl	$1f, %2\n"
-		"xorl	%%eax, %%eax\n" /* return 0 for caller */
-		"jmp	2f\n"
-		"1: movl	$1, %%eax\n" /* ... and 1 for restored thread */
-		/* restore general purpose registers */
-		"2:\n"
-		"popl	%%edi\n"
-		"popl	%%esi\n"
-		"popl	%%edx\n"
-		"popl	%%ecx\n"
-		"popl	%%ebx\n"
-		: "=m"(ctx->ebp), "=m"(ctx->esp), "=m"(ctx->eip), "=&a"(rc)
-		:
-		: "cc"
-	);
-	return rc;
-}
-
-/* this method actually returns in SaveContext() */
-void
-PM::Thread::RestoreContext(Context *ctx, u32 asRoot)
-{
-	ASM (
-		/* preload values in registers because they can be addressed by %ebp/%esp */
-		"movl	%0, %%eax\n"
-		"movl	%1, %%ebx\n"
-		"movl	%%eax, %%ebp\n"
-		"movl	%%ebx, %%esp\n"
-		/* switch address space if required */
-		"testl	%3, %3\n"
-		"jz		1f\n"
-		"movl	%3, %%cr3\n"
-		"1:\n"
-
-		/* and jump to saved %eip */
-		"movl	%2, %%eax\n"
-		"pushl	%%eax\n"
-		"ret\n"
-		:
-		: "m"(ctx->ebp), "m"(ctx->esp), "m"(ctx->eip), "r"(asRoot)
-		: "eax", "ebx"
-	);
-}
-
 PM::Thread *
 PM::Thread::GetCurrent()
 {
@@ -1407,7 +1485,18 @@ int
 PM::Thread::Run(CPU *cpu)
 {
 	assert(state == S_NONE || state == S_STOPPED);
-	if (!cpu) {
+	if (this->cpu) {
+		/*
+		 * We are currently assigned to some CPU so we cannot change it
+		 * (e.g. the thread was removed from its run-queue but the context
+		 * was not yet switched when it was added back again).
+		 */
+		if (cpu) {
+			ensure(cpu == this->cpu);
+		} else {
+			cpu = this->cpu;
+		}
+	} else if (!cpu) {
 		/* do load balancing */
 		cpu = pm->SelectCPU();
 	}
@@ -1441,6 +1530,7 @@ PM::Thread::Stop()
 		}
 	}
 	state = S_STOPPED;
+	pm->Wakeup((waitid_t)this);
 	return 0;
 }
 
@@ -1450,6 +1540,7 @@ PM::Thread::Terminate(int exitCode)
 	Stop();
 	state = S_TERMINATED;
 	this->exitCode = exitCode;
+	pm->Wakeup((waitid_t)this);
 	return 0;
 }
 
@@ -1474,7 +1565,42 @@ PM::Thread::Unsleep()
 	return 0;
 }
 
-/* thread must be in same CPU runqueue with the current thread */
+void
+PM::Thread::SwapContext(Context *ctx)
+{
+	ASM (
+		"xchgl	%%esp, (%0)\n"
+		"xchgl	%%ebp, 0x4(%0)\n"
+		/* Exchange CR3 */
+		"movl	%%cr3, %%eax\n"
+		"xchgl	%%eax, 0x8(%0)\n"
+		"testl	%%eax, %%eax\n"
+		"je		1f\n"
+		"movl	%%eax, %%cr3\n"
+		"1:\n"
+		/* Exchange EIP */
+		"movl	$1f, %%eax\n"
+		"xchgl	%%eax, 0x10(%0)\n"
+		/*
+		 * We will do "ret" on this address later. Whole state should saved
+		 * BEFORE we will potentially enable interrupts by restoring EFLAGS.
+		 */
+		"pushl	%%eax\n"
+		/* Exchange EFLAGS */
+		"pushfl\n"
+		"popl	%%eax\n"
+		"xchgl	%%eax, 0xc(%0)\n"
+		"pushl	%%eax\n"
+		"popfl\n" /* Restore EFLAGS ... */
+		"ret\n" /* ... and EIP */
+		"1:\n"
+		:
+		: "r"(ctx)
+		: "eax"
+	);
+}
+
+/* thread must be in the same CPU runqueue with the current thread */
 void
 PM::Thread::SwitchTo()
 {
@@ -1482,24 +1608,39 @@ PM::Thread::SwitchTo()
 	assert(cpu == CPU::GetCurrent());
 
 	Thread *prev = GetCurrent();
-	/* switch address space if it is another process */
-	u32 asRoot;
-	if (!prev || prev->proc != proc) {
-		asRoot = proc->map->GetCR3();
-	} else {
-		asRoot = 0;
+	if (prev == this) {
+		isExpired = 0;
+		return;
 	}
+	u32 intr = IM::DisableIntr();
+
+	Context *swapCtx;
 	if (prev) {
 		prev->isActive = 0;
-		if (prev->SaveContext(&prev->ctx)) {
-			/* switched to this thread */
-			return;
+		prev->isExpired = 0;
+		prev->runTime += rdtsc() - prev->activationTime;
+		if (!prev->rqQueue) {
+			/* It was removed from run-queue */
+			prev->cpu = 0;
 		}
+		prev->ctx = ctx;
+		swapCtx = &prev->ctx;
+	} else {
+		swapCtx = &ctx;
 	}
+	/* switch address space if it is another process */
+	if (!prev || prev->proc != proc) {
+		swapCtx->cr3 = proc->map->GetCR3();
+	} else {
+		swapCtx->cr3 = 0;
+	}
+
 	Runqueue *rq = GetRunqueue();
 	rq->curThread = this;
 	isActive = 1;
-	RestoreContext(&ctx, asRoot);
+	activationTime = rdtsc();
+	SwapContext(swapCtx);
+	IM::RestoreIntr(intr);
 }
 
 int
@@ -1507,6 +1648,7 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority
 {
 	this->stackSize = stackSize;
 	this->priority = priority;
+	this->nextPriority = priority;
 	stackObj = NEW(MM::VMObject, stackSize, MM::VMObject::F_STACK);
 	if (!stackObj) {
 		return -1;
@@ -1538,6 +1680,7 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority
 	*(_esp) = (u32)_OnThreadExit; /* return address */
 	mm->QuickMapRemove((vaddr_t)_esp);
 	ctx.esp = ctx.ebp = (u32)esp;
+	ctx.eflags = GetEflags() & ~EFLAGS_IF;
 	return 0;
 }
 
@@ -1680,4 +1823,16 @@ PM::Thread::Fault(ProcessFault flt, const char *msg, ...)
 			PM::StrProcessFault(flt), GetID());
 	}
 	return 0;
+}
+
+PM::Thread::State
+PM::Thread::GetState(u32 *pExitCode, ProcessFault *pFault)
+{
+	if (pExitCode) {
+		*pExitCode = exitCode;
+	}
+	if (pFault) {
+		*pFault = fault;
+	}
+	return state;
 }

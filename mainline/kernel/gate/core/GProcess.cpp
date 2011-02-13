@@ -9,6 +9,65 @@
 #include <sys.h>
 phbSource("$Id$");
 
+DEFINE_GCLASS(GThread);
+
+GThread::GThread(PM::Thread *refThrd)
+{
+	if (refThrd) {
+		this->refThrd = refThrd;
+	} else {
+		this->refThrd = PM::Thread::GetCurrent();
+	}
+}
+
+GThread::~GThread()
+{
+
+}
+
+PM::pid_t
+GThread::GetPID()
+{
+	return refThrd->GetID();
+}
+
+PM::Thread::State
+GThread::GetState(u32 *pExitCode, PM::ProcessFault *pFault)
+{
+	if (pExitCode && proc->CheckUserBuf(pExitCode, sizeof(*pExitCode),
+		MM::PROT_WRITE)) {
+		return PM::Thread::S_NONE;
+	}
+	if (pFault && proc->CheckUserBuf(pFault, sizeof(*pFault),
+		MM::PROT_WRITE)) {
+		return PM::Thread::S_NONE;
+	}
+	return refThrd->GetState(pExitCode, pFault);
+}
+
+PM::waitid_t
+GThread::GetWaitChannel(Operation op)
+{
+	if (op != OP_READ) {
+		return 0;
+	}
+	lastState = refThrd->GetState();
+	return (PM::waitid_t)refThrd;
+}
+
+int
+GThread::OpAvailable(Operation op)
+{
+	if (op != OP_READ) {
+		return 0;
+	}
+	PM::Thread::State state = refThrd->GetState();
+	/* Check if state has changed since last wait call */
+	return (state == PM::Thread::S_TERMINATED) || (state != lastState);
+}
+
+/******************************************************************************/
+
 DEFINE_GCLASS(GProcess);
 
 GProcess::GProcess(PM::Process *refProc)
@@ -106,4 +165,24 @@ GProcess::OpAvailable(Operation op)
 	PM::Process::State state = refProc->GetState();
 	/* Check if state has changed since last wait call */
 	return (state == PM::Process::S_TERMINATED) || (state != lastState);
+}
+
+GThread *
+GProcess::CreateThread(GThread::ThreadFunc func, void *arg, u32 stackSize,
+	u32 priority)
+{
+	PM::Thread *thrd = refProc->CreateUserThread((vaddr_t)func, stackSize,
+		priority, 1, arg);
+	if (!thrd) {
+		return 0;
+	}
+	thrd->Run();
+	GThread *gthrd = GNEW(gateArea, GThread, thrd);
+	if (!gthrd) {
+		refProc->TerminateThread(thrd, -1);
+		ERROR(E_NOMEM, "Failed to create GThread object");
+		return 0;
+	}
+	gthrd->AddRef();
+	return gthrd;
 }

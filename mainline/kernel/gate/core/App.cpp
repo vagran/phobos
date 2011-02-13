@@ -128,7 +128,7 @@ GApp::Wait(Operation op, GateObject **objects, int numObjects, void *bitmap,
 		/* Do not even bother with objects scanning if we returned by timeout*/
 		if (wakenBy) {
 			for (int i = 0; i < numObjects; i++) {
-				if (objects[i]->OpAvailable(op)) {
+				if (waitIds[i] == wakenBy || objects[i]->OpAvailable(op)) {
 					if (bitmap) {
 						BitSet(bitmap, i);
 					}
@@ -193,6 +193,18 @@ GApp::GetProcess()
 	return gproc;
 }
 
+GThread *
+GApp::GetThread()
+{
+	GThread *thrd = GNEW(gateArea, GThread);
+	if (!thrd) {
+		ERROR(E_NOMEM, "Cannot allocate GThread object");
+		return 0;
+	}
+	thrd->AddRef();
+	return thrd;
+}
+
 GTime *
 GApp::GetTime()
 {
@@ -252,7 +264,20 @@ GApp::CreateProcess(const char *path, const char *name, int priority,
 	GProcess *gproc = GNEW(gateArea, GProcess, newProc);
 	if (!gproc) {
 		ERROR(E_NOMEM, "Cannot create GProcess object");
+		return 0;
 	}
 	gproc->AddRef();
 	return gproc;
+}
+
+GEvent *
+GApp::CreateEvent()
+{
+	GEvent *ev = GNEW(gateArea, GEvent);
+	if (!ev) {
+		ERROR(E_NOMEM, "Cannot allocate GEvent object");
+		return 0;
+	}
+	ev->AddRef();
+	return ev;
 }

@@ -7,11 +7,6 @@
 export KERNROOT = $(PHOBOS_ROOT)/kernel
 MAKEIMAGE = 1
 
-# kernel physical load address
-export KERNEL_LOAD_ADDRESS =	0x00200000
-# kernel virtual mapping address
-export KERNEL_ADDRESS =	0xc0000000
-
 SUBDIRS = init lib dev mem unit_test kern kdb vfs fs gate
 
 include $(KERNROOT)/make/make.mak

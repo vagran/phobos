@@ -10,7 +10,8 @@ ifndef LOAD_ADDRESS
 LOAD_ADDRESS = $(DEF_LOAD_ADDRESS)
 endif
 
-COMPILE_FLAGS += -pipe -Werror -Wall -fno-stack-protector  -fno-builtin
+COMPILE_FLAGS += -pipe -Werror -Wall -fno-stack-protector  -fno-builtin \
+	-DKERNEL_ADDRESS=$(KERNEL_ADDRESS)
 
 COMPILE_FLAGS_CXX += -fno-exceptions -fno-rtti -Wno-invalid-offsetof \
 	-fno-default-inline

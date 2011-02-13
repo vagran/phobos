@@ -27,6 +27,7 @@ ULib::ULib(GApp *app) : alloc(app)
 	this->app = app;
 	this->proc = app->GetProcess();
 	vfs = app->GetVFS();
+	time = app->GetTime();
 	sOut = app->GetStream("output");
 	sIn = app->GetStream("input");
 	sTrace = app->GetStream("trace");
@@ -39,6 +40,7 @@ ULib::~ULib()
 	sIn->Release();
 	sTrace->Release();
 	sLog->Release();
+	time->Release();
 	vfs->Release();
 	proc->Release();
 	app->Release();
@@ -81,4 +83,32 @@ ULib::StreamPrintf(GStream *s, const char *fmt,...)
 	va_list va;
 	va_start(va, fmt);
 	return StreamPrintfV(s, fmt, va);
+}
+
+void
+ULib::ThreadEntry(ThreadParams *params)
+{
+	GThread::ThreadFunc func = params->func;
+	void *arg = params->arg;
+	::mfree(params);
+	uLib->GetApp()->ExitThread(func(arg));
+	/* NOT REACHED */
+}
+
+GThread *
+ULib::CreateThread(GProcess *proc, GThread::ThreadFunc func, void *arg,
+		u32 stackSize, u32 priority)
+{
+	ThreadParams *params = ALLOC(ThreadParams, 1);
+	if (!params) {
+		return 0;
+	}
+	params->func = func;
+	params->arg = arg;
+	GThread *thrd = proc->CreateThread((GThread::ThreadFunc)ThreadEntry, params,
+		stackSize, priority);
+	if (!thrd) {
+		mfree(params);
+	}
+	return thrd;
 }

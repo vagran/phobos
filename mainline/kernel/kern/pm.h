@@ -33,6 +33,7 @@ public:
 		PFLT_PAGE_FAULT, /* Page fault */
 		PFLT_INVALID_BUFFER, /* Invalid user buffer provided to gate method */
 		PFLT_ABORT, /* Aborted by application request */
+		PFLT_THREAD_ARGS, /* Too many arguments provided to new thread */
 	};
 
 	enum {
@@ -101,7 +102,11 @@ public:
 		typedef int (*ThreadEntry)(void *arg);
 
 		typedef struct {
-			u32 esp, ebp, eip;
+			u32 esp,
+				ebp,
+				cr3,
+				eflags,
+				eip;
 			/* XXX FPU state */
 		} Context;
 	private:
@@ -122,19 +127,24 @@ public:
 		u32 stackSize;
 		vaddr_t gateCallSP; /* stack pointer on gate method entrance, kernel stack starts from there */
 		vaddr_t gateCallRetAddr; /* application return address from a system call */
+		int gateCallMode; /* 0 for kernel, 1 for user */
 		Frame *trapFrame;
 		MM::VMObject *stackObj;
 		MM::Map::Entry *stackEntry;
 		CPU *cpu;
 		Context ctx;
-		u32 priority;
+		u32 priority; /* Current priority of the thread */
+		u32 nextPriority; /* Priority value which will be assigned on the next round */
 		u32 sliceTicks; /* ticks of time slice left */
+		u64 activationTime; /* Time when activated (TSC) */
+		u64 runTime; /* Time it runs in clock ticks (TSC) */
 		ListHead waitEntries; /* empty if not waiting, list of ThreadElements */
 		int numWaitEntries;
 		const char *waitString;
 		Handle waitTimeout;
 		waitid_t wakenBy; /* by timeout when zero */
 		void *rqQueue; /* active or expired queue */
+		int isExpired; /* Expired during this kernel mode entrance */
 		State state;
 		int exitCode;
 		ProcessFault fault;
@@ -143,7 +153,8 @@ public:
 		Error err[ERROR_HISTORY_SIZE];
 		int curError; /* current error object index */
 		int numErrors; /* number of valid errors in history (including current one) */
-		GateObject *gateObj; /* gate object which handles current system call, 0 if not in system call */
+		/* gate object which handles current system call, 0 if not in system call */
+		GateObject *gateObj;
 	public:
 		Thread(Process *proc);
 		~Thread();
@@ -151,8 +162,11 @@ public:
 		int Initialize(ThreadEntry entry, void *arg = 0,
 			u32 stackSize = DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
 		void Exit(int exitCode) __noreturn;
-		int SaveContext(Context *ctx); /* return 0 for caller, 1 for restored thread */
-		void RestoreContext(Context *ctx, u32 asRoot = 0); /* jump to SaveContext */
+		/*
+		 * Current context of the thread is swapped with the provided context.
+		 * Do not switch virtual address space if ctx->cr3 == 0.
+		 */
+		void SwapContext(Context *ctx);
 		void SwitchTo(); /* thread must be in same CPU runqueue with the current thread */
 		static Thread *GetCurrent();
 		int Run(CPU *cpu = 0);
@@ -171,16 +185,21 @@ public:
 		inline void SetGateCallSP(u32 esp) {
 			gateCallSP = esp;
 			gateCallRetAddr = *(vaddr_t *)esp;
+			assert(gateCallRetAddr < GATE_AREA_ADDRESS);
 		}
+		inline vaddr_t GetGateCallRetAddr() { return gateCallRetAddr; }
 		inline void SetTrapFrame(Frame *frame) {
 			trapFrame = frame;
 		}
 		inline void SetGateObject(GateObject *gateObj) { this->gateObj = gateObj; }
+		inline void SetGateMode(int mode) { gateCallMode = mode; }
+		inline int GetGateMode() { return gateCallMode; }
 		int IsKernelStack(vaddr_t addr, vsize_t size);
 		int Fault(ProcessFault flt, const char *msg = 0, ...) __format(printf, 3, 4);
 		Error *GetError(int depth = 0); /* depth 0 for current error, 1 for previous and so on */
 		Error *NextError(); /* Advance current error to the next one in the history ring */
 		Error *PrevError(); /* Advance current error to the previous one in the history ring */
+		State GetState(u32 *pExitCode = 0, ProcessFault *pFault = 0);
 	};
 
 	class Process : public Object {
@@ -194,6 +213,12 @@ public:
 	private:
 		friend class PM;
 
+		typedef struct {
+			vaddr_t entry;
+			u32 numArgs;
+			u32 args[];
+		} UserThreadParams;
+
 		ListEntry list; /* list of all processes in PM */
 		PIDEntry pid;
 		ListHead threads;
@@ -203,7 +228,6 @@ public:
 		MM::Map *map, *userMap, *gateMap;
 		MM::VMObject *bssObj, *heapObj;
 		u32 priority;
-		vaddr_t entryPoint;
 		GM::GateArea *gateArea;
 		KString faultStr;
 		State state;
@@ -214,10 +238,10 @@ public:
 		int isKernelProc;
 		KString args;
 
-		void SetEntryPoint(vaddr_t ep) { entryPoint = ep; }
 		int DeleteThread(Thread *t);
 		MM::Map::Entry *GetHeapEntry(vaddr_t va);
 		void SetState(State state);
+		static int UserThreadEntry(UserThreadParams *params) __noreturn;
 	public:
 		Process();
 		~Process();
@@ -230,6 +254,9 @@ public:
 		int Initialize(u32 priority, const char *name = 0, int isKernelProc = 0);
 		Thread *CreateThread(Thread::ThreadEntry entry, void *arg = 0,
 			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY);
+		Thread *CreateUserThread(vaddr_t entry,
+			u32 stackSize = Thread::DEF_STACK_SIZE, u32 priority = DEF_PRIORITY,
+			u32 numArgs = 0, ...);
 		int TerminateThread(Thread *thrd, int exitCode = 0);
 		inline pid_t GetID() { return TREE_KEY(tree, &pid); }
 		inline KString *GetName() { return &name; }
@@ -277,12 +304,16 @@ public:
 		CPU *cpu;
 		Thread *curThread;
 		u32 numQueued, numActive;
+		int needResched;
 
 		Runqueue();
 		int AddThread(Thread *thrd);
 		int RemoveThread(Thread *thrd);
+		int ExpireThread(Thread *thrd);
 		Thread *SelectThread(); /* select next thread to run */
 		inline Thread *GetCurrentThread() { return curThread; }
+		/* Request threads rescheduling */
+		void NeedResched() { needResched = 0; }
 	};
 
 	static int RegisterIL(const char *desc, ILFactory factory, ILProber prober);
@@ -344,10 +375,9 @@ private:
 	static int SleepTimeout(Handle h, u64 ticks, void *arg);
 	void SleepTimeout(Thread *thrd);
 	int Wakeup(SleepEntry *se);
-	int Wakeup(Thread *thrd);
+	int WakeupThread(Thread *thrd);
 	int UnsleepThread(Thread *thrd);
 	ImageLoader *GetImageLoader(VFS::File *file);
-	static int ProcessEntry(void *arg) __noreturn;
 public:
 	PM();
 	static inline Thread *GetCurrentThread() { return Thread::GetCurrent(); }
@@ -378,6 +408,7 @@ public:
 	int ValidateState();
 	CPU *SelectCPU(); /* select the most suitable CPU for new task */
 	static const char *StrProcessFault(ProcessFault flt);
+	void Tick(u32 ms);
 };
 
 #define ERROR(code,...) { \

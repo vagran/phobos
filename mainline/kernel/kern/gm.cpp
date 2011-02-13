@@ -92,18 +92,16 @@ GM::GateArea::GateArea(void *proc) : slabClient(this), slabAlloc(&slabClient)
 GM::GateArea::~GateArea()
 {
 	/* release all objects */
-	lock.Lock();
-	GateObject *obj = LIST_FIRST(GateObject, list, objects);
-	lock.Unlock();
-	while (obj) {
+	do {
 		lock.Lock();
-		GateObject *nextObj = LIST_ISLAST(list, obj, objects) ? 0 :
-			LIST_NEXT(GateObject, list, obj);
+		GateObject *obj = LIST_FIRST(GateObject, list, objects);
 		lock.Unlock();
+		if (!obj) {
+			break;
+		}
 		obj->ClearUserRef();
 		obj->KRelease();
-		obj = nextObj;
-	}
+	} while (1);
 	assert(LIST_ISEMPTY(objects));
 	assert(!numObjects);
 	if (gateVtable) {
@@ -268,14 +266,14 @@ GateObject::GateObject()
 	thisPtr = this;
 	numKernCalls = 0;
 	numUserCalls = 0;
-	userMode = 0;
 	callStats = 0;
 }
 
 GateObject::~GateObject()
 {
 	/* destructor should never be called from user-land */
-	if (!userMode) {
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	if (thrd->GetGateMode()) {
 		PM::Thread::GetCurrent()->Fault(PM::PFLT_GATE_METHOD_RESTICTED,
 			"Destructor called from user-land");
 		return;
@@ -366,8 +364,6 @@ GateObject::ClearUserRef()
 void
 GateObject::UpdateCallStat(u32 methodIdx, int userMode)
 {
-	lastMethod = methodIdx;
-	this->userMode = userMode;
 	if (callStats) {
 		CallStatEntry *e = &callStats[methodIdx];
 		if (userMode) {
@@ -411,6 +407,8 @@ GateObject::Initialize()
 ASMCALL FUNC_PTR
 GateObjGetOrigMethod(GateObject *obj, u32 idx)
 {
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	thrd->SetGateMode(0);
 	FUNC_PTR method = obj->GetOrigMethod(idx);
 	if (method) {
 		obj->UpdateCallStat(idx, 0);
@@ -423,6 +421,8 @@ ASMCALL FUNC_PTR
 GateObjValidateCall(u32 idx, vaddr_t esp)
 {
 	CPU::RestoreSelector(); /* restore per-CPU segment selector */
+	/* now we can enable interrupts again after sysenter has disabled them */
+	sti();
 
 	/* validate stack */
 	PM::Thread *thrd = PM::Thread::GetCurrent();
@@ -445,6 +445,7 @@ GateObjValidateCall(u32 idx, vaddr_t esp)
 			idx, (u32)obj, obj->GetClassName());
 		return 0;
 	}
+	thrd->SetGateMode(1);
 	/* update calling statistics */
 	obj->UpdateCallStat(idx, 1);
 	/* Set current gate object for the thread */
@@ -454,14 +455,9 @@ GateObjValidateCall(u32 idx, vaddr_t esp)
 	return method;
 }
 
-ASMCALL void
-GateObjSetReturnAddress(GateObject *obj, FUNC_PTR retAddr)
-{
-	obj->SetReturnAddress(retAddr);
-}
-
 ASMCALL FUNC_PTR
-GateObjGetReturnAddress(GateObject *obj)
+GateObjGetReturnAddress()
 {
-	return obj->GetReturnAddress();
+	PM::Thread *thrd = PM::Thread::GetCurrent();
+	return (FUNC_PTR)thrd->GetGateCallRetAddr();
 }

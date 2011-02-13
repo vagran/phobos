@@ -188,6 +188,7 @@ static const char *ev1 = "event 1", *ev2 = "event 2", *ev3 = "event 3";
 
 int MyProcess(void *arg)//temp
 {
+	sti();
 	printf("Process: %s\n", (char *)arg);
 	while (1) {
 		void *wakenBy;
@@ -231,25 +232,26 @@ StartupProc(void *arg)
 	}
 
 #ifdef DEBUG
-	if (!pm->CreateProcess("/bin/module_test", "Module test", PM::DEF_PRIORITY,
+	if (!pm->CreateProcess("/bin/module_test_dyn", "Module test", PM::DEF_PRIORITY,
 		"4 mt_arg0 mt_arg1 mt_arg2 mt_arg3")) {
 		klog(KLOG_ERROR, "Cannot launch module testing process");
 	}
 #endif
 
 	/* launch 'init' application */
-	initProc = pm->CreateProcess(INIT_PATH, "test_init", PM::DEF_PRIORITY,
+	/*initProc = pm->CreateProcess(INIT_PATH, "test_init", PM::DEF_PRIORITY,
 		"test arguments");
 	if (!initProc) {
 		klog(KLOG_WARNING, "Cannot launch 'init' application");
-	}
+	}*/
 
 	sti();//temp
-	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(2000), &ev1, tm->MS(2000));
-	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(3000), &ev2, tm->MS(3000));
-	tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(7000), &ev3);
 
-	pm->CreateProcess(MyProcess, (void *)"process 1", "process 1");
+	//tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(2000), &ev1, tm->MS(2000));
+	//tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(3000), &ev2, tm->MS(3000));
+	//tm->SetTimer(MyTimer, tm->GetTicks() + tm->MS(7000), &ev3);
+
+	//pm->CreateProcess(MyProcess, (void *)"process 1", "process 1");
 
 	while (1) {
 		//pm->Wakeup(&proc2);

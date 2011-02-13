@@ -15,6 +15,7 @@ phbSource("$Id$");
 #include <gate/io/GateStream.h>
 #include <gate/core/GTime.h>
 #include <gate/core/GVFS.h>
+#include <gate/core/GEvent.h>
 
 DECLARE_GCLASS(GApp);
 
@@ -44,6 +45,7 @@ public:
 	virtual Error::ErrorCode GetLastError();
 
 	virtual GProcess *GetProcess();
+	virtual GThread *GetThread();
 	virtual GStream *GetStream(const char *name);
 	virtual GTime *GetTime();
 	virtual GVFS *GetVFS();
@@ -57,6 +59,8 @@ public:
 
 	virtual GProcess *CreateProcess(const char *path, const char *name = 0,
 		int priority = PM::DEF_PRIORITY, const char *args = 0);
+
+	virtual GEvent *CreateEvent();
 
 	DECLARE_GCLASS_IMP(GApp);
 };

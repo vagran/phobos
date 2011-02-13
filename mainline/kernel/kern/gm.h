@@ -180,9 +180,6 @@ protected:
 	GM::GateArea *gateArea;
 	u32 vtableSize;
 	FUNC_PTR *origVtable;
-	FUNC_PTR retAddr;
-	u32 lastMethod;
-	int userMode;
 	CallStatEntry *callStats;
 	u64 numKernCalls, numUserCalls;
 
@@ -199,8 +196,6 @@ public:
 		return origVtable[idx];
 	}
 	void UpdateCallStat(u32 methodIdx, int userMode);
-	inline void SetReturnAddress(FUNC_PTR retAddr) { this->retAddr = retAddr; }
-	inline FUNC_PTR GetReturnAddress() { return retAddr; }
 	inline const char *GetClassName() { return 0; } //notimpl
 
 	virtual ~GateObject();
@@ -209,7 +204,8 @@ public:
 
 	/* Waitable objects must redefine these two methods */
 	virtual PM::waitid_t GetWaitChannel(Operation op) { return 0; }
-	virtual int OpAvailable(Operation op) { return 0; } /* return non-zero if available */
+	/* return non-zero if available */
+	virtual int OpAvailable(Operation op) { return 0; }
 
 	DECLARE_GCLASS_IMP(GateObject);
 };
@@ -218,8 +214,6 @@ ASMCALL FUNC_PTR GateObjGetOrigMethod(GateObject *obj, u32 idx);
 
 ASMCALL FUNC_PTR GateObjValidateCall(u32 idx, vaddr_t esp);
 
-ASMCALL void GateObjSetReturnAddress(GateObject *obj, FUNC_PTR retAddr);
-
-ASMCALL FUNC_PTR GateObjGetReturnAddress(GateObject *obj);
+ASMCALL FUNC_PTR GateObjGetReturnAddress();
 
 #endif /* GM_H_ */

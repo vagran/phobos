@@ -127,7 +127,7 @@ CPU::DeactivateThread()
 {
 	/*
 	 * Thread state should be changed to actual value. We send IPI to required
-	 * CPU and it will deactivate the thread in PM::CheckStatus method.
+	 * CPU and it will deactivate the thread in PM::ValidateState method.
 	 */
 	return SendIPI(LAPIC::IPI_DEACTIVATE_THREAD);
 }

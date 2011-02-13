@@ -53,8 +53,8 @@ public:
 	virtual void *mrealloc(void *p, u32 size) { return alloc->mrealloc(p, size); }
 };
 
-#define ALLOC(type, count)		((type *)MM::malloc(sizeof(type) * (count)))
-#define FREE(p)					MM::mfree(p)
+#define ALLOC(type, count)		((type *)malloc(sizeof(type) * (count)))
+#define FREE(p)					mfree(p)
 
 #ifndef DEBUG_MALLOC
 #define NEW(className,...)			new className(__VA_ARGS__)

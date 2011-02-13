@@ -99,6 +99,8 @@ TM::TickHandler(u64 ticks)
 	if (timerIrq) {
 		im->Irq(timerIrq);
 	}
+	/* Feed processes manager with ticks */
+	pm->Tick(1000 / TICKS_FREQ);
 	return 0;
 }
 
