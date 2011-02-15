@@ -124,7 +124,8 @@ MM::InitAvailMem()
 				devPhysMem = biosMem[biosMemSize - 1].location - DEV_MEM_SIZE;
 				if (biosMemSize > 1) {
 					int order = 1;
-					paddr_t minAddr = biosMem[biosMemSize - 2].location + biosMem[biosMemSize - 2].size;
+					paddr_t minAddr = biosMem[biosMemSize - 2].location +
+						biosMem[biosMemSize - 2].size;
 					while (order < 32) {
 						paddr_t addr = devPhysMem & ~((1 << order) - 1);
 						if (addr < minAddr) {

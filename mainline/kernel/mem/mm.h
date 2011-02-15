@@ -19,39 +19,42 @@ phbSource("$Id$");
 
 /*
  * Virtual memory map:
- * 		+-------------------+ FFFFFFFF
- * 		| PT map			| PD_PAGES * PT_ENTRIES * PAGE_SIZE
- * 		+-------------------+ PTMAP_ADDRESS = FF800000
- * 		| Alt. PT map		| PD_PAGES * PT_ENTRIES * PAGE_SIZE
- * 		+-------------------+ ALTPTMAP_ADDRESS = FF000000 (KERN_MEM_END)
- * 		| Devices memory	| DEV_MEM_SIZE
- * 		+-------------------+ DEV_MEM_ADDRESS
- * 		| Buffers space		| BUF_SPACE_SIZE
- * 		+-------------------+ BUF_SPACE_ADDRESS (KERN_DYN_MEM_END)
- * 		| Kernel dynamic 	|
- * 		| memory			|
- * 		+-------------------+ firstAddr
- * 		| Kernel image,		|
- * 		| initial memory	|
- * 		+-------------------+ KERNEL_ADDRESS
- * 		| Gate objects		| GATE_AREA_SIZE
- * 		+-------------------+ GATE_AREA_ADDRESS
- * 		| Stacks objects	|
- * 		| of process		|
- * 		| threads, heap 	|
- * 		| objects, memory 	|
- * 		| mappings.			|
- * 		+-------------------+
- * 		| Initial heap		|
- * 		| object			|
- * 		| (includes BSS)	|
- * 		+-------------------+
- * 		| Process data		|
- * 		+-------------------+
- * 		| Process code		|
- * 		+-------------------+ PAGE_SIZE
- * 		| Guard page		|
- * 		+-------------------+ 00000000
+ *		+-------------------+ FFFFFFFF
+ *		| PT map			| PD_PAGES * PT_ENTRIES * PAGE_SIZE
+ *		+-------------------+ PTMAP_ADDRESS = FF800000
+ *		| Alt. PT map		| PD_PAGES * PT_ENTRIES * PAGE_SIZE
+ *		+-------------------+ ALTPTMAP_ADDRESS = FF000000 (KERN_MEM_END)
+ *		| Threads kernel	|
+ *		| stack				| KSTACK_SIZE
+ *		+-------------------+ KSTACK_ADDRESS
+ *		| Devices memory	| DEV_MEM_SIZE
+ *		+-------------------+ DEV_MEM_ADDRESS
+ *		| Buffers space		| BUF_SPACE_SIZE
+ *		+-------------------+ BUF_SPACE_ADDRESS (KERN_DYN_MEM_END)
+ *		| Kernel dynamic 	|
+ *		| memory			|
+ *		+-------------------+ firstAddr
+ *		| Kernel image,		|
+ *		| initial memory	|
+ *		+-------------------+ KERNEL_ADDRESS
+ *		| Gate objects		| GATE_AREA_SIZE
+ *		+-------------------+ GATE_AREA_ADDRESS
+ *		| Stacks objects	|
+ *		| of process		|
+ *		| threads, heap 	|
+ *		| objects, memory 	|
+ *		| mappings.			|
+ *		+-------------------+
+ *		| Initial heap		|
+ *		| object			|
+ *		| (includes BSS)	|
+ *		+-------------------+
+ *		| Process data		|
+ *		+-------------------+
+ *		| Process code		|
+ *		+-------------------+ PAGE_SIZE
+ *		| Guard page		|
+ *		+-------------------+ 00000000
  *
  */
 
@@ -61,8 +64,11 @@ phbSource("$Id$");
 #define PTMAP_ADDRESS		((vaddr_t)-PTMAP_SIZE)
 #define ALTPTMAP_ADDRESS	(PTMAP_ADDRESS - PTMAP_SIZE)
 #define KERN_MEM_END		ALTPTMAP_ADDRESS
+#define KSTACK_SIZE			(PT_ENTRIES * PAGE_SIZE)
+#define KSTACK_PHYS_SIZE	(64 << 10)
+#define KSTACK_ADDRESS		(ALTPTMAP_ADDRESS - KSTACK_SIZE)
 #define DEV_MEM_SIZE		(64 << 20)
-#define DEV_MEM_ADDRESS		(ALTPTMAP_ADDRESS - DEV_MEM_SIZE)
+#define DEV_MEM_ADDRESS		(KSTACK_ADDRESS - DEV_MEM_SIZE)
 #define BUF_SPACE_SIZE		(1 << 20)
 #define BUF_SPACE_ADDRESS	(DEV_MEM_ADDRESS - BUF_SPACE_SIZE)
 #define KERN_DYN_MEM_END	BUF_SPACE_ADDRESS

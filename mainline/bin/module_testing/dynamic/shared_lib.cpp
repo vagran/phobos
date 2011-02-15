@@ -27,7 +27,6 @@ MT_DESTR(MTSharedLib) {}
 
 MT_DEFINE(MTSharedLib, "Shared library support")
 {
-#if 0
 	RTLinker::DSOHandle dso1 = mtShlibGetDSOHandle();
 	RTLinker::DSOHandle dso2 = mtShlibGetDSOHandle2();
 	mt_assert(dso1 && dso2);
@@ -84,7 +83,6 @@ MT_DEFINE(MTSharedLib, "Shared library support")
 	mt_assert(fault == PM::PFLT_NONE);
 	mt_assert(exitCode == MT_DWORD_VALUE);
 	proc->Release();
-#endif
 }
 
 /* Called from shared library */

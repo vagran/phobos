@@ -162,21 +162,25 @@ CPU::RestoreSelector()
 }
 
 int
-CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
+CPU::Activate(StartupFunc func, void *arg)
 {
-	/* Create kernel stack */
-	initialStack = (u8 *)MM::malloc(stackSize);
+	/*
+	 * Create kernel stack. It is used only during early CPU initialization.
+	 * When the first threads will be created new stacks will be allocated and
+	 * mapped to KSTACK_ADDRESS.
+	 */
+	initialStack = (u8 *)MM::malloc(KSTACK_SIZE);
 	assert(initialStack);
 
 	/* Setup private TSS for this CPU */
-	tss = NEWSINGLE(TSS, initialStack + stackSize, sizeof(PrivTSS));
+	tss = NEWSINGLE(TSS, (void *)(KSTACK_ADDRESS + KSTACK_SIZE), sizeof(PrivTSS));
 	ensure(tss);
 	PrivTSS *privTSS = (PrivTSS *)tss->GetPrivateData();
 	privTSS->cpu = this;
 	tss->SetActive();
 
 	/* kernel initial stack for system calls */
-	wrmsr(MSR_SYSENTER_ESP_MSR, (u64)initialStack + stackSize);
+	wrmsr(MSR_SYSENTER_ESP_MSR, (u64)KSTACK_ADDRESS + KSTACK_SIZE);
 
 	mm->AttachCPU();
 
@@ -187,7 +191,7 @@ CPU::Activate(StartupFunc func, void *arg, u32 stackSize)
 		"pushl	%3\n"
 		"call	*%2\n"
 		: "=a"(rc)
-		: "r"(initialStack + stackSize), "r"(func), "r"(arg)
+		: "r"(initialStack + KSTACK_SIZE), "r"(func), "r"(arg)
 	);
 	return rc;
 }

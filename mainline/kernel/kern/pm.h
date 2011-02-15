@@ -102,11 +102,12 @@ public:
 		typedef int (*ThreadEntry)(void *arg);
 
 		typedef struct {
-			u32 esp,
-				ebp,
-				cr3,
-				eflags,
-				eip;
+			/* 0x00 */ u32	esp,
+			/* 0x04 */		ebp,
+			/* 0x08 */		cr3,
+			/* 0x0c */		eflags,
+			/* 0x10 */		eip;
+			/* 0x14 */ u64	kstackPDE;
 			/* XXX FPU state */
 		} Context;
 	private:
@@ -155,6 +156,10 @@ public:
 		int numErrors; /* number of valid errors in history (including current one) */
 		/* gate object which handles current system call, 0 if not in system call */
 		GateObject *gateObj;
+		PTE::PTEntry kstackPDE;
+
+		int CreateKstack();
+		void DestroyKstack();
 	public:
 		Thread(Process *proc);
 		~Thread();

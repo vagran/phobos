@@ -772,9 +772,6 @@ PM::Runqueue::SelectThread()
 	u32 intr = IM::DisableIntr();
 	qLock.Lock();
 	needResched = 0;
-	if (numQueued > 2) {
-		printf("numQueued = %lu\n", numQueued);//temp
-	}
 	while (1) {
 		if (!numActive) {
 			/* start next round */
@@ -804,9 +801,6 @@ PM::Runqueue::SelectThread()
 		 * There are other threads in runqueue, expire idle thread in order to
 		 * start next round.
 		 */
-		if (numQueued > 2) {
-				printf("numQueued2 = %lu\n", numQueued);//temp
-			}
 		assert(numActive == 1);
 		numActive = 0;
 		thrd = LIST_FIRST(Thread, rqList, qActive->queue[pri]);
@@ -1430,6 +1424,7 @@ PM::Thread::Thread(Process *proc)
 	gateCallMode = 0;
 	activationTime = 0;
 	runTime = 0;
+	kstackPDE.raw = 0;
 	state = S_NONE;
 }
 
@@ -1571,18 +1566,22 @@ PM::Thread::SwapContext(Context *ctx)
 	ASM (
 		"xchgl	%%esp, (%0)\n"
 		"xchgl	%%ebp, 0x4(%0)\n"
+		/* Switch kernel stack */
+		"movl	(%1), %%eax\n"
+		"xchgl	%%eax, 0x14(%0)\n"
+		"movl	%%eax, (%1)\n"
+		"movl	0x4(%1), %%eax\n"
+		"xchgl	%%eax, 0x18(%0)\n"
+		"movl	%%eax, 0x4(%1)\n"
 		/* Exchange CR3 */
 		"movl	%%cr3, %%eax\n"
 		"xchgl	%%eax, 0x8(%0)\n"
-		"testl	%%eax, %%eax\n"
-		"je		1f\n"
 		"movl	%%eax, %%cr3\n"
-		"1:\n"
 		/* Exchange EIP */
 		"movl	$1f, %%eax\n"
 		"xchgl	%%eax, 0x10(%0)\n"
 		/*
-		 * We will do "ret" on this address later. Whole state should saved
+		 * We will do "ret" on this address later. Whole state should be saved
 		 * BEFORE we will potentially enable interrupts by restoring EFLAGS.
 		 */
 		"pushl	%%eax\n"
@@ -1595,7 +1594,7 @@ PM::Thread::SwapContext(Context *ctx)
 		"ret\n" /* ... and EIP */
 		"1:\n"
 		:
-		: "r"(ctx)
+		: "r"(ctx), "r"(proc->map->GetPDE(KSTACK_ADDRESS))
 		: "eax"
 	);
 }
@@ -1628,12 +1627,15 @@ PM::Thread::SwitchTo()
 	} else {
 		swapCtx = &ctx;
 	}
-	/* switch address space if it is another process */
-	if (!prev || prev->proc != proc) {
-		swapCtx->cr3 = proc->map->GetCR3();
-	} else {
-		swapCtx->cr3 = 0;
-	}
+
+	/* Switch thread kernel stack */
+	swapCtx->kstackPDE = kstackPDE.raw;
+
+	/*
+	 * Switch address space, even in case it is the same process we write to
+	 * CR3 register in order to update thread kernel stack mapping
+	 */
+	swapCtx->cr3 = proc->map->GetCR3();
 
 	Runqueue *rq = GetRunqueue();
 	rq->curThread = this;
@@ -1644,11 +1646,73 @@ PM::Thread::SwitchTo()
 }
 
 int
+PM::Thread::CreateKstack()
+{
+	/* Allocate separate page-table */
+	MM::Page *pt = mm->AllocatePage();
+	if (!pt) {
+		return -1;
+	}
+	PTE::PTEntry *pt_va = (PTE::PTEntry *)mm->QuickMapEnter(pt->pa);
+	memset(pt_va, 0, PAGE_SIZE);
+	int numPages = KSTACK_PHYS_SIZE / PAGE_SIZE;
+	/* Allocate and enter all pages of the stack */
+	PTE::PTEntry *pte = pt_va + (PT_ENTRIES - numPages);
+	while (numPages) {
+		MM::Page *pg = mm->AllocatePage();
+		if (!pg) {
+			break;
+		}
+		pte->fields.physAddr = pg->pa >> PAGE_SHIFT;
+		pte->fields.present = 1;
+		pte->fields.write = 1;
+		numPages--;
+		pte++;
+	}
+	if (numPages) {
+		/* Allocation failure */
+		while (pte > pt_va) {
+			pte--;
+			mm->FreePage(mm->GetPage(pte->fields.physAddr << PAGE_SHIFT));
+		}
+		mm->QuickMapRemove((vaddr_t)pt_va);
+		mm->FreePage(pt);
+		return -1;
+	}
+	mm->QuickMapRemove((vaddr_t)pt_va);
+	kstackPDE.fields.physAddr = pt->pa >> PAGE_SHIFT;
+	kstackPDE.fields.present = 1;
+	kstackPDE.fields.write = 1;
+	return 0;
+}
+
+void
+PM::Thread::DestroyKstack()
+{
+	if (!kstackPDE.fields.present) {
+		return;
+	}
+	MM::Page *pt = mm->GetPage(kstackPDE.fields.physAddr << PAGE_SHIFT);
+	PTE::PTEntry *pt_va = (PTE::PTEntry *)mm->QuickMapEnter(pt->pa);
+	PTE::PTEntry *pte = pt_va + (KSTACK_PHYS_SIZE / PAGE_SIZE);
+	while (pte > pt_va) {
+		pte--;
+		mm->FreePage(mm->GetPage(pte->fields.physAddr << PAGE_SHIFT));
+	}
+	mm->QuickMapRemove((vaddr_t)pt_va);
+	mm->FreePage(pt);
+	kstackPDE.raw = 0;
+}
+
+int
 PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority)
 {
 	this->stackSize = stackSize;
 	this->priority = priority;
 	this->nextPriority = priority;
+	if (CreateKstack()) {
+		return -1;
+	}
 	stackObj = NEW(MM::VMObject, stackSize, MM::VMObject::F_STACK);
 	if (!stackObj) {
 		return -1;
@@ -1743,6 +1807,7 @@ PM::Thread::~Thread()
 		stackObj->Release();
 		stackObj = 0;
 	}
+	DestroyKstack();
 }
 
 Error *

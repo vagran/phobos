@@ -40,20 +40,15 @@ ThreadEntry2(void *arg)
 }
 
 
-#define NUM_THREADS	1
+#define NUM_THREADS	32
 
 static int threadStarted[NUM_THREADS];
 static int finishThreads;
 static int
 ThreadEntry3(void *arg)
 {
-	GApp *app = uLib->GetApp();
-	GThread *thrd = app->GetThread();
-	PM::pid_t pid = thrd->GetPID();
-	printf("Thread %lu (pid = %d) started\n", (u32)arg, pid);
 	threadStarted[(int)arg] = 1;
 	while (!finishThreads);
-	printf("Thread %lu (pid = %d) exiting\n", (u32)arg, pid);
 	return MT_DWORD_VALUE2 + (int)arg;
 }
 
@@ -61,7 +56,6 @@ MT_DEFINE(MTMultiThreading, "Multi-threading verification")
 {
 	GApp *app = uLib->GetApp();
 	GProcess *proc = app->GetProcess();
-	printf("MTMultiThreading pid = %d\n", app->GetThread()->GetPID());//temp
 	GThread *thrd = uLib->CreateThread(proc, ThreadEntry, (void *)MT_DWORD_VALUE);
 	mt_assert(thrd);
 	app->Wait(GThread::OP_READ, thrd);
@@ -103,7 +97,7 @@ MT_DEFINE(MTMultiThreading, "Multi-threading verification")
 		mt_assert(threadStarted[i]);
 	}
 	finishThreads = 1;
-	app->Sleep(uLib->GetTime()->S(10000));
+	app->Sleep(uLib->GetTime()->S(1));
 	for (int i = 0; i < NUM_THREADS; i++) {
 		mt_assert(threads[i]->GetState(&exitCode, &fault) ==
 			PM::Thread::S_TERMINATED);

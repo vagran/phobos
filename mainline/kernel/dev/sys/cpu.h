@@ -84,7 +84,7 @@ public:
 
 	u32 GetID();
 	LAPIC *GetLapic();
-	int Activate(StartupFunc func, void *arg = 0, u32 stackSize = DEF_KERNEL_STACK_SIZE);
+	int Activate(StartupFunc func, void *arg = 0);
 	void NestInterrupt(int nestIn = 1); /* nestIn zero for nest out */
 	void NestTrap(int nestIn = 1); /* nestIn zero for nest out */
 	int SendIPI(LAPIC::IPIType type);
