@@ -11,10 +11,6 @@
 #include <sys.h>
 phbSource("$Id$");
 
-#define MAX_CMDLINE_PARAMS	127
-extern char *argv[MAX_CMDLINE_PARAMS + 1];
-extern int argc;
-
 /* initialize object at predefined location */
 #define construct(location, type, ...)	new(location) type(__VA_ARGS__)
 void *operator new(size_t size, void *location);

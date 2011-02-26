@@ -137,8 +137,6 @@ MM::InitAvailMem()
 				} else {
 					devPhysMem = 0;
 				}
-				klog(KLOG_INFO, "Devices memory at 0x%016llx - 0x%016llx",
-					devPhysMem, devPhysMem + DEV_MEM_SIZE);
 			}
 		}
 		if (pe->type == SMMT_MEMORY) {
@@ -149,7 +147,22 @@ MM::InitAvailMem()
 		}
 		len -= pe->size + sizeof(pe->size);
 		pe = (MBIMmapEntry *)((u8 *)pe + pe->size + sizeof(pe->size));
+		if (biosMemSize >= MEM_MAX_CHUNKS && len > 0) {
+			klog(KLOG_WARNING, "Too many memory chunk, "
+				"remaining entries dropped (%d)", len);
+			break;
+		}
 	}
+	/*
+	 * If suitable space for memory mapped devices not found, allocate physical
+	 * address space after last chunk of reported memory.
+	 */
+	if (!devPhysMem) {
+		devPhysMem = biosMem[biosMemSize - 1].location + biosMem[biosMemSize - 1].size;
+		devPhysMem = roundup2(devPhysMem, (64 << 20));
+	}
+	klog(KLOG_INFO, "Devices memory at 0x%016llx - 0x%016llx", devPhysMem,
+		devPhysMem + DEV_MEM_SIZE);
 
 	availMemSize = 0;
 	totalMem = 0;

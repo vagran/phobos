@@ -64,6 +64,11 @@ extern void __assert(const char *file, u32 line, const char *cond);
 
 #ifdef KERNEL
 
+#define MAX_CMDLINE_PARAMS	127
+extern char *argv[MAX_CMDLINE_PARAMS + 1];
+extern int argc;
+extern char *kernel_image_name; /* May be NULL */
+
 extern void Main(paddr_t firstAddr) __noreturn;
 extern void RunDebugger(const char *fmt,...) __format(printf, 1, 2);
 

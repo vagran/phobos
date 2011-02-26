@@ -16,6 +16,7 @@ MBInfo *pMBInfo;
 
 char *argv[MAX_CMDLINE_PARAMS + 1];
 int argc;
+char *kernel_image_name;
 
 static int bootDebugger = 0;
 
@@ -127,7 +128,13 @@ ParseArguments()
 		}
 	}
 
-	for (int i = 1; i < argc; i++) {
+	int i = 0;
+	/* Check if we have kernel image path in arguments */
+	if (argc && *argv[0] == '/') {
+		kernel_image_name = argv[0];
+		i = 1;
+	}
+	for (; i < argc; i++) {
 		char *o = argv[i];
 		if (o[0] != '-' || o[1] != '-') {
 			panic("Invalid command line format");

@@ -123,7 +123,7 @@ class MM : public Object {
 public:
 	enum {
 		QUICKMAP_SIZE =		8, /* pages */
-		MEM_MAX_CHUNKS =	16,
+		MEM_MAX_CHUNKS =	64,
 		KMEM_MIN_BLOCK =	4, /* bits shift */
 		KMEM_MAX_BLOCK =	30,
 	};
