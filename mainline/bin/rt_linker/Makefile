@@ -2,7 +2,9 @@
 # $Id$
 #
 # This file is a part of PhobOS operating system.
-# Copyright ©AST 2009. Written by Artemy Lebedev.
+# Copyright (c) 2011, Artyom Lebedev <artyom.lebedev@gmail.com>
+# All rights reserved.
+# See COPYING file for copyright details.
 
 APP = $(RT_LINKER_NAME)
 INSTALL_DIR = $(RT_LINKER_DIR)

@@ -3,7 +3,9 @@
  * $Id$
  *
  * This file is a part of PhobOS operating system.
- * Copyright (c)AST 2009. Written by Artemy Lebedev.
+ * Copyright (c) 2011, Artyom Lebedev <artyom.lebedev@gmail.com>
+ * All rights reserved.
+ * See COPYING file for copyright details.
  */
 
 #include <sys.h>
@@ -23,8 +25,8 @@ static int bootDebugger = 0;
 static char copyright[]	=
 	"******************************************************\n"
 	"PhobOS operating system\n"
-	"Written by Artemy Lebedev\n"
-	"Copyright (c)AST 2009\n";
+	"Copyright (c) 2011, Artyom Lebedev <artyom.lebedev@gmail.com>\n"
+	"All rights reserved.\n";
 
 static char *vfsRoot;
 

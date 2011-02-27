@@ -7,7 +7,9 @@
  * $$Id$$
  *
  * This file is a part of PhobOS operating system.
- * Copyright (c)AST 2009. Written by Artemy Lebedev.
+ * Copyright (c) 2011, Artyom Lebedev &lt;artyom.lebedev@gmail.com&gt;
+ * All rights reserved.
+ * See COPYING file for copyright details.
  */</template><template autoinsert="true" context="org.eclipse.cdt.ui.text.codetemplates.typecomment_context" deleted="false" description="Comment for created classes" enabled="true" id="org.eclipse.cdt.ui.text.codetemplates.typecomment" name="typecomment">/*
  *
  */</template><template autoinsert="true" context="org.eclipse.cdt.ui.text.codetemplates.fieldcomment_context" deleted="false" description="Comment for fields" enabled="true" id="org.eclipse.cdt.ui.text.codetemplates.fieldcomment" name="fieldcomment">/*
@@ -58,6 +60,7 @@ ${body_statement}</template><template autoinsert="true" context="org.eclipse.cdt
 # $$Id$$&#13;
 #&#13;
 # This file is a part of PhobOS operating system.&#13;
-# Copyright (c)AST 2009. Written by Artemy Lebedev.&#13;
-&#13;
+# Copyright (c) 2011, Artyom Lebedev &lt;artyom.lebedev@gmail.com&gt;&#13;
+# All rights reserved.&#13;
+# See COPYING file for copyright details.&#13;
 </template></templates>
