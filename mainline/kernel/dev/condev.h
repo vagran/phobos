@@ -51,12 +51,19 @@ private:
 		ChrDevice *dev;
 	} OutputClient;
 
-	typedef struct {
+	typedef struct IOQueue_s {
 		u32 size;
 		u8 *data;
 		u32 pRead, pWrite;
 		u32 dataSize;
 		SpinLock lock;
+
+		IOQueue_s () {
+			size = 0;
+			data = 0;
+			pRead = pWrite = 0;
+			dataSize = 0;
+		}
 	} IOQueue;
 
 	ListHead outClients;

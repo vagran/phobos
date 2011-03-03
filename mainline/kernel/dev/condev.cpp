@@ -21,7 +21,6 @@ ConsoleDev::ConsoleDev(Type type, u32 unit, u32 classID) :
 	fgCol = COL_WHITE | COL_BRIGHT;
 	bgCol = COL_BLACK;
 	tabSize = 8;
-	memset(&outQueue, 0, sizeof(outQueue));
 	outIrq = 0;
 }
 

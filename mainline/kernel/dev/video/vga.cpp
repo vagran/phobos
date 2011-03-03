@@ -70,12 +70,14 @@ VgaTerminal::Initialize()
 	fb[0] = 0x55aa;
 	fb[1] = 0xaa55;
 	if (fb[0] != 0x55aa || fb[1] != 0xaa55) {
+		Unlock(x);
 		klog(KLOG_INFO, "VGA card not detected");
 		return -1;
 	}
 	fb[0] = 0xaa55;
 	fb[1] = 0x55aa;
 	if (fb[0] != 0xaa55 || fb[1] != 0x55aa) {
+		Unlock(x);
 		klog(KLOG_INFO, "VGA card not detected");
 		return -1;
 	}
