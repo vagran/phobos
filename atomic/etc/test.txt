@@ -1,0 +1,11 @@
+0123456789abcdef
+# Temporal test file for filesystem testing purposes
+# $Id$
+test.txt
+
+ Created on: Nov 5, 2010
+     Author: vagran
+
+#!!! Keep this file size in sync with corresponding module test code.
+
+0123456789abcdef

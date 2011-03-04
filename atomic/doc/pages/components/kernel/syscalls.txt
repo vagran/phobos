@@ -1,0 +1,20 @@
+---//$Id$//
+
+====== System calls interface ======
+
+PhobOS uses original non-trivial implementation of the kernel system calls interface. The implementation has no analogues in other known operating systems.
+
+Such approach has the following advantages:
+  * No maintenance required for the calls and their fixed indexes
+  * No user space library wrappers required for the system calls
+  * Kernel stack is switched to user stack after validation. Required number of stack pages is mapped dynamically if necessary. This allows using stack of any size in context of system calls.
+  * Unlimited and not fixed arguments number can be used for the system calls. System calls with variable arguments number are possible.
+  * The system calls appear for an user space application as virtual methods of system objects. For an application point of view a system call invocation is as simple as an object virtual method invocation. All the magic (arguments validation, transition to kernel mode, stack switch) is hidden in a system object implementation. On the other hand, to add a system call in the kernel just new virtual method must be added to a system object. All the magic with virtual methods interception is done dynamically in run-time.
+
+===== Implementation =====
+
+PhobOS system calls entry points code is defined in file ''kernel/gate/gate.S''. Each gate object virtual methods table is replaced by new table which has elements which point to entries in **dispatch table**. A dispatch table contains entries which are copied from code between ''GateEntryStart'' and ''GateEntryEnd'' labels. It has ''GM::GateArea::MAX_GATE_METHODS'' entries. This is the limit of total number of all virtual methods of a gate object.
+
+Since ''sysexit'' instruction is used to switch back in user mode and register ''%edx'' is used for user instruction pointer argument, the gate methods return value size is limited to 32 bits.
+
+When user data passed to the kernel in user-space buffers (or the buffers are provided to get data from the kernel) the buffers mapping is verified by ''PM::Process::CheckUserBuf()'' and ''PM::Process::CheckUserString()'' methods. They verify that the buffer pages are accessible by the process (user/supervisor, read/write, execute-disable flags checked).

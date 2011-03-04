@@ -1,0 +1,6 @@
+---//$Id$//
+
+====== Third parties' components ======
+
+  * **//libelf//** - ELF binary format parsing library. Used by run-time linker.
+

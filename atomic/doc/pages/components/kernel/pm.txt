@@ -1,0 +1,24 @@
+---//$Id$//
+====== Processes manager overview ======
+Processes management code implemented in PM class. 
+
+PhobOS natively supports multi-threaded processes. Each process represented in the kernel by ''PM::Process'' class instance, each thread - by ''PM::Thread''. Every process has at least one thread. Each thread has its own stack. All threads share one virtual address space which is private for each process.
+
+====== Context switching ======
+Context switching is implemented in software. Hardware task switching support is not used, TSS is used only to store kernel mode gate stack address. Thread context is saved in ''Thread::Context'' structure by ''PM::Thread::SaveContext()'' method. Only %esp, %ebp and %eip registers are stored there because the switch is always performed in kernel mode and the rest general purpose registers are saved in stack. When the context is restored by ''PM::Thread::RestoreContext()'' method, it actually returns 1 in ''PM::Thread::SaveContext()'' method. Contexts never switched by clock during system call or interrupt processing.
+
+====== Scheduling ======
+Each CPU has its own run-queue which is represented by ''PM::Runqueue'' class. It has active queue – threads which are pending to run, and expired – they already run in this round and have spent their time slices. Time slice calculation for each thread is based on its dynamical priority value. Priority ''(NUM_PRIORITIES - 1)'' is reserved for idle thread. All kernel threads are running in context of one kernel process. When there is no any running thread each processor executes special idle thread. Most of the time it is in halted state wakening up only on interrupts. After each wakening it checks that there is still no any threads to run and halts again. If there is another thread available the processor switches to it.
+===== Sleeping =====
+Every thread can be put in sleeping state by ''PM::Sleep()'' method with the specified waiting channel ID – 32-bits value which will be used to wake up the thread by ''PM::Wakeup()'' method. In some cases it is required to reserve waiting channel ID before ''Sleep()'' method is called. For example, if we need to wait while I/O buffer is processed by a device, we can sleep on this buffer address after it is passed to the device driver. But if the device will process the buffer before ''Sleep()'' method is called it will wake up on non-existing wait channel ID (it is not an error and is permitted by the processes manager). After that waiting thread will call ''Sleep()'' method and will hang forever because nobody will wake up again on this ID. To resolve this problem, the waiting thread must reserve waiting channel ID by ''PM::ReserveSleepChannel()'' method **before** passing the buffer to the device driver. If the device will process the buffer before ''Sleep()'' method is called, it will wake up on this buffer and the process manager will mark the reserved waiting channel as waken. When the waiting thread will call ''Sleep()'' method on the waken channel, the method will return immediately. Waiting ID channel reservation is done in device driver by ''Device::AcceptBuffer()'' method so the driver user do not need to do this explicitly.
+
+Waiting for multiple events is implemented by ''PM::SleepMultiple()'' method which accepts the list of channels IDs to wait for.
+===== Stopping/Resuming =====
+Thread can be stopped (''S_STOPPED'' state) by ''PM::Thread::Stop()'' method. If the thread was sleeping it is dequeued from sleeping queue and will run after resuming. It can be resumed by ''PM::Thread::Run()'' method.
+
+====== Process identification ======
+Each process and each thread in a process has its own ID of type ''pid_t''. They share one pool of available IDs so each ID uniquely identifies either any process or thread in the system.
+
+====== Process creation ======
+New process created by ''PM::CreateProcess()'' method. In ''Process::Initialize()'' method new virtual address map is created and two submaps in it - for user space virtual memory and for gate objects area. ''MM::CreateMap()'' method creates new map which uses ''kmemMap'' object as reference - all kernel space PTD entries are copied in new map, i.e. kernel space page tables are shared between all processes. Reference counters bumped for the pages corresponding to kernel page tables.
+
