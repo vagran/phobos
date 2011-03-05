@@ -89,7 +89,7 @@ int
 IM::HwEnable(u32 idx, int f)
 {
 	if (idx >= NUM_HWIRQ) {
-		klog(KLOG_ERROR, "Hardware IRQ index out of range (%lu)", idx);
+		klog(KLOG_ERROR, "Hardware IRQ index out of range (%u)", idx);
 		return -1;
 	}
 	irqmask_t mask = GetMask(idx);
@@ -156,18 +156,18 @@ IM::Irq(IrqType type, u32 idx, int stiEnabled)
 		panic("Invalid interrupt type (%d)", type);
 	}
 	if (idx >= numLines) {
-		panic("Interrupt request with invalid index (%lu/%lu)", idx, numLines);
+		panic("Interrupt request with invalid index (%u/%u)", idx, numLines);
 	}
 	mask = GetMask(idx);
 	if (!(mask & *validMask)) {
-		panic("Interrupt request on invalid line (line %lu, type %d)", idx, type);
+		panic("Interrupt request on invalid line (line %u, type %d)", idx, type);
 	}
 	/* make it pending */
 	if (type == IT_SW) {
 		AtomicOp::Or(&swPending, mask);
 	} else if (type == IT_HW) {
 		if (mask & hwDisabled) {
-			klog(KLOG_WARNING, "Hardware interrupt request on disabled line (%lu)", idx);
+			klog(KLOG_WARNING, "Hardware interrupt request on disabled line (%u)", idx);
 			return -1;
 		}
 		AtomicOp::Or(&hwPending, mask);
@@ -570,7 +570,7 @@ IM::Allocate(IrqType type, Object *obj, ISR isr, u32 idx, u32 flags, int priorit
 		if (idx >= numSlots) {
 			slotLock.Unlock();
 			RestoreIntr(x);
-			klog(KLOG_ERROR, "Specified IRQ index is out of range (type %d: %lu/%lu)",
+			klog(KLOG_ERROR, "Specified IRQ index is out of range (type %d: %u/%u)",
 				type, idx, numSlots);
 			return 0;
 		}
@@ -578,14 +578,14 @@ IM::Allocate(IrqType type, Object *obj, ISR isr, u32 idx, u32 flags, int priorit
 		if (is->numClients && (flags & AF_EXCLUSIVE)) {
 			slotLock.Unlock();
 			RestoreIntr(x);
-			klog(KLOG_ERROR, "Attempted to allocate exclusive IRQ on busy slot (type %d: %lu)",
+			klog(KLOG_ERROR, "Attempted to allocate exclusive IRQ on busy slot (type %d: %u)",
 				type, idx);
 			return 0;
 		}
 		if (is->numClients && (is->flags & SF_EXCLUSIVE)) {
 			slotLock.Unlock();
 			RestoreIntr(x);
-			klog(KLOG_ERROR, "Attempted to share exclusive IRQ (type %d: %lu)",
+			klog(KLOG_ERROR, "Attempted to share exclusive IRQ (type %d: %u)",
 				type, idx);
 			return 0;
 		}

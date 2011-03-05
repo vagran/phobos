@@ -51,8 +51,8 @@ ASMCALL int	tolower(int c);
 ASMCALL int	toupper(int c);
 ASMCALL int isascii(int c);
 
-ASMCALL i32 strtol(const char *nptr, char **endptr, int base);
-ASMCALL u32 strtoul(const char *nptr, char **endptr, int base);
+ASMCALL long strtol(const char *nptr, char **endptr, int base);
+ASMCALL unsigned long strtoul(const char *nptr, char **endptr, int base);
 ASMCALL i64 strtoq(const char *nptr, char **endptr, int base);
 ASMCALL u64 strtouq(const char *nptr, char **endptr, int base);
 

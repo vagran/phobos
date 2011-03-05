@@ -163,7 +163,7 @@ MM::InitAvailMem()
 		devPhysMem = biosMem[biosMemSize - 1].location + biosMem[biosMemSize - 1].size;
 		devPhysMem = roundup2(devPhysMem, (64 << 20));
 	}
-	klog(KLOG_INFO, "Devices memory at 0x%016llx - 0x%016llx", devPhysMem,
+	klog(KLOG_INFO, "Devices memory at 0x%016lx - 0x%016lx", devPhysMem,
 		devPhysMem + DEV_MEM_SIZE);
 
 	availMemSize = 0;
@@ -209,11 +209,11 @@ MM::PrintMemInfo(ConsoleDev *dev)
 {
 	for (u32 i = 0; i < biosMemSize; i++) {
 		BiosMemChunk *bmc = &biosMem[i];
-		printf("[%016llx - %016llx] %s (%d)\n",
+		printf("[%016lx - %016lx] %s (%d)\n",
 					bmc->location, bmc->location + bmc->size,
 					StrMemType((SMMemType)bmc->type), bmc->type);
 	}
-	dev->Printf("Total %luM of physical memory\n", (u32)(physMemTotal >> 20));
+	dev->Printf("Total %uM of physical memory\n", (u32)(physMemTotal >> 20));
 	return 0;
 }
 
@@ -285,7 +285,7 @@ MM::AllocDevPhys(psize_t size)
 	size = roundup2(size, PAGE_SIZE);
 	if (devMemAlloc->Allocate(size, &addr)) {
 		klog(KLOG_WARNING,
-			"Failed to allocate %llu bytes of devices physical memory space",
+			"Failed to allocate %lu bytes of devices physical memory space",
 			size);
 		return 0;
 	}
@@ -917,14 +917,14 @@ MM::OnPageFault(Frame *frame)
 			PM::Thread *thrd = PM::Thread::GetCurrent();
 			assert(thrd);
 			thrd->Fault(PM::PFLT_PAGE_FAULT,
-				"Access to address 0x%08lx, code = 0x%lx (%s%s in %s mode, %s)",
+				"Access to address 0x%08lx, code = 0x%x (%s%s in %s mode, %s)",
 				va, frame->code, frame->code & PFC_W ? "Write" : "Read",
 				frame->code & PFC_I ? " (instruction fetch)" : "",
 				frame->code & PFC_U ? "user" : "kernel",
 				frame->code & PFC_P ? "protection violation" : "page not present");
 		} else {
 			printf("Unhandled page fault in kernel mode: "
-				"at 0x%08lx accessing address 0x%08lx, code = 0x%08lx "
+				"at 0x%08x accessing address 0x%08lx, code = 0x%08x "
 				"(%s%s, %s)\n",
 				frame->eip, va, frame->code,
 				frame->code & PFC_W ? "Write" : "Read",
@@ -1031,13 +1031,13 @@ MM::Page::Page(paddr_t pa, u16 flags)
 MM::PageZone
 MM::Page::GetZone()
 {
-	if (pa >= 0x100000000ull) {
+	if (pa >= 0x100000000ul) {
 		return ZONE_REST;
 	}
-	if (pa >= 0x1000000ull) {
+	if (pa >= 0x1000000ul) {
 		return ZONE_4GB;
 	}
-	if (pa >= 0x100000ull) {
+	if (pa >= 0x100000ul) {
 		return ZONE_16MB;
 	}
 	return ZONE_1MB;
@@ -1485,7 +1485,7 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 	freeTables = 1;
 	ptd = (PTE::PDEntry *)malloc(PD_PAGES * PAGE_SIZE);
 	assert(ptd);
-	assert(!((u32)ptd & (PAGE_SIZE - 1)));
+	assert(!((uintptr_t)ptd & (PAGE_SIZE - 1)));
 	memset(ptd, 0, PD_PAGES * PAGE_SIZE);
 	if (copyFrom) {
 		u32 startIdx = KERNEL_ADDRESS >> PD_SHIFT;
@@ -1513,9 +1513,9 @@ MM::Map::Map(Map *copyFrom) : alloc(mm->kmemMapClient), mapEntryClient(mm->kmemS
 	pdpt = (PTE::PDEntry *)malloc(sizeof(PTE::PDEntry) * PD_PAGES, 0, ZONE_4GB);
 	assert(pdpt);
 	/* should be properly aligned */
-	assert(!((u32)pdpt & (sizeof(PTE::PDEntry) * PD_PAGES - 1)));
+	assert(!((uintptr_t)pdpt & (sizeof(PTE::PDEntry) * PD_PAGES - 1)));
 	memset(pdpt, 0, sizeof(PTE::PDEntry) * PD_PAGES);
-	assert(mm->Kextract((vaddr_t)pdpt) <= 0xffffffffull);
+	assert(mm->Kextract((vaddr_t)pdpt) <= 0xfffffffful);
 	cr3 = (u32)mm->Kextract((vaddr_t)pdpt);
 	for (int i = 0; i < PD_PAGES; i++) {
 		paddr_t pa = mm->Kextract((vaddr_t)ptd + i * PAGE_SIZE);
@@ -1534,7 +1534,7 @@ MM::Map::Map(PTE::PDEntry *pdpt, PTE::PDEntry *ptd, int noFree) :
 	freeTables = !noFree;
 	this->pdpt = pdpt;
 	this->ptd = ptd;
-	assert(mm->Kextract((vaddr_t)pdpt) <= 0xffffffffull);
+	assert(mm->Kextract((vaddr_t)pdpt) <= 0xfffffffful);
 	cr3 = (u32)mm->Kextract((vaddr_t)pdpt);
 }
 
@@ -2083,7 +2083,7 @@ MM::Map::MapEntryAllocator::malloc(u32 size, void *param)
 	Entry::EntryAllocParam eap;
 
 	eap.e = e;
-	eap.zone = (PageZone)(u32)param;
+	eap.zone = (PageZone)(uintptr_t)param;
 	if (alloc.Allocate(size, &addr, &eap)) {
 		return 0;
 	}

@@ -47,11 +47,11 @@ int
 PIC::Initialize(u32 ivtBase)
 {
 	if (ivtBase & 0x7) {
-		klog(KLOG_ERROR, "Base vector for PIC must be 8-aligned (passed %lu)", ivtBase);
+		klog(KLOG_ERROR, "Base vector for PIC must be 8-aligned (passed %u)", ivtBase);
 		return -1;
 	}
 	if (ivtBase & ~0xff) {
-		klog(KLOG_ERROR, "Base vector for PIC exceeded the limit (passed %lu)", ivtBase);
+		klog(KLOG_ERROR, "Base vector for PIC exceeded the limit (passed %u)", ivtBase);
 	}
 	outb(portICW, ICW1_ICWOCWSEL | ICW1_IC4);
 	outb(portOCW, ivtBase);
@@ -72,7 +72,7 @@ PIC::EnableInterrupt(u32 idx)
 {
 	assert(isInitialized);
 	if (idx > NUM_LINES) {
-		klog(KLOG_ERROR, "Line index is out of range (%lu)", idx);
+		klog(KLOG_ERROR, "Line index is out of range (%u)", idx);
 		return -1;
 	}
 	irqmask_t mask = GetMask(idx);
@@ -88,7 +88,7 @@ PIC::DisableInterrupt(u32 idx)
 {
 	assert(isInitialized);
 	if (idx > NUM_LINES) {
-		klog(KLOG_ERROR, "Line index is out of range (%lu)", idx);
+		klog(KLOG_ERROR, "Line index is out of range (%u)", idx);
 		return -1;
 	}
 	irqmask_t mask = GetMask(idx);
@@ -104,7 +104,7 @@ PIC::EOI(u32 idx)
 {
 	assert(isInitialized);
 	if (idx != DEF_IDX && idx > NUM_LINES) {
-		klog(KLOG_ERROR, "Line index is out of range (%lu)", idx);
+		klog(KLOG_ERROR, "Line index is out of range (%u)", idx);
 		return -1;
 	}
 	u8 cmd = OCW2_EOI;

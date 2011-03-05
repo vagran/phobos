@@ -167,7 +167,7 @@ static int bsPagingEnabled = 0;
 static void *
 bs_malloc(u32 size, u32 align = 4)
 {
-	bsMemory = (u8 *)roundup((u32)bsMemory, align);
+	bsMemory = (u8 *)roundup((uintptr_t)bsMemory, align);
 	void *p = bsMemory;
 	bsMemory += size;
 	return p;
@@ -345,7 +345,7 @@ Bootstrap(u32 mbSignature, MBInfo *mbi)
 #endif /* DEBUG */
 
 	TRACE("Enabling paging...");
-	wcr3((u32)bsIdlePDPT);
+	wcr3((uintptr_t)bsIdlePDPT);
 	wcr4(rcr4() | CR4_PAE);
 	wcr0(rcr0()	| CR0_PG);
 	TRACE("ok\n");

@@ -27,7 +27,7 @@ public:
 	GEvent();
 	virtual ~GEvent();
 
-	virtual PM::waitid_t GetWaitChannel(Operation op);
+	virtual waitid_t GetWaitChannel(Operation op);
 	virtual int OpAvailable(Operation op);
 
 	virtual int Set();

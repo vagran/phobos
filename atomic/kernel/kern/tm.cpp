@@ -24,7 +24,7 @@ TM::TM()
 	timerFreq = pit->GetBaseFreq();
 	pit->SetTickFreq(TICKS_FREQ);
 	tickDivisor = pit->GetDivisor();
-	ratio = (u32)(((1ull << RATIO_BITS) * 1000000ull + 500000ull) / timerFreq);
+	ratio = (u32)(((1ul << RATIO_BITS) * 1000000ul + 500000ul) / timerFreq);
 	pit->SetTickCbk(this, (PIT::TickCbk)&TM::TickHandler);
 	rtc = (RTC *)devMan.CreateDevice("rtc", 0);
 	if (rtc) {
@@ -194,10 +194,10 @@ TM::AddTimer(Timers *timers, Timer *t)
 	timers->lock.Lock();
 	t->timers = timers;
 	i64 delta = t->nextRun - timers->nextRun;
-	if (delta > 0xffffffffll) {
-		klog(KLOG_WARNING, "Too big timeout specified, reducing to maximal allowed: %lld",
+	if (delta > 0xffffffffl) {
+		klog(KLOG_WARNING, "Too big timeout specified, reducing to maximal allowed: %ld",
 			delta);
-		delta = 0xffffffffull;
+		delta = 0xfffffffful;
 		t->nextRun = timers->nextRun + delta;
 	}
 	ListHead *head = 0;
@@ -208,7 +208,7 @@ TM::AddTimer(Timers *timers, Timer *t)
 		head = &timers->qRoot[t->nextRun & ((1 << TIMER_HASHBITS_ROOT) - 1)];
 	} else {
 		for (int qn = 1; qn < TIMER_HASH_NODES; qn++) {
-			if (delta < (1ll << (TIMER_HASHBITS_ROOT + qn * TIMER_HASHBITS_NODE))) {
+			if (delta < (1l << (TIMER_HASHBITS_ROOT + qn * TIMER_HASHBITS_NODE))) {
 				head = &timers->qNodes[qn - 1].head[(t->nextRun >>
 					(TIMER_HASHBITS_ROOT + (qn - 1) * TIMER_HASHBITS_NODE)) &
 					((1 << TIMER_HASHBITS_NODE) - 1)];

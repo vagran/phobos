@@ -154,7 +154,7 @@ SSlabAllocator::CreateSlab()
 	if (!slab) {
 		return 0;
 	}
-	assert(!((u32)slab & (PAGE_SIZE - 1)));
+	assert(!((uintptr_t)slab & (PAGE_SIZE - 1)));
 #ifdef DEBUG_MALLOC
 	memset(slab, 0xcc, SLAB_SIZE);
 #endif

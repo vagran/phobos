@@ -74,7 +74,7 @@ DeviceFS::Create(BlkDevice *dev, int flags, const char *name)
 			return 0;
 		}
 		if (fse->prober(dev, fse->arg)) {
-			klog(KLOG_WARNING, "File system do not match the content: '%s' on %s%lu",
+			klog(KLOG_WARNING, "File system do not match the content: '%s' on %s%u",
 				name, dev->GetClass(), dev->GetUnit());
 		}
 	} else {
@@ -85,7 +85,7 @@ DeviceFS::Create(BlkDevice *dev, int flags, const char *name)
 				break;
 			}
 			if (!found) {
-				klog(KLOG_WARNING, "File system not recognized on %s%lu",
+				klog(KLOG_WARNING, "File system not recognized on %s%u",
 					dev->GetClass(), dev->GetUnit());
 				return 0;
 			}

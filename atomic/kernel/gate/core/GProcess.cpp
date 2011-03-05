@@ -47,14 +47,14 @@ GThread::GetState(u32 *pExitCode, PM::ProcessFault *pFault)
 	return refThrd->GetState(pExitCode, pFault);
 }
 
-PM::waitid_t
+waitid_t
 GThread::GetWaitChannel(Operation op)
 {
 	if (op != OP_READ) {
 		return 0;
 	}
 	lastState = refThrd->GetState();
-	return (PM::waitid_t)refThrd;
+	return (waitid_t)refThrd;
 }
 
 int
@@ -148,14 +148,14 @@ GProcess::GetState(u32 *pExitCode, PM::ProcessFault *pFault)
 	return refProc->GetState(pExitCode, pFault);
 }
 
-PM::waitid_t
+waitid_t
 GProcess::GetWaitChannel(Operation op)
 {
 	if (op != OP_READ) {
 		return 0;
 	}
 	lastState = refProc->GetState();
-	return (PM::waitid_t)refProc;
+	return (waitid_t)refProc;
 }
 
 int

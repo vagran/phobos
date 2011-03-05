@@ -26,7 +26,7 @@ GConsoleStream::~GConsoleStream()
 	con->Release();
 }
 
-PM::waitid_t
+waitid_t
 GConsoleStream::GetWaitChannel(Operation op)
 {
 	if (op == OP_READ) {

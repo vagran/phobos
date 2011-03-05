@@ -17,7 +17,7 @@ GM *gm;
 
 GM::GM()
 {
-	gateEntrySize = roundup2((u32)&GateEntryEnd - (u32)&GateEntryStart, 0x10);
+	gateEntrySize = roundup2((uintptr_t)&GateEntryEnd - (uintptr_t)&GateEntryStart, 0x10);
 	/* create dispatch tables backing object */
 	u32 dispatchSize = gateEntrySize * GateArea::MAX_GATE_METHODS +
 		sizeof(FUNC_PTR) * (GateArea::MAX_GATE_METHODS + 1);
@@ -437,14 +437,14 @@ GateObjValidateCall(u32 idx, vaddr_t esp)
 
 	GateObject *obj = ((GateObject **)esp)[1];
 	if (GateObject::Validate(obj)) {
-		thrd->Fault(PM::PFLT_GATE_OBJ, "Not valid object: 0x%08lx", (u32)obj);
+		thrd->Fault(PM::PFLT_GATE_OBJ, "Not valid object: 0x%08lx", (uintptr_t)obj);
 		return 0;
 	}
 	FUNC_PTR method = GateObjGetOrigMethod(obj, idx);
 	if (!method) {
 		thrd->Fault(PM::PFLT_GATE_METHOD,
-			"Invalid method index (%lu) for object 0x%08lx (%s)",
-			idx, (u32)obj, obj->GetClassName());
+			"Invalid method index (%u) for object 0x%08lx (%s)",
+			idx, (uintptr_t)obj, obj->GetClassName());
 		return 0;
 	}
 	thrd->SetGateMode(1);

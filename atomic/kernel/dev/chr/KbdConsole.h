@@ -37,7 +37,7 @@ public:
 	virtual ~KbdConsole();
 
 	virtual int SetInputDevice(KbdDev *dev);
-	virtual u32 GetWaitChannel(Operation op);
+	virtual uintptr_t GetWaitChannel(Operation op);
 	virtual IOStatus Getc(u8 *c);
 	virtual IOStatus OpAvailable(Operation op);
 };

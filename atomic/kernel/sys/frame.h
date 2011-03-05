@@ -14,14 +14,14 @@
 phbSource("$Id$");
 
 #define PUSH_FRAME \
-	pushl %gs; pushl %fs; pushl %es; pushl %ds; \
-	pushl %eax; pushl %ebp; \
-	pushl %edi; pushl %esi; pushl %edx; pushl %ecx; pushl %ebx
+	push %gs; push %fs; /*FIXME push %es; push %ds;*/ \
+	push %rax; push %rbp; \
+	push %rdi; push %rsi; push %rdx; push %rcx; push %rbx
 
 #define POP_FRAME \
-	popl %ebx; popl %ecx; popl %edx; popl %esi; popl %edi; \
-	popl %ebp; popl %eax; \
-	popl %ds; popl %es; popl %fs; popl %gs;
+	pop %rbx; pop %rcx; pop %rdx; pop %rsi; pop %rdi; \
+	pop %rbp; pop %rax; \
+	/*FIXME pop %ds; pop %es;*/ pop %fs; pop %gs;
 
 /* offsets in Frame for assembler */
 #define FRAME_EBX		0

@@ -188,7 +188,7 @@ int MyTimer(Handle h, u64 ticks, void *arg)//temp
 {
 	Time time;
 	tm->GetTime(&time);
-	printf("%llu.%06lu MyTimer (%s): 0x%08lx\n", time.sec, time.usec, *(char **)arg, (u32)arg);
+	printf("%lu.%06u MyTimer (%s): 0x%08lx\n", time.sec, time.usec, *(char **)arg, (uintptr_t)arg);
 	pm->Wakeup(arg);
 	return 0;
 }
@@ -205,7 +205,7 @@ int MyProcess(void *arg)//temp
 		pm->Sleep(events, -1, "test multisleep", tm->MS(2000), &wakenBy);
 		Time time;
 		tm->GetTime(&time);
-		printf("%llu.%06lu process waken by %s\n", time.sec, time.usec,
+		printf("%lu.%06u process waken by %s\n", time.sec, time.usec,
 			wakenBy ? *(char **)wakenBy : "timeout");
 	}
 	return 0;
@@ -267,7 +267,7 @@ StartupProc(void *arg)
 		pm->Sleep(&ev1, "proc1");
 		Time time;
 		tm->GetTime(&time);
-		printf("%llu.%06lu init proc waken\n", time.sec, time.usec);
+		printf("%lu.%06u init proc waken\n", time.sec, time.usec);
 	}
 	return 0;
 }

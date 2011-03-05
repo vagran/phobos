@@ -83,7 +83,7 @@ GApp::Wait(Operation op, GateObject **objects, int numObjects, void *bitmap,
 		memset(bitmap, 0, roundup2(numObjects, NBBY * sizeof(int)) / NBBY);
 	}
 
-	PM::waitid_t waitIds[numObjects];
+	waitid_t waitIds[numObjects];
 
 	/* Validate all passed objects */
 	for (int i = 0; i < numObjects; i++) {
@@ -121,7 +121,7 @@ GApp::Wait(Operation op, GateObject **objects, int numObjects, void *bitmap,
 			break;
 		}
 
-		PM::waitid_t wakenBy;
+		waitid_t wakenBy;
 		if (pm->Sleep(waitIds, numObjects, "App::Wait", timeout, &wakenBy)) {
 			ERROR(E_FAULT, "PM::Sleep() call failed");
 			break;

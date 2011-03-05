@@ -13,7 +13,7 @@ phbSource("$Id$");
 
 #include <kdb/debugger.h>
 
-Debugger::Debugger *sysDebugger;
+Debugger *sysDebugger;
 
 void
 RunDebugger(const char *fmt,...)
@@ -48,7 +48,7 @@ _panic(const char *fileName, int line, const char *fmt,...)
 void
 __assert(const char *file, u32 line, const char *cond)
 {
-	panic("Assert failed at %s:%lu: '%s'", file, line, cond);
+	panic("Assert failed at %s:%u: '%s'", file, line, cond);
 }
 
 /*************************************************************/
@@ -91,14 +91,14 @@ Debugger::UnhandledTrap(Frame *frame)
 	if (((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
 		esp = frame->esp;
 	} else {
-		esp = (u32)&frame->esp;
+		esp = (uintptr_t)&frame->esp;
 	}
 	if (Debugger::debugFaults && sysDebugger) {
 		sysDebugger->Trap(frame);
 	}
-	panic("Unhandled trap\nidx = %lx (%s), code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
-		"eax = 0x%08lx, ebx = 0x%08lx, ecx = 0x%08lx, edx = 0x%08lx\n"
-		"esi = 0x%08lx, edi = 0x%08lx, ebp = 0x%08lx, esp = 0x%08lx",
+	panic("Unhandled trap\nidx = %x (%s), code = %u, eip = 0x%08x, eflags = 0x%08x\n"
+		"eax = 0x%08x, ebx = 0x%08x, ecx = 0x%08x, edx = 0x%08x\n"
+		"esi = 0x%08x, edi = 0x%08x, ebp = 0x%08x, esp = 0x%08x",
 		frame->vectorIdx, IDT::StrTrap((IDT::SysTraps)frame->vectorIdx),
 		frame->code, frame->eip, frame->eflags,
 		frame->eax, frame->ebx, frame->ecx, frame->edx,
@@ -142,7 +142,7 @@ Debugger::DebugHandler(Frame *frame)
 int
 Debugger::Trap(Frame *frame)
 {
-	con->Printf("Trap: %lu - %s\n", frame->vectorIdx,
+	con->Printf("Trap: %u - %s\n", frame->vectorIdx,
 		IDT::StrTrap((IDT::SysTraps)frame->vectorIdx));
 	requestedBreak = 1;
 	return BPHandler(frame);
@@ -351,7 +351,7 @@ Debugger::SetFrame(Frame *frame)
 	/* esp is saved in frame only if PL was switched */
 	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
 		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
-		esp = (u32)&frame->esp;
+		esp = (uintptr_t)&frame->esp;
 	} else {
 		esp = frame->esp;
 		ss = frame->ss;
@@ -399,11 +399,11 @@ Debugger::PrintFrameInfo(Frame *frame)
 		SendStatus(frame);
 	} else {
 		if (curCpu) {
-			con->Printf("[CPU %lu-ID%lx] ", curCpu->GetUnit(), curCpu->GetID());
+			con->Printf("[CPU %u-ID%x] ", curCpu->GetUnit(), curCpu->GetID());
 		} else {
 			con->Printf("[Unknown CPU] ");
 		}
-		con->Printf("Stopped at 0x%08lx\n", frame->eip);
+		con->Printf("Stopped at 0x%08x\n", frame->eip);
 	}
 	return 0;
 }
@@ -411,7 +411,7 @@ Debugger::PrintFrameInfo(Frame *frame)
 void
 Debugger::Prompt()
 {
-	con->Printf("PhobOS debugger [%08lx]> ", frame->eip);
+	con->Printf("PhobOS debugger [%08x]> ", frame->eip);
 }
 
 int
@@ -637,7 +637,7 @@ Debugger::cmd_listthreads(char **argv, u32 argc)
 	threadLock.Lock();
 	Thread *t;
 	LIST_FOREACH(Thread, list, t, threads) {
-		con->Printf("%c%lu. cpu %lu-ID%lu @ 0x%08lx\n",
+		con->Printf("%c%u. cpu %u-ID%u @ 0x%08x\n",
 			t->cpu == curCpu ? '>' : ' ',
 			t->id,
 			t->cpu->GetUnit(), t->cpu->GetID(),
@@ -662,7 +662,7 @@ Debugger::cmd_thread(char **argv, u32 argc)
 	}
 	HdlStatus rc = SwitchThread(id, 1);
 	if (rc == HS_ERROR) {
-		con->Printf("Failed to switch to thread %lu\n", id);
+		con->Printf("Failed to switch to thread %u\n", id);
 		return HS_ERROR;
 	}
 	return rc;
@@ -699,21 +699,21 @@ Debugger::HdlStatus
 Debugger::cmd_registers(char **argv, u32 argc)
 {
 	con->Printf(
-		"eax = 0x%08lx\n"
-		"ebx = 0x%08lx\n"
-		"ecx = 0x%08lx\n"
-		"edx = 0x%08lx\n"
-		"esi = 0x%08lx\n"
-		"edi = 0x%08lx\n"
-		"ebp = 0x%08lx\n"
-		"esp = 0x%08lx\n"
-		"eip = 0x%08lx\n"
-		"eflags = 0x%08lx\n"
-		"cs = 0x%08lx\n"
-		"ds = 0x%08lx\n"
-		"es = 0x%08lx\n"
-		"fs = 0x%08lx\n"
-		"gs = 0x%08lx\n"
+		"eax = 0x%08x\n"
+		"ebx = 0x%08x\n"
+		"ecx = 0x%08x\n"
+		"edx = 0x%08x\n"
+		"esi = 0x%08x\n"
+		"edi = 0x%08x\n"
+		"ebp = 0x%08x\n"
+		"esp = 0x%08x\n"
+		"eip = 0x%08x\n"
+		"eflags = 0x%08x\n"
+		"cs = 0x%08x\n"
+		"ds = 0x%08x\n"
+		"es = 0x%08x\n"
+		"fs = 0x%08x\n"
+		"gs = 0x%08x\n"
 		"ss = 0x%04hx\n",
 		frame->eax,
 		frame->ebx,
@@ -848,7 +848,7 @@ Debugger::Query()
 	if (!strcmp(lineBuf, "qC")) {
 		/* query current thread ID */
 		Thread *t = GetThread();
-		sprintf(buf, "QC%lx", t ? t->id : 1);
+		sprintf(buf, "QC%x", t ? t->id : 1);
 		GDBSend(buf);
 	} else if (!strcmp(lineBuf, "qfThreadInfo")) {
 		/* return all threads in the first query */
@@ -858,7 +858,7 @@ Debugger::Query()
 		if (numThreads) {
 			Thread *t;
 			LIST_FOREACH(Thread, list, t, threads) {
-				pos += sprintf(&buf[pos], "%lx", t->id);
+				pos += sprintf(&buf[pos], "%x", t->id);
 				if (!LIST_ISLAST(list, t, threads)) {
 					buf[pos++] = ',';
 				}
@@ -890,7 +890,7 @@ Debugger::Query()
 				GDBSend("E02");
 				return 0;
 			}
-			sprintf(buf, "CPU %lu (ID %lu)", t->cpu->GetUnit(), t->cpu->GetID());
+			sprintf(buf, "CPU %u (ID %u)", t->cpu->GetUnit(), t->cpu->GetID());
 		} else {
 			/* SMP not initialized yet */
 			strcpy(buf, "Bootstrap processor");
@@ -1190,13 +1190,13 @@ Debugger::ReadMemory()
 		PTE::PDEntry *pde = MM::VtoPDE(addr);
 		if (!pde->fields.present) {
 			GDBSend("E02");
-			Trace("Error: address not available (PDE): 0x%08lx\n", addr);
+			Trace("Error: address not available (PDE): 0x%08x\n", addr);
 			return 0;
 		}
 		PTE::PTEntry *pte = MM::VtoPTE(addr);
 		if (!pte->fields.present) {
 			GDBSend("E03");
-			Trace("Error: address not available (PTE): 0x%08lx\n", addr);
+			Trace("Error: address not available (PTE): 0x%08x\n", addr);
 			return 0;
 		}
 		DumpData(&pbuf, sizeof(buf) - (pbuf - buf), (void *)addr, toRead);
@@ -1255,7 +1255,7 @@ Debugger::SendStatus(Frame *frame)
 	/* esp is saved in frame only if PL was switched */
 	if (!((SDT::SegSelector *)(void *)&frame->cs)->rpl) {
 		__asm __volatile ("movw %%ss, %0" : "=g"(ss) : : );
-		esp = (u32)&frame->esp;
+		esp = (uintptr_t)&frame->esp;
 	} else {
 		esp = frame->esp;
 		ss = frame->ss;

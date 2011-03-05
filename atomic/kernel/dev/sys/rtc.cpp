@@ -25,7 +25,7 @@ const int RTC::daysInMonth[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 RTC::RTC(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 {
 	if (unit) {
-		klog(KLOG_ERROR, "Only unit 0 is supported fot RTC device, specified %lu", unit);
+		klog(KLOG_ERROR, "Only unit 0 is supported fot RTC device, specified %u", unit);
 		return;
 	}
 	gtc = 0;

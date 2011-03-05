@@ -39,13 +39,13 @@ GEvent::OpAvailable(Operation op)
 	return state;
 }
 
-PM::waitid_t
+waitid_t
 GEvent::GetWaitChannel(Operation op)
 {
 	if (!ev || (op != OP_READ && op != OP_WRITE)) {
 		return 0;
 	}
-	return (PM::waitid_t)ev;
+	return (waitid_t)ev;
 }
 
 int

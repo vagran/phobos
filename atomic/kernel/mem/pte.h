@@ -84,7 +84,7 @@ public:
 		F_A =				F_ACCESSED,
 		F_DIRTY =			0x40,
 		F_D =				F_DIRTY,
-		F_EXECUTEDISABLE =	0x8000000000000000ull,
+		F_EXECUTEDISABLE =	0x8000000000000000ul,
 		F_XD =				F_EXECUTEDISABLE,
 	} Flags;
 
@@ -93,7 +93,7 @@ public:
 #define PD_PAGES		4
 #define PT_ENTRIES		(PAGE_SIZE / sizeof(PTE::PTEntry))
 
-#define PG_FRAME		0xffffff000ull
+#define PG_FRAME		0xffffff000ul
 
 #define PT_SHIFT		12
 #define PD_SHIFT		21

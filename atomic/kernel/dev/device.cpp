@@ -181,7 +181,7 @@ ChrDevice::Notify(Operation op)
 	}
 	u32 waitId = GetWaitChannel(op);
 	if (waitId) {
-		pm->Wakeup((PM::waitid_t)waitId);
+		pm->Wakeup((waitid_t)waitId);
 	}
 	return 0;
 }
@@ -390,7 +390,7 @@ DeviceManager::CreateDevice(DevClass *p, u32 unit)
 		unitAllocated = 1;
 	} else {
 		if (FindDevice(p, unit)) {
-			klog(KLOG_ERROR, "'%s' class device unit %lu already exists",
+			klog(KLOG_ERROR, "'%s' class device unit %u already exists",
 				p->name, unit);
 			return 0;
 		}
@@ -437,7 +437,7 @@ DeviceManager::CreateDevice(DevClass *p, u32 unit)
 	}
 	p->numDevs++;
 	Unlock(x);
-	klog(KLOG_INFO, "Device created: %s%lu - %s", p->name, unit, p->desc);
+	klog(KLOG_INFO, "Device created: %s%u - %s", p->name, unit, p->desc);
 	return dev;
 }
 
@@ -542,7 +542,7 @@ DeviceManager::CreateDevice(u32 devClassID, u32 unit)
 {
 	DevClass *p = FindClass(devClassID);
 	if (!p) {
-		panic("Attempted to create device of non-existing class (0x%lx)", devClassID);
+		panic("Attempted to create device of non-existing class (0x%x)", devClassID);
 	}
 	return CreateDevice(p, unit);
 }
@@ -560,7 +560,7 @@ DeviceManager::DestroyDevice(Device *dev)
 	DevInst *di = TREE_FIND(unit, DevInst, tree, p->devTree);
 	if (!di) {
 		Unlock(x);
-		panic("Destroying device with unregistered unit number (%lu)",
+		panic("Destroying device with unregistered unit number (%u)",
 			unit);
 	}
 	LIST_DELETE(list, di, p->devList);
@@ -590,14 +590,14 @@ DeviceManager::RegisterClass(const char *devClass, Device::Type type, const char
 		if (!strcmp(devClass, found->name)) {
 			panic("Registering duplicated device classes: '%s'", devClass);
 		}
-		panic("Device class hash collision: h('%s')=h('%s')=0x%08lx",
+		panic("Device class hash collision: h('%s')=h('%s')=0x%08x",
 			devClass, found->name, id);
 	}
 	DevClass *p = NEW(DevClass);
 	if (!p) {
 		panic("Device class registration failed, no memory");
 	}
-	klog(KLOG_DEBUG, "Registering device class '%s' (id = 0x%08lX)", devClass, id);
+	klog(KLOG_DEBUG, "Registering device class '%s' (id = 0x%08X)", devClass, id);
 	p->name = strdup(devClass);
 	p->desc = desc ? strdup(desc) : 0;
 	p->type = type;

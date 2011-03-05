@@ -131,8 +131,8 @@ __umoddi3(u64 a, u64 b)
  * and assembly.
  */
 #define	QUAD_BITS	(sizeof(quad_t) * CHAR_BIT)
-#define	LONG_BITS	(sizeof(long) * CHAR_BIT)
-#define	HALF_BITS	(sizeof(long) * CHAR_BIT / 2)
+#define	LONG_BITS	(sizeof(u32) * CHAR_BIT)
+#define	HALF_BITS	(sizeof(u32) * CHAR_BIT / 2)
 
 /*
  * Extract high and low shortwords from longword, and move low shortword of

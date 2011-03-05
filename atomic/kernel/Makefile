@@ -9,6 +9,6 @@
 export KERNROOT = $(PHOBOS_ROOT)/kernel
 MAKEIMAGE = 1
 
-SUBDIRS = init lib dev mem unit_test kern kdb vfs fs gate
+SUBDIRS = init lib dev mem kern kdb vfs fs gate
 
 include $(KERNROOT)/make/make.mak

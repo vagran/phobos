@@ -137,7 +137,7 @@ public:
 	virtual IOStatus Putc(u8 c);
 	virtual int Read(u8 *buf, u32 size);
 	virtual int Write(u8 *buf, u32 size);
-	virtual u32 GetWaitChannel(Operation op) { return 0; }
+	virtual waitid_t GetWaitChannel(Operation op) { return 0; }
 	virtual int RegisterCallback(Operation op, EventCallback cbk, Object *obj);
 	/* Return IOS_OK if available, IOS_NODATA if not */
 	virtual IOStatus OpAvailable(Operation op) { return IOS_NOTSPRT; }

@@ -25,7 +25,7 @@ Ext2FS::Ext2FS(BlkDevice *dev, int flags) : DeviceFS(dev, flags)
 	inodeTable = 0;
 
 	if (dev->Read(SUPERBLOCK_OFFSET, &sb, sizeof(sb))) {
-		klog(KLOG_WARNING, "Cannot read superblock: Device read error: %s%lu",
+		klog(KLOG_WARNING, "Cannot read superblock: Device read error: %s%u",
 				dev->GetClass(), dev->GetUnit());
 		return;
 	}
@@ -48,7 +48,7 @@ Ext2FS::Ext2FS(BlkDevice *dev, int flags) : DeviceFS(dev, flags)
 	memset(blocksGroups, 0, sizeof(*blocksGroups) * numGroups);
 	if (dev->Read((sb.first_data_block + 1) * blockSize, blocksGroups,
 		sizeof(BlocksGroup) * numGroups)) {
-		klog(KLOG_WARNING, "Cannot read blocks groups descriptors: Device read error: %s%lu",
+		klog(KLOG_WARNING, "Cannot read blocks groups descriptors: Device read error: %s%u",
 				dev->GetClass(), dev->GetUnit());
 		return;
 	}
@@ -67,12 +67,12 @@ Ext2FS::Ext2FS(BlkDevice *dev, int flags) : DeviceFS(dev, flags)
 	/* read root directory */
 	root = CreateNode(0, ROOT_DIR_ID);
 	if (!root) {
-		klog(KLOG_WARNING, "Cannot create root directory: %s%lu",
+		klog(KLOG_WARNING, "Cannot create root directory: %s%u",
 			dev->GetClass(), dev->GetUnit());
 		return;
 	}
 	if ((root->inode->mode & IFT_MASK) != IFT_DIRECTORY) {
-		klog(KLOG_WARNING, "Root directory inode has non-directory type: %s%lu",
+		klog(KLOG_WARNING, "Root directory inode has non-directory type: %s%u",
 			dev->GetClass(), dev->GetUnit());
 		return;
 	}
@@ -119,7 +119,7 @@ DefineFSProber(Ext2FS)
 	Superblock sb;
 
 	if (dev->Read(SUPERBLOCK_OFFSET, &sb, sizeof(sb))) {
-		klog(KLOG_WARNING, "Device read error: %s%lu",
+		klog(KLOG_WARNING, "Device read error: %s%u",
 			dev->GetClass(), dev->GetUnit());
 		return -1;
 	}
@@ -473,7 +473,7 @@ Ext2FS::ReadFile(Node *node, u32 offset, u32 len, void *buf)
 		if (!node->lastBlock) {
 			return 0;
 		}
-		node->lastBlockOffset = ~0ul;
+		node->lastBlockOffset = ~0;
 	}
 	while (len && offset < size) {
 		void *pBuf;

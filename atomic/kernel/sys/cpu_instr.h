@@ -77,61 +77,61 @@ invlpg(vaddr_t va)
 static __inline u32
 rcr0()
 {
-	register u32 r;
+	register u64 r;
 
-	ASM ("movl %%cr0, %0" : "=r"(r));
+	ASM ("mov %%cr0, %0" : "=r"(r));
 	return r;
 }
 
 static __inline void
-wcr0(u32 x)
+wcr0(u64 x)
 {
-	ASM ("movl %0, %%cr0" : : "r"(x));
+	ASM ("mov %0, %%cr0" : : "r"(x));
 }
 
 static __inline u32
 rcr2()
 {
-	register u32 r;
+	register u64 r;
 
-	ASM ("movl %%cr2, %0" : "=r"(r));
+	ASM ("mov %%cr2, %0" : "=r"(r));
 	return r;
 }
 
 static __inline void
 wcr2(u32 x)
 {
-	ASM ("movl %0, %%cr2" : : "r"(x));
+	ASM ("mov %0, %%cr2" : : "r"(x));
 }
 
-static __inline u32
+static __inline u64
 rcr3()
 {
-	register u32 r;
+	register u64 r;
 
-	ASM ("movl %%cr3, %0" : "=r"(r));
+	ASM ("mov %%cr3, %0" : "=r"(r));
 	return r;
 }
 
 static __inline void
-wcr3(u32 x)
+wcr3(u64 x)
 {
-	ASM ("movl %0, %%cr3" : : "r"(x));
+	ASM ("mov %0, %%cr3" : : "r"(x));
 }
 
 static __inline u32
 rcr4()
 {
-	register u32 r;
+	register u64 r;
 
-	ASM ("movl %%cr4, %0" : "=r"(r));
+	ASM ("mov %%cr4, %0" : "=r"(r));
 	return r;
 }
 
 static __inline void
-wcr4(u32 x)
+wcr4(u64 x)
 {
-	ASM ("movl %0, %%cr4" : : "r"(x));
+	ASM ("mov %0, %%cr4" : : "r"(x));
 }
 
 static __inline void
@@ -306,10 +306,10 @@ sysexit(u32 eip, u32 esp)
 static __inline u32
 GetEflags()
 {
-	u32 rc;
+	u64 rc;
 	ASM (
-		"pushfl\n"
-		"popl	%0\n"
+		"pushf\n"
+		"pop	%0\n"
 		: "=r"(rc)
 	);
 	return rc;

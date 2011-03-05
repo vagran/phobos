@@ -116,7 +116,7 @@ GFile::Seek(off_t offset, u32 flags, off_t *newOffset)
 		newPos = size + offset;
 		break;
 	default:
-		ERROR(E_INVAL, "Invalid whence specified: %ld", flags & SF_WHENCE_MASK);
+		ERROR(E_INVAL, "Invalid whence specified: %d", flags & SF_WHENCE_MASK);
 		return -1;
 	}
 	if (newPos > size) {
@@ -139,7 +139,7 @@ GFile::GetCurPos(off_t *pos)
 		}
 		*pos = curPos;
 	}
-	return (u32)pos;
+	return (uintptr_t)pos;
 }
 
 VFS::Node::Type
@@ -157,7 +157,7 @@ GFile::Map(u32 len, u32 flags, u32 offset, void *location)
 		len = roundup2(len, PAGE_SIZE);
 	}
 	if (offset & (PAGE_SIZE - 1)) {
-		ERROR(E_INVAL, "Offset should be multiple of PAGE_SIZE (0x%lx)", offset);
+		ERROR(E_INVAL, "Offset should be multiple of PAGE_SIZE (0x%x)", offset);
 		return 0;
 	}
 	if (((vaddr_t)location) & (PAGE_SIZE - 1)) {
@@ -194,7 +194,7 @@ GFile::Map(u32 len, u32 flags, u32 offset, void *location)
 		if (!e && (flags & MF_FIXED)) {
 			obj->Release();
 			ERROR(E_FAULT, "Cannot insert object to specified location "
-				"(%ld bytes at 0x%lx)", len, (vaddr_t)location);
+				"(%d bytes at 0x%lx)", len, (vaddr_t)location);
 			return 0;
 		}
 	}

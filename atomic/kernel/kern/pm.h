@@ -23,7 +23,6 @@ class GStream;
 class PM : public Object {
 public:
 	typedef u16 pid_t;
-	typedef u32 waitid_t;
 
 	enum ProcessFault {
 		PFLT_NONE,

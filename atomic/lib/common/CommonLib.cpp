@@ -851,13 +851,13 @@ isascii(int c)
 	return c >= 0 && c <= 127;
 }
 
-ASMCALL i32
+ASMCALL long
 strtol(const char *nptr, char **endptr, int base)
 {
 	const char *s = nptr;
-	u32 acc;
+	unsigned long acc;
 	u8 c;
-	u32 cutoff;
+	unsigned long cutoff;
 	int neg = 0, any, cutlim;
 
 	/*
@@ -935,7 +935,7 @@ strtol(const char *nptr, char **endptr, int base)
 /*
  * Convert a string to an unsigned long integer.
  */
-ASMCALL u32
+ASMCALL unsigned long
 strtoul(const char *nptr, char **endptr, int base)
 {
 	const char *s = nptr;
@@ -965,8 +965,8 @@ strtoul(const char *nptr, char **endptr, int base)
 	if (base == 0) {
 		base = c == '0' ? 8 : 10;
 	}
-	cutoff = (unsigned long)0xffffffff / (unsigned long)base;
-	cutlim = (unsigned long)0xffffffff % (unsigned long)base;
+	cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
+	cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
 	for (acc = 0, any = 0;; c = *s++) {
 		if (!isascii(c)) {
 			break;
@@ -1054,8 +1054,13 @@ strtoq(const char *nptr, char **endptr, int base)
 	 * Set any if any `digits' consumed; make it negative to indicate
 	 * overflow.
 	 */
-	qbase = (unsigned)base;
-	cutoff = neg ? (u64)-(QUAD_MIN + QUAD_MAX) + QUAD_MAX : QUAD_MAX;
+	qbase = (u64)base;
+	if (neg) {
+		cutoff = -(QUAD_MIN + QUAD_MAX);
+		cutoff += QUAD_MAX;
+	} else {
+		cutoff = QUAD_MAX;
+	}
 	cutlim = cutoff % qbase;
 	cutoff /= qbase;
 	for (acc = 0, any = 0;; c = *s++) {

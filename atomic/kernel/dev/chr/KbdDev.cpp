@@ -171,11 +171,11 @@ KbdDev::KeyEvent(int code)
 	return 0;
 }
 
-u32
+waitid_t
 KbdDev::GetWaitChannel(Operation op)
 {
 	if (op == OP_READ) {
-		return (u32)&fifo;
+		return (waitid_t)&fifo;
 	}
 	return 0;
 }

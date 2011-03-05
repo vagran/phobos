@@ -10,7 +10,7 @@ include $(PHOBOS_ROOT)/make/makevar.mak
 
 EXECUTABLE = utrun
 
-COMPILE_FLAGS = -Werror -Wall -pipe -fno-default-inline -DUNIT_TEST \
+COMPILE_FLAGS = -pipe -Werror -Wall -fno-default-inline -DUNIT_TEST \
 	-DKERNEL_ADDRESS=$(KERNEL_ADDRESS)
 
 ifeq ($(TARGET),RELEASE)

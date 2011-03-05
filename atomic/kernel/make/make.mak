@@ -8,14 +8,14 @@
 
 include $(PHOBOS_ROOT)/make/makevar.mak
 
-COMPILE_FLAGS = -pipe -Werror -Wall -Wno-invalid-offsetof \
+COMPILE_FLAGS = -mcmodel=small -pipe -Wlong-long -Werror -Wall -Wno-invalid-offsetof \
 	-DKERNEL -fno-stack-protector -fno-default-inline -fno-builtin \
 	-DLOAD_ADDRESS=$(KERNEL_LOAD_ADDRESS) \
 	-DKERNEL_ADDRESS=$(KERNEL_ADDRESS)
 COMPILE_FLAGS_CXX = -fno-exceptions -fno-rtti
 COMPILE_FLAGS_C =
 COMPILE_FLAGS_ASM = -DASSEMBLER
-LINK_FLAGS = -static -nodefaultlibs -nostartfiles -nostdinc -nostdinc++
+LINK_FLAGS = -static
 LINK_SCRIPT = $(KERNROOT)/make/link.ld
 AR_FLAGS = rcs
 

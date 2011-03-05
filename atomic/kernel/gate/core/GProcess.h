@@ -28,7 +28,7 @@ public:
 	virtual PM::pid_t GetPID();
 	virtual PM::Thread::State GetState(u32 *pExitCode = 0, PM::ProcessFault *pFault = 0);
 	/* Wait on state change, return immediately if already terminated */
-	virtual PM::waitid_t GetWaitChannel(Operation op);
+	virtual waitid_t GetWaitChannel(Operation op);
 	virtual int OpAvailable(Operation op);
 
 	DECLARE_GCLASS_IMP(GThread);
@@ -56,7 +56,7 @@ public:
 		u32 stackSize = PM::Thread::DEF_STACK_SIZE, u32 priority = PM::DEF_PRIORITY);
 
 	/* Wait on state change, return immediately if already terminated */
-	virtual PM::waitid_t GetWaitChannel(Operation op);
+	virtual waitid_t GetWaitChannel(Operation op);
 	virtual int OpAvailable(Operation op);
 
 	DECLARE_GCLASS_IMP(GProcess);

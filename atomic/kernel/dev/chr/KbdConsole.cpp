@@ -50,11 +50,11 @@ KbdConsole::SetInputDevice(KbdDev *dev)
 	return 0;
 }
 
-u32
+waitid_t
 KbdConsole::GetWaitChannel(Operation op)
 {
 	if (op == OP_READ) {
-		return (u32)&fifo;
+		return (waitid_t)&fifo;
 	}
 	return 0;
 }

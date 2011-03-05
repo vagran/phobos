@@ -21,7 +21,7 @@ SDT::SetDescriptor(Descriptor *d, u32 base, u32 limit, u32 ring, u32 system,
 	if ((limit & 0xfff) != 0xfff || limit < 0x100000) {
 		if (limit > 0xfffff) {
 			panic("Specifying segment with 1-byte granularity and limit >1MB, "
-				"limit = 0x%08lX", limit);
+				"limit = 0x%08X", limit);
 		}
 		d->gran = 0;
 	} else {
@@ -93,25 +93,25 @@ GDT::GDT()
 		SDT::DST_CODE | SDT::DST_C_READ);
 	SDT::SetDescriptor(&table->udata, 0, 0xffffffff, 3, 0,
 		SDT::DST_DATA | SDT::DST_D_WRITE);
-	SDT::SetDescriptor(&table->ldt, (u32)ldt, sizeof(*ldt) - 1, 3, 1,
+	SDT::SetDescriptor(&table->ldt, (uintptr_t)ldt, sizeof(*ldt) - 1, 3, 1,
 		SDT::SST_LDT);
-	pd.base = (u32)table;
+	pd.base = (uintptr_t)table;
 	pd.limit = sizeof(SDT::Descriptor) * GDT_SIZE - 1;
 	__asm __volatile (
 		"lgdt	%0\n"
-		"pushl	%1\n"
-		"pushl	$0f\n"
+		"push	%1\n"
+		"push	$0f\n"
 		"lret\n"
 		"0: mov	%2, %%ss\n"
 		"mov	%2, %%ds\n"
 		"mov	%2, %%es\n"
-		"xorl	%2, %2\n"
+		"xor	%2, %2\n"
 		"mov	%2, %%fs\n"
 		"mov	%2, %%gs\n"
 		"lldt	%3\n"
 		:
-		:"m"(pd), "r"((u32)GetSelector(SI_KCODE, PL_KERNEL)),
-		 "r"((u32)GetSelector(SI_KDATA, PL_KERNEL)),
+		:"m"(pd), "r"((u64)GetSelector(SI_KCODE, PL_KERNEL)),
+		 "r"((u64)GetSelector(SI_KDATA, PL_KERNEL)),
 		 "r"(GetSelector(SI_LDT, PL_KERNEL))
 		: "cc"
 		);
@@ -143,7 +143,7 @@ GDT::ReleaseSegment(SDT::Descriptor *d)
 u32
 GDT::GetIndex(SDT::Descriptor *d)
 {
-	u32 idx = ((u32)d - (u32)&table->null) / sizeof(SDT::Descriptor);
+	uintptr_t idx = ((uintptr_t)d - (uintptr_t)&table->null) / sizeof(SDT::Descriptor);
 	if (idx >= GDT_SIZE) {
 		return 0;
 	}
@@ -170,7 +170,7 @@ IDT::IDT()
 	table = (SDT::Gate *)MM::malloc(NUM_VECTORS * sizeof(*table), sizeof(*table));
 	memset(table, 0, NUM_VECTORS * sizeof(*table));
 
-	trapEntrySize = roundup2((u32)&TrapEntryEnd - (u32)&TrapEntry, 0x10);
+	trapEntrySize = roundup2((uintptr_t)&TrapEntryEnd - (uintptr_t)&TrapEntry, 0x10);
 	TrapTable = MM::malloc(NUM_VECTORS * trapEntrySize, 0x10);
 	/* initialize with NOPs */
 	memset(TrapTable, 0x90, NUM_VECTORS * trapEntrySize);
@@ -182,13 +182,13 @@ IDT::IDT()
 		} else {
 			type = SDT::SST_IGT32;
 		}
-		void *entry = (void *)((u32)TrapTable + idx * trapEntrySize);
-		SDT::SetGate(&table[idx], (u32)entry,
+		void *entry = (void *)((uintptr_t)TrapTable + idx * trapEntrySize);
+		SDT::SetGate(&table[idx], (uintptr_t)entry,
 			GDT::GetSelector(GDT::SI_KCODE, 0), type);
-		memcpy(entry, &TrapEntry, (u32)&TrapEntryEnd - (u32)&TrapEntry);
+		memcpy(entry, &TrapEntry, (uintptr_t)&TrapEntryEnd - (uintptr_t)&TrapEntry);
 	}
 
-	pd.base = (u32)table;
+	pd.base = (uintptr_t)table;
 	pd.limit = NUM_VECTORS * sizeof(*table) - 1;
 	lidt(&pd);
 }
@@ -204,11 +204,11 @@ IDT::HandleTrap(Frame *frame)
 			if (GDT::GetRPL(frame->cs) == GDT::PL_USER) {
 				esp = frame->esp;
 			} else {
-				esp = (u32)&frame->esp;
+				esp = (uintptr_t)&frame->esp;
 			}
-			panic("Unhandled trap\nidx = %lx (%s), code = %lu, eip = 0x%08lx, eflags = 0x%08lx\n"
-				"eax = 0x%08lx, ebx = 0x%08lx, ecx = 0x%08lx, edx = 0x%08lx\n"
-				"esi = 0x%08lx, edi = 0x%08lx, ebp = 0x%08lx, esp = 0x%08lx",
+			panic("Unhandled trap\nidx = %x (%s), code = %u, eip = 0x%08x, eflags = 0x%08x\n"
+				"eax = 0x%08x, ebx = 0x%08x, ecx = 0x%08x, edx = 0x%08x\n"
+				"esi = 0x%08x, edi = 0x%08x, ebp = 0x%08x, esp = 0x%08x",
 				frame->vectorIdx, IDT::StrTrap((IDT::SysTraps)frame->vectorIdx),
 				frame->code, frame->eip, frame->eflags,
 				frame->eax, frame->ebx, frame->ecx, frame->edx,
@@ -284,9 +284,9 @@ TSS::TSS(void *kernelStack, u32 privateDataSize)
 	ensure(desc);
 	memset(data, 0, dataSize);
 	data->tss = this;
-	data->data.tss_esp0 = (u32)kernelStack;
+	data->data.tss_esp0 = (uintptr_t)kernelStack;
 	data->data.tss_ss0 = GDT::GetSelector(GDT::SI_KDATA);
-	SDT::SetDescriptor(desc, (u32)data, dataSize - 1, 0, 1, SDT::SST_TSS32, 0);
+	SDT::SetDescriptor(desc, (uintptr_t)data, dataSize - 1, 0, 1, SDT::SST_TSS32, 0);
 }
 
 int

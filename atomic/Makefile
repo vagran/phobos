@@ -6,7 +6,7 @@
 # All rights reserved.
 # See COPYING file for copyright details.
 
-SUBDIRS= lib bin etc kernel
+SUBDIRS= kernel
 
 include $(PHOBOS_ROOT)/make/make.mak
 

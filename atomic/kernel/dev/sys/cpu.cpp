@@ -49,7 +49,7 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	}
 
 	if (unit != numCpus) {
-		panic("Attempted to create CPU device with invalid unit index (%lu/%lu)",
+		panic("Attempted to create CPU device with invalid unit index (%u/%u)",
 			unit, numCpus);
 	}
 
@@ -57,7 +57,7 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	if (feat1 & CPUID_APIC) {
 		lapic = (LAPIC *)devMan.CreateDevice("lapic", unit);
 		if (!lapic) {
-			klog(KLOG_ERROR, "Unable to create LAPIC device for CPU %lu", unit);
+			klog(KLOG_ERROR, "Unable to create LAPIC device for CPU %u", unit);
 		} else {
 			lapic->SetCpu(this);
 		}
@@ -71,7 +71,7 @@ CPU::CPU(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 	}
 	privSegSel = gdt->GetSelector(privSeg);
 	privSegData.cpu = this;
-	SDT::SetDescriptor(privSeg, (u32)&privSegData, sizeof(PrivSegment) - 1, 0,
+	SDT::SetDescriptor(privSeg, /*FIXME*/(u64)&privSegData, sizeof(PrivSegment) - 1, 0,
 		0, SDT::DST_DATA | SDT::DST_D_WRITE, 0);
 	/* private segment is referenced by %fs register of each CPU */
 	ASM (
@@ -189,8 +189,8 @@ CPU::Activate(StartupFunc func, void *arg)
 	/* Switch stack and jump to startup code */
 	int rc;
 	ASM (
-		"movl	%1, %%esp\n"
-		"pushl	%3\n"
+		"mov	%1, %%rsp\n"
+		"push	%3\n"
 		"call	*%2\n"
 		: "=a"(rc)
 		: "r"(initialStack + KSTACK_SIZE), "r"(func), "r"(arg)
@@ -219,11 +219,11 @@ CPU::GetCurrent()
 	CPU *cpu;
 	/* use private CPU segment referenced by %fs selector */
 	ASM (
-		"xorl	%0, %0\n"
-		"movl	%%fs, %0\n"
-		"testl	%0, %0\n"
+		"xor	%0, %0\n"
+		"mov	%%fs, %0\n"
+		"test	%0, %0\n"
 		"jz		1f\n"
-		"movl	%%fs:%1, %0\n"
+		"mov	%%fs:%1, %0\n"
 		"1:\n"
 		: "=&r"(cpu)
 		: "m"(*(u32 *)(void *)OFFSETOF(PrivSegment, cpu))
@@ -308,7 +308,7 @@ CPU::UninstallTrampoline(vaddr_t va)
 	assert(pg);
 	pg->Unwire();
 	mm->FreePage(pg);
-	vsize_t codeSize = (u32)&APBootEntryEnd - (u32)&APBootEntry;
+	vsize_t codeSize = (vaddr_t)&APBootEntryEnd - (vaddr_t)&APBootEntry;
 	u32 pgNum = (codeSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	for (u32 pgIdx = 0; pgIdx < pgNum; pgIdx++) {
 		paddr_t pa = mm->Kextract(va);
@@ -348,7 +348,7 @@ CPU::InstallTrampoline()
 	APGDTdesc.limit = gdtSize - 1;
 
 	/* map and copy code to real mode memory */
-	vsize_t codeSize = (u32)&APBootEntryEnd - (u32)&APBootEntry;
+	vsize_t codeSize = (vaddr_t)&APBootEntryEnd - (vaddr_t)&APBootEntry;
 	u32 pgNum = (codeSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	/*
 	 * Since pages are not continuously allocated paging must be
@@ -379,7 +379,7 @@ int
 APStartup(vaddr_t entryAddr)
 {
 	/* open gate for a next CPU */
-	u32 *lock = (u32 *)(((u32)&APLock - (u32)&APBootEntry) + entryAddr);
+	u32 *lock = (u32 *)(((vaddr_t)&APLock - (vaddr_t)&APBootEntry) + entryAddr);
 	AtomicOp::And(lock, 0);
 	/* involve the CPU to the processes management */
 	pm->AttachCPU();

@@ -24,7 +24,7 @@
 
 #define __UID(str)			__CONCAT(str, __COUNTER__)
 
-#define OFFSETOF(struc_name, field_name) ((unsigned int)&((struc_name *)0)->field_name)
+#define OFFSETOF(struc_name, field_name) ((uintptr_t)&((struc_name *)0)->field_name)
 
 #define TYPEOF(struc_name, field_name) typeof(((struc_name *)0)->field_name)
 

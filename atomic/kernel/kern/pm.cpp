@@ -965,7 +965,7 @@ PM::Process::UserThreadEntry(UserThreadParams *params)
 			proc->gateArea->Initialize();
 			GApp *app = proc->gateArea->GetApp();
 			app->AddRef(); /* bump user reference counter */
-			*(--esp) = (u32)app;
+			*(--esp) = (uintptr_t)app;
 
 			/* Create default streams */
 			/* XXX just temporal stub, provide terminal access for process */
@@ -1077,9 +1077,9 @@ PM::Process::CheckUserBuf(void *buf, u32 size, MM::Protection protection)
 	/* protect kernel stack, deny any access */
 	if (thrd->IsKernelStack((vaddr_t)buf, size)) {
 		thrd->Fault(PM::PFLT_INVALID_BUFFER,
-			"Invalid buffer - %lu bytes at 0x%08lx, "
+			"Invalid buffer - %u bytes at 0x%08lx, "
 			"access denied to the kernel stack, requested access: %c%c%c",
-			size, (u32)buf,
+			size, (uintptr_t)buf,
 			(protection & MM::PROT_READ) ? 'r' : '-',
 			(protection & MM::PROT_WRITE) ? 'w' : '-',
 			(protection & MM::PROT_EXEC) ? 'x' : '-');
@@ -1091,8 +1091,8 @@ PM::Process::CheckUserBuf(void *buf, u32 size, MM::Protection protection)
 		va += PAGE_SIZE) {
 		if (map->CheckPageProtection(va, protection, 1)) {
 			thrd->Fault(PM::PFLT_INVALID_BUFFER,
-				"Invalid buffer - %lu bytes at 0x%08lx, failed for page 0x%08lx, "
-				"requested access: %c%c%c", size, (u32)buf, va,
+				"Invalid buffer - %u bytes at 0x%08lx, failed for page 0x%08lx, "
+				"requested access: %c%c%c", size, (uintptr_t)buf, va,
 				(protection & MM::PROT_READ) ? 'r' : '-',
 				(protection & MM::PROT_WRITE) ? 'w' : '-',
 				(protection & MM::PROT_EXEC) ? 'x' : '-');
@@ -1118,13 +1118,13 @@ PM::Process::CheckUserString(const char *str)
 		if (thrd->IsKernelStack(va, endVa - va)) {
 			thrd->Fault(PM::PFLT_INVALID_BUFFER, "Invalid string at 0x%08lx, "
 				"failed for page 0x%08lx, kernel stack access denied",
-				(u32)str, va);
+				(uintptr_t)str, va);
 			return -1;
 		}
 
 		if (map->CheckPageProtection(va, MM::PROT_READ, 1)) {
 			thrd->Fault(PM::PFLT_INVALID_BUFFER, "Invalid string at 0x%08lx, "
-				"failed for page 0x%08lx", (u32)str, va);
+				"failed for page 0x%08lx", (uintptr_t)str, va);
 			return -1;
 		}
 		while (va < endVa) {
@@ -1323,7 +1323,7 @@ PM::Process::ReserveSpace(u32 size, vaddr_t va)
 {
 	MM::Map::Entry *e = userMap->AllocateSpace(size, &va, va != 0);
 	if (!e) {
-		ERROR(E_NOMEM, "Cannot allocate space in the user map (0x%lx @ %08lx)",
+		ERROR(E_NOMEM, "Cannot allocate space in the user map (0x%x @ %08lx)",
 			size, va);
 		return 0;
 	}
@@ -1443,8 +1443,8 @@ OnThreadExit(u32 exitCode, PM::Thread *thrd)
 ASM (
 	".globl _OnThreadExit\n"
 	"_OnThreadExit:\n"
-	"addl	$4, %esp\n" /* pop argument for entry point */
-	"pushl	%eax\n"
+	"add	$4, %esp\n" /* pop argument for entry point */
+	"push	%rax\n"
 	"call	OnThreadExit\n");
 
 extern "C" void _OnThreadExit();
@@ -1567,33 +1567,33 @@ void
 PM::Thread::SwapContext(Context *ctx)
 {
 	ASM (
-		"xchgl	%%esp, (%0)\n"
-		"xchgl	%%ebp, 0x4(%0)\n"
+		"xchg	%%esp, (%0)\n"
+		"xchg	%%ebp, 0x4(%0)\n"
 		/* Switch kernel stack */
-		"movl	(%1), %%eax\n"
-		"xchgl	%%eax, 0x14(%0)\n"
-		"movl	%%eax, (%1)\n"
-		"movl	0x4(%1), %%eax\n"
-		"xchgl	%%eax, 0x18(%0)\n"
-		"movl	%%eax, 0x4(%1)\n"
+		"mov	(%1), %%eax\n"
+		"xchg	%%eax, 0x14(%0)\n"
+		"mov	%%eax, (%1)\n"
+		"mov	0x4(%1), %%eax\n"
+		"xchg	%%eax, 0x18(%0)\n"
+		"mov	%%eax, 0x4(%1)\n"
 		/* Exchange CR3 */
-		"movl	%%cr3, %%eax\n"
-		"xchgl	%%eax, 0x8(%0)\n"
-		"movl	%%eax, %%cr3\n"
+		"mov	%%cr3, %%rax\n"
+		"xchg	%%eax, 0x8(%0)\n"
+		"mov	%%rax, %%cr3\n"
 		/* Exchange EIP */
-		"movl	$1f, %%eax\n"
-		"xchgl	%%eax, 0x10(%0)\n"
+		"mov	$1f, %%eax\n"
+		"xchg	%%eax, 0x10(%0)\n"
 		/*
 		 * We will do "ret" on this address later. Whole state should be saved
 		 * BEFORE we will potentially enable interrupts by restoring EFLAGS.
 		 */
-		"pushl	%%eax\n"
+		"push	%%rax\n"
 		/* Exchange EFLAGS */
-		"pushfl\n"
-		"popl	%%eax\n"
-		"xchgl	%%eax, 0xc(%0)\n"
-		"pushl	%%eax\n"
-		"popfl\n" /* Restore EFLAGS ... */
+		"pushf\n"
+		"pop	%%rax\n"
+		"xchg	%%eax, 0xc(%0)\n"
+		"push	%%rax\n"
+		"popf\n" /* Restore EFLAGS ... */
 		"ret\n" /* ... and EIP */
 		"1:\n"
 		:
@@ -1725,7 +1725,7 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority
 		stackObj->Release();
 		return -1;
 	}
-	ctx.eip = (u32)entry;
+	ctx.eip = (uintptr_t)entry;
 	u32 *esp = (u32 *)(stackEntry->base + stackEntry->size);
 	/*
 	 * Prefault required amount of kernel stack space.
@@ -1740,13 +1740,13 @@ PM::Thread::Initialize(ThreadEntry entry, void *arg, u32 stackSize, u32 priority
 	paddr_t pa = proc->userMap->Extract((vaddr_t)esp);
 	assert(pa);
 	u32 *_esp = (u32 *)mm->QuickMapEnter(pa);
-	*(_esp--) = (u32)this; /* argument for exit function */
+	*(_esp--) = (uintptr_t)this; /* argument for exit function */
 	esp--;
-	*(_esp--) = (u32)arg; /* argument for entry point */
+	*(_esp--) = (uintptr_t)arg; /* argument for entry point */
 	esp--;
-	*(_esp) = (u32)_OnThreadExit; /* return address */
+	*(_esp) = (uintptr_t)_OnThreadExit; /* return address */
 	mm->QuickMapRemove((vaddr_t)_esp);
-	ctx.esp = ctx.ebp = (u32)esp;
+	ctx.esp = ctx.ebp = (uintptr_t)esp;
 	ctx.eflags = GetEflags() & ~EFLAGS_IF;
 	return 0;
 }

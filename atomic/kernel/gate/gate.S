@@ -19,15 +19,15 @@ phbSource("$Id$");
 .globl GateEntryStart, GateEntryEnd
 GateEntryStart:
 	call	1f
-1:	popl	%eax		/* pass %eip in %eax */
+1:	pop		%rax		/* pass %eip in %eax */
 	/* check CPL */
-	movl	%cs, %edx
-	andl	$3, %edx
+	mov		%cs, %edx
+	and		$3, %edx
 	jz		1f			/* kernel mode */
-	movl	%esp, %edx	/* pass %esp in %edx */
+	mov		%esp, %edx	/* pass %esp in %edx */
 	sysenter
-1:	movl	$GateKernEntry, %edx
-	jmp		*%edx
+1:	mov		$GateKernEntry, %edx
+	jmp		*%rdx
 GateEntryEnd:
 
 #define GATE_ENTRY_SIZE roundup2(GateEntryEnd - GateEntryStart, 0x10)
@@ -39,11 +39,11 @@ GateKernEntry:
 	movl	$GATE_ENTRY_SIZE, %ecx
 	idivl	%ecx		/* method index in %eax now */
 	movl	4(%esp), %edx /* pointer to object */
-	pushl	%eax
-	pushl	%edx
+	push	%rax
+	push	%rdx
 	call	GateObjGetOrigMethod
 	addl	$8, %esp
-	jmp		*%eax
+	jmp		*%rax
 
 /* Kernel system calls entry point */
 .globl GateSysEntry
@@ -51,7 +51,7 @@ GateSysEntry:
 	movl	$KDATASEL, %ecx
 	movl	%ecx, %ds
 	movl	%ecx, %es
-	pushl	%edx /* original stack pointer */
+	push	%rdx /* original stack pointer */
 	subl	$GATE_AREA_ADDRESS, %eax
 	xorl	%edx, %edx
 	movl	$GATE_ENTRY_SIZE, %ecx
@@ -59,8 +59,8 @@ GateSysEntry:
 	movl	(%esp), %edx /* original stack pointer */
 
 	/* validate parameters and get method address */
-	pushl	%edx
-	pushl	%eax
+	push	%rdx
+	push	%rax
 	call	GateObjValidateCall
 	addl	$0x8, %esp
 	testl	%eax, %eax
@@ -68,25 +68,25 @@ GateSysEntry:
 
 	movl	(%esp), %edx /* original stack pointer */
 	leal	4(%edx), %esp /* switch stack, drop return address */
-	call	*%eax /* call original method */
-	pushl	%eax /* return value */
+	call	*%rax /* call original method */
+	push	%rax /* return value */
 
 	call	GateObjGetReturnAddress
-	pushl	%eax /* return address */
+	push	%rax /* return address */
 	call	OnUserRet
-	popl	%edx /* return address */
-	popl	%eax /* return value */
-	movl	%esp, %ecx /* user stack pointer */
+	pop		%rdx /* return address */
+	pop		%rax /* return value */
+	mov		%esp, %ecx /* user stack pointer */
 
 	/* restore user segments selectors */
-	pushl	%ebx
+	push	%rbx
 	movl	$UDATASEL, %ebx
 	movl	%ebx, %ds
 	movl	%ebx, %es
 	xorl	%ebx, %ebx
 	movl	%ebx, %fs
 	movl	%ebx, %gs
-	popl	%ebx
+	pop		%rbx
 
 	sysexit /* %edx - user %eip, %ecx - user %esp */
 
@@ -95,7 +95,7 @@ CallFailMsg: .asciz "Gate call failed, OnUserRet returned"
 CallFail:
 	call	OnUserRet /* should not return */
 	/* something wrong if it returned */
-	pushl	$CallFailMsg
-	pushl	$__LINE__
-	pushl	$CallFailFile
+	push	$CallFailMsg
+	push	$__LINE__
+	push	$CallFailFile
 	call	_panic

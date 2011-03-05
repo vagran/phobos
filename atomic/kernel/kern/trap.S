@@ -26,9 +26,9 @@ TrapTable:
 .globl TrapEntry
 TrapEntry:
 	cli
-	pushl	%eax
-	movl	$TrapHandler, %eax
-	call	*%eax
+	push	%rax
+	mov		$TrapHandler, %rax
+	call	*%rax
 .globl TrapEntryEnd
 TrapEntryEnd:
 
@@ -39,12 +39,12 @@ TrapEntryEnd:
 	(1 << 13) | (1 << 14) | (1 << 17))
 
 TrapHandler:
-	popl	%eax
+	pop		%rax
 	subl	$(TrapEntryEnd - TrapEntry), %eax
 	subl	TrapTable, %eax
-	pushl	%edx
+	push	%rdx
 	xorl	%edx, %edx
-	pushl	%ecx
+	push	%rcx
 	movl	$TRAP_ENTRY_SIZE, %ecx
 	idivl	%ecx /* now vector index is stored in %eax */
 	cmpl	$32, %eax
@@ -53,14 +53,14 @@ TrapHandler:
 	btl		%eax, %edx
 	jnc		1f
 	/* code is pushed */
-	popl	%ecx
-	popl	%edx
+	pop		%rcx
+	pop		%rdx
 	xchgl	%eax, (%esp) /* vector index to the frame */
 	jmp		2f
 1: /* no code pushed */
-	popl	%ecx
-	popl	%edx
-	pushl	%eax
+	pop		%rcx
+	pop		%rdx
+	push	%rax
 	xorl	%eax, %eax /* zero code */
 	xchgl	%eax, 4(%esp)
 2:
@@ -69,8 +69,8 @@ TrapHandler:
 	movl	%eax, %ds
 	movl	%eax, %es
 	movl	%esp, %eax
-	pushl	%eax /* argument for OnTrapRet - frame pointer */
-	pushl	%eax /* argument for trap handler - frame pointer */
+	push	%rax /* argument for OnTrapRet - frame pointer */
+	push	%rax /* argument for trap handler - frame pointer */
 	/* call high-level handler */
 	call	OnTrap
 	addl	$4, %esp

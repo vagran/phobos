@@ -205,7 +205,7 @@ public:
 	virtual int Release();
 
 	/* Waitable objects must redefine these two methods */
-	virtual PM::waitid_t GetWaitChannel(Operation op) { return 0; }
+	virtual waitid_t GetWaitChannel(Operation op) { return 0; }
 	/* return non-zero if available */
 	virtual int OpAvailable(Operation op) { return 0; }
 

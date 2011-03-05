@@ -11,6 +11,7 @@
 #include <boot.h>
 
 	.text
+	.code32
 	.globl start, _start
 start:
 _start:

@@ -20,7 +20,7 @@ RegDevClass(PIT, "pit", Device::T_SPECIAL, "Programmable Interval Timer (8253/82
 PIT::PIT(Type type, u32 unit, u32 classID) : Device(type, unit, classID)
 {
 	if (unit) {
-		klog(KLOG_ERROR, "Only unit 0 is supported fot PIT device, specified %lu", unit);
+		klog(KLOG_ERROR, "Only unit 0 is supported fot PIT device, specified %u", unit);
 		return;
 	}
 	tickFreq = 0;
@@ -46,7 +46,7 @@ PIT::SetTickFreq(u32 freq)
 	}
 	divisor = (BASE_FREQ + freq / 2) / freq;
 	if (divisor > 0xffff) {
-		klog(KLOG_WARNING, "Cannot set frequency %lu for PIT, divisor out of range", freq);
+		klog(KLOG_WARNING, "Cannot set frequency %u for PIT, divisor out of range", freq);
 		return 0;
 	}
 	tickFreq = freq;
