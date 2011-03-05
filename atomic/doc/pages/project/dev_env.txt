@@ -6,7 +6,8 @@ Here are described main tools used for PhobOS development. Currently Ubuntu 9.10
 
 Use this script to setup PhobOS environment:
 <file bash phobos_env_setup>
-#/bin/bash
+#!/bin/bash
+# $Id$
 
 if [ -z "$PHOBOS_PROJECT_PATH" ]; then
 	export PHOBOS_PROJECT_PATH=$HOME/projects/phobos

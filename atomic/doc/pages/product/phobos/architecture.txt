@@ -21,6 +21,10 @@ The PhobOS kernel supports its own boot specification which is created based on 
 
 PhobOS system partition type GUID is **57c427d2-4f46-45dd-9e15-237a36f4a1ec**.
 
+===== Virtual memory =====
+
+See main article about [[product:phobos:components:vm|PhobOS virtual memory subsystem]].
+
 ===== TCP/IP =====
 
 TCP/IP stack implementation is planned. Only IPv6 support will be implemented.

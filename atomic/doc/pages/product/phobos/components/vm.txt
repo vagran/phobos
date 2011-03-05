@@ -1,0 +1,6 @@
+---//$Id$//
+
+====== PhobOS virtual memory subsystem ======
+
+^  PhobOS virtual memory model  ^
+|{{:product:phobos:components:memory_model.png|PhobOS virtual memory model}}|
