@@ -1,0 +1,26 @@
+---//$Id$//
+====== System architecture overview ======
+
+Here is a brief overview of the PhobOS Atomic system architecture.
+
+===== Hardware =====
+
+PhobOS is designed to run on 64-bits CPUs compatible with Intel(r) 64 architecture. Overall platform HW architecture should be standard legacy-free PC architecture. Generally, it is a common approach in PhobOS to support only the modern and even not yet fully standardized (but which obviously will become new standards in the future) architecture specifications. This applies to a platform hardware as well as to its software and firmware (e.g. BIOS).
+
+ACPI((Advanced Configuration and Power Interface)) is the main source of hardware configuration information. APM((Advanced Power Management)), the MP((MultiProcessor)) Specification and the PnP((Plug and Play)) BIOS Specification are claimed legacy, completely replaced by ACPI and not supported.
+
+===== BIOS =====
+
+Only [[http://en.wikipedia.org/wiki/Extensible_Firmware_Interface|EFI]]((Extensible Firmware Interface)) is supported to be a platform firmware. This is a new standard which replaces legacy PC BIOS.
+
+===== Booting =====
+
+The PhobOS kernel supports its own boot specification which is created based on Multiboot specification with EFI-specific changes. Separate bootloader is used which is an EFI application with gzipped PhobOS ELF kernel in its payload. It loads the kernel and EFI system tables among with boot arguments.
+
+===== Disks =====
+
+PhobOS system partition type GUID is **57c427d2-4f46-45dd-9e15-237a36f4a1ec**.
+
+===== TCP/IP =====
+
+TCP/IP stack implementation is planned. Only IPv6 support will be implemented.

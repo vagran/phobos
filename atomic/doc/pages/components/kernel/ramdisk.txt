@@ -1,6 +1,0 @@
----//$Id$//
-
-====== RAM disk ======
-RAM disk image can be attached to kernel by linking it in ''.ramdisk'' section. ''_ramdisk'' symbol defines start address for the RAM disk area. ''_ramdiskSize'' is 32-bits value which represents total size of attached RAM disk.
-
-The filesystem image is created by filling file with zeros using ''dd'', making in it ext2 filesystem using ''mke2fs'', mounting it through loopback device, copying there all necessary content, unmounting and converting the binary file into ''elf32'' linkable object file using ''objcopy''. See ''/mfs/Makefile'' and ''/kernel/make/link.ld'' for implementation details.

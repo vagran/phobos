@@ -1,0 +1,444 @@
+---//$Id$//
+
+====== Development environment ======
+
+Here are described main tools used for PhobOS development. Currently Ubuntu 9.10 is used as host OS.
+
+Use this script to setup PhobOS environment:
+<file bash phobos_env_setup>
+#/bin/bash
+
+if [ -z "$PHOBOS_PROJECT_PATH" ]; then
+	export PHOBOS_PROJECT_PATH=$HOME/projects/phobos
+	bash --init-file $0
+fi
+
+export PHOBOS_PREFIX=$PHOBOS_PROJECT_PATH/usr/local
+export PATH=$PHOBOS_PREFIX/bin:$PHOBOS_PREFIX/sbin:$PATH
+export LD_LIBRARY_PATH=$PHOBOS_PREFIX/lib
+
+alias gdb=x86_64-unknown-linux-gnu-gdb
+alias qemu=qemu-system-x86_64
+
+export PS1='PhobOS env [\W]$ '
+
+echo "Welcome to PhobOS development environment"
+</file>
+
+For raising privileges with preserving required environment variables this script is used:
+<file perl phobos_sudo>
+#!/usr/bin/env perl
+# $Id$
+
+use Getopt::Long;
+use File::Basename;
+
+$PHOBOS_PREFIX = $ENV{PHOBOS_PREFIX};
+$PHOBOS_PROJECT_PATH = $ENV{PHOBOS_PROJECT_PATH};
+
+if (!GetOptions("prefix=s" => \$PHOBOS_PREFIX,
+		"project_path=s" => \$PHOBOS_PROJECT_PATH)
+		|| $#ARGV == -1) {
+	my $script = basename($0);
+	print("Usage: $script <command>\n");
+	exit(1);
+}
+
+if ($>) {
+	exit(system("sudo $0 --prefix=$PHOBOS_PREFIX --project_path=$PHOBOS_PROJECT_PATH @ARGV"));
+}
+
+$ENV{PHOBOS_PREFIX} = $PHOBOS_PREFIX;
+$ENV{PHOBOS_PROJECT_PATH} = $PHOBOS_PROJECT_PATH;
+$ENV{PATH} = "$PHOBOS_PREFIX/bin:$PHOBOS_PREFIX/sbin:" . $ENV{PATH};
+$ENV{LD_LIBRARY_PATH} = "$PHOBOS_PREFIX/lib";
+exit(system("@ARGV"));
+</file>
+===== Build tools =====
+
+The following packages are used:
+  * **binutils-2.21** from http://ftp.gnu.org/gnu/binutils/
+  * **gmp-5.0.1** from http://gmplib.org/
+  * **mpfr-3.0.0** from http://www.mpfr.org/
+  * **mpc-0.8.2** from http://www.multiprecision.org/
+  * **gcc-4.5.2** (gcc-core and gcc-g++ packages required) from http://gcc.gnu.org/
+  * **flex-2.5.35** from http://flex.sourceforge.net/
+  * **bison-2.4.3** from http://ftp.gnu.org/gnu/bison/
+
+They are built as follows:
+<code bash>
+export PREFIX=$HOME/projects/phobos/usr/local
+export BUILD=i786-pc-linux
+export TARGET=x86_64-phobos-elf
+
+export PATH=$PREFIX/bin:$PATH
+export LD_LIBRARY_PATH=$PREFIX/lib
+
+# binutils:
+../src/configure --prefix=$PREFIX --target=$TARGET --disable-nls --build=$BUILD --enable-64-bit-bfd --enable-targets=i386-efi-pe
+make
+make install
+
+# gmp:
+../src/configure --prefix=$PREFIX --build=$BUILD
+make
+make check
+make install
+
+# mpfr:
+../src/configure --prefix=$PREFIX --with-gmp=$PREFIX --build=$BUILD
+make
+make check
+make install
+
+# mpc:
+../src/configure --prefix=$PREFIX --with-gmp=$PREFIX --with-mpfr=$PREFIX --build=$BUILD
+make
+make check
+make install
+
+# gcc:
+../src/configure --prefix=$PREFIX --target=$TARGET --build=$BUILD --disable-nls --enable-languages=c,c++ --without-headers --disable-threads --disable-tls --with-gmp=$PREFIX --with-mpfr=$PREFIX --with-mpc=$PREFIX
+make all-gcc
+make install-gcc
+
+# flex:
+../src/configure --prefix=$PREFIX --target=$TARGET --build=$BUILD
+make
+make install
+
+# bison:
+../src/configure --prefix=$PREFIX --target=$TARGET --build=$BUILD
+make
+make install
+</code>
+
+===== GDB =====
+
+GDB is main debugging tool for PhobOS project. The following package was used:
+  * **gdb-7.2** from http://ftp.gnu.org/gnu/gdb/
+
+It was built as follows:
+<code bash>
+export PREFIX=$HOME/projects/phobos/usr/local
+export TARGET=x86_64-unknown-linux-gnu
+
+# gdb:
+../src/configure --prefix=$PREFIX --target=$TARGET --srcdir=../src --enable-64-bit-bfd
+make
+make install
+</code>
+
+===== Qemu =====
+
+Qemu is a virtual machine used for PhobOS development. The following packages are used:
+   * **userspace-rcu-0.5.2** library from http://lttng.org/files/urcu/
+   * **ust-0.11** library from http://lttng.org/files/ust/releases/
+   * **lttv-0.12.37** viewer from http://lttng.org/files/packages/?C=M;O=D
+   * **qemu-0.14.0** from http://wiki.qemu.org/Download/
+   * **OVMF firmware** 32-bit version taken from http://sourceforge.net/apps/mediawiki/tianocore/index.php?title=OVMF
+
+It was built as follows:
+<code bash>
+export PREFIX=$HOME/projects/phobos/usr/local
+
+# Following 3 libraries can be used for UST tracing with "--enable-trace-backend=ust" configure option
+# urcu:
+../src/configure --prefix=$PREFIX
+make
+make install
+
+# ust:
+../src/configure --prefix=$PREFIX CFLAGS=-I$PREFIX/include LDFLAGS=-L$PREFIX/lib
+# patch Makefile - delete tests subdirectory from list
+make
+make install
+
+# lttv:
+# dependency: libpopt-dev package
+../src/configure --prefix=$PREFIX
+make
+make install
+
+# qemu:
+../src/configure --prefix=$PREFIX --target-list=x86_64-softmmu --source-path=../src --enable-kvm --extra-cflags=-I$PREFIX/include --extra-ldflags=-L$PREFIX/lib
+make
+make install
+</code>
+
+==== Running emulation ====
+
+Run the following script in order to run PhobOS emulation:
+<file bash phobemu>
+#!/usr/bin/env perl
+# $Id$
+
+$PHOBOS_PREFIX = $ENV{PHOBOS_PREFIX};
+$PHOBOS_PROJECT_PATH = $ENV{PHOBOS_PROJECT_PATH};
+$QEMU = "$PHOBOS_PREFIX/bin/qemu-system-x86_64";
+
+if ($>) {
+	exit(system("phobos_sudo $0 @ARGV"));
+}
+
+exit(system("$QEMU -L $PHOBOS_PREFIX/share/qemu/phobos32 -bios OVMF.fd -m 768 -cpu kvm64 -smp 4 -vga cirrus -monitor stdio -serial tcp::666,server -s -hdb $PHOBOS_PREFIX/share/qemu/phobos.disk -usb -enable-kvm"));
+</file>
+
+Connect to serial console:
+<file bash phobcons>
+#!/bin/bash
+# $Id$
+
+ESCAPE=Q
+
+chr() 
+{
+	printf '%d' "'$1"
+}
+
+EXP=`chr $ESCAPE`
+EXP+=' - '
+EXP+=`chr A`
+EXP+=' + 1'
+EXP=`expr $EXP`
+CODE=`printf  %02x $EXP`
+echo "Starting PhobOS console, Ctrl+$ESCAPE to exit"
+
+socat -,raw,echo=0,escape=0x$CODE tcp4:localhost:666
+</file>
+===== GRUB =====
+
+As an OS loader GRUB loader is used.
+  * **grub-1.98** from ftp://alpha.gnu.org/gnu/grub/
+
+Before build a patch must be applied:
+<file diff grub.patch>
+--- include/grub/i18n.h.old	2010-03-06 22:51:37.000000000 +0200
++++ include/grub/i18n.h	2011-02-21 20:22:32.686130496 +0200
+@@ -25,7 +25,7 @@
+ extern const char *(*EXPORT_VAR(grub_gettext)) (const char *s);
+ 
+ /* NLS can be disabled through the configure --disable-nls option.  */
+-#if ENABLE_NLS
++#ifdef ENABLE_NLS
+ 
+ # ifdef GRUB_UTIL
+--- include/grub/disk.h.old     2010-03-06 22:51:37.000000000 +0200
++++ include/grub/disk.h 2011-02-24 08:39:37.893224987 +0200
+@@ -135,8 +135,8 @@
+ #define GRUB_DISK_CACHE_NUM    1021
+
+ /* The size of a disk cache in sector units.  */
+-#define GRUB_DISK_CACHE_SIZE   8
+-#define GRUB_DISK_CACHE_BITS   3
++#define GRUB_DISK_CACHE_SIZE   128
++#define GRUB_DISK_CACHE_BITS   7
+
+ /* This is called from the memory manager.  */
+ void grub_disk_cache_invalidate_all (void);
+</file>
+
+It was built as follows:
+<code bash>
+export PREFIX=$HOME/projects/phobos/usr/local
+
+# --target=x86_64 is not yet supported by Qemu EFI
+../src/configure --prefix=$PREFIX --with-platform=efi --target=i686 --disable-nls --enable-efiemu=no
+make
+make install
+</code>
+
+Make GRUB EFI executable image by the following command:
+<code bash>
+grub-mkimage -o grub.efi boot linux part_gpt fat ext2 normal sh configfile lspci ls reboot datetime loadenv search lvm help multiboot elf
+</code>
+
+GRUB configuration file used:
+<file - grub.cfg>
+default=0
+timeout=10
+search --file --set /boot/kernel
+insmod efi_gop
+insmod efi_uga
+
+menuentry "PhobOS" {
+	multiboot /boot/kernel --root ramdisk0
+}
+
+menuentry "PhobOS debugger" {
+	multiboot /boot/kernel --debugger --root ramdisk0
+}
+
+menuentry "PhobOS gdb" {
+	multiboot /boot/kernel --debugger --gdb --root ramdisk0
+}
+</file>
+
+===== Disk image =====
+
+  * gdisk utility used for creating GPT from http://sourceforge.net/projects/gptfdisk/
+
+Use the following script to create PhobOS disk image:
+<file perl phobos_make_image.pl>
+#!/usr/bin/env perl
+# Usage: phobos_make_image.pl [<options>] <filename> <size>
+#
+# $Id$
+
+use File::Basename;
+use Getopt::Long;
+
+$BYTES_PER_SECTOR = 512;
+$BOOT_PART_SIZE = 16 * 1024 * 1024;
+$PHOBOS_PART_GUID = "57c427d2-4f46-45dd-9e15-237a36f4a1ec";
+$PHOBOS_PREFIX = $ENV{PHOBOS_PREFIX};
+$PHOBOS_PROJECT_PATH = $ENV{PHOBOS_PROJECT_PATH};
+
+################################################################
+
+if ($>) {
+	exit(system("phobos_sudo $0 @ARGV"));
+}
+
+if ($#ARGV >= 0) {
+	$filename = $ARGV[0];
+} else {
+	$filename = "$PHOBOS_PREFIX/share/qemu/phobos.disk";
+}
+
+if ($#ARGV >= 1) {
+	$image_size = $ARGV[1];
+} else {
+	$image_size = "32M";
+}
+
+print("Making image '$filename'\n");
+
+if ($image_size =~ /^[0-9]+$/) {
+	$REQ_SIZE = $image_size;
+} elsif ($image_size =~ /^([0-9]+)[kK]$/) {
+	$REQ_SIZE = $1 * 1024;
+} elsif ($image_size =~ /^([0-9]+)[mM]$/) {
+	$REQ_SIZE = $1 * 1024 * 1024;
+} else {
+	print("Invalid size: '$image_size'\n");
+	exit(1);
+}
+
+$NUM_SECTORS = int($REQ_SIZE / $BYTES_PER_SECTOR);
+$SIZE = $NUM_SECTORS * $BYTES_PER_SECTOR;
+if ($SIZE < $REQ_SIZE) {
+	$NUM_SECTORS++;
+	$SIZE = $NUM_SECTORS * $BYTES_PER_SECTOR;
+}
+
+if ($SIZE < $BOOT_PART_SIZE + 65536) {
+	print("Size too small, boot partition size is $BOOT_PART_SIZE\n");
+	exit(1);
+}
+
+print("Total size: $NUM_SECTORS sectors in $SIZE bytes\n");
+
+system("dd if=/dev/zero of=$filename bs=$BYTES_PER_SECTOR count=$NUM_SECTORS") == 0
+	or die("dd failed\n");
+
+open(FDISK, "| gdisk $filename")
+	or die("Cannot start gdisk\n");
+
+print(FDISK "o\n"); # New GUID partition table
+print(FDISK "Y\n");
+
+# Create EFI system partition
+print(FDISK "n\n"); # New partition
+print(FDISK "1\n"); # Partition 1
+print(FDISK "\n"); # First sector default
+my $BOOT_SECTORS = $BOOT_PART_SIZE / $BYTES_PER_SECTOR;
+print(FDISK "+$BOOT_SECTORS\n"); # Size
+print(FDISK "ef00\n"); # Partition type: EFI system
+
+# Create PhobOS system partition
+print(FDISK "n\n"); # New partition
+print(FDISK "2\n"); # Partition 1
+print(FDISK "\n"); # First sector default
+print(FDISK "\n"); # Size: use the rest space
+print(FDISK "$PHOBOS_PART_GUID\n"); # Partition type: PhobOS system partition
+
+print(FDISK "w\n"); # Write changes and exit
+print(FDISK "Y\n"); # Write changes and exit
+close(FDISK);
+
+open(FDISK, "gdisk -l $filename |")
+	or die("Cannot list partitions");
+
+@partitions = ();
+while (my $line = <FDISK>) {
+	if ($line =~ /^\s*([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+.*$/) {
+		$partitions[$1]{start} = $2;
+		$partitions[$1]{size} = int($3) + 1 - int($2);
+	}
+}
+close(FDISK);
+
+print("Boot partition: ${partitions[1]{start}}/${partitions[1]{size}}\n");
+print("Root partition: ${partitions[2]{start}}/${partitions[2]{size}}\n");
+
+# Mount partitions and fill them
+my $mnt = "/tmp/__tmp_phobos_mnt";
+if (!-d $mnt) {
+	system("mkdir $mnt") == 0 or die("Cannot create mount-point directory");
+}
+my $start = $partitions[1]{start} * $BYTES_PER_SECTOR;
+my $size = $partitions[1]{size} * $BYTES_PER_SECTOR;
+system("losetup --offset $start --sizelimit $size /dev/loop0 $filename") == 0 or
+	die("Cannot set up loopback device");
+system("mkdosfs -F 12 /dev/loop0") == 0 or die("Cannot create FAT FS");
+system("mount /dev/loop0 $mnt") == 0 or die("Cannot mount loopback device");
+system("mkdir -p $mnt/efi/grub") == 0 or die("Cannot make grub directory");
+# Create GRUB image
+system("$PHOBOS_PREFIX/bin/grub-mkimage -o $mnt/efi/grub/grub.efi boot linux part_gpt fat ext2 normal sh configfile " .
+	"lspci ls reboot datetime loadenv search lvm help multiboot elf efi_gop efi_uga") == 0 or
+	die("Cannot create GRUB image");
+# Copy GRUB modules
+system("cp $PHOBOS_PREFIX/lib/grub/i386-efi/*.lst $PHOBOS_PREFIX/lib/grub/i386-efi/*.mod $mnt/efi/grub/") == 0 or
+	die("Cannot copy GRUB modules");
+# Create GRUB configuration file
+open(CFG, "> $mnt/efi/grub/grub.cfg") or die("Cannot open GRUB configuration file");
+print(CFG <<EOF
+default=0
+timeout=10
+
+search --file --set /boot/kernel
+
+menuentry "PhobOS" {
+	multiboot /boot/kernel --root ramdisk0
+}
+
+menuentry "PhobOS debugger" {
+	multiboot /boot/kernel --debugger --root ramdisk0
+}
+
+menuentry "PhobOS gdb" {
+	multiboot /boot/kernel --debugger --gdb --root ramdisk0
+}
+EOF
+);
+close(CFG);
+# Create EFI startup script
+open(S, "> $mnt/startup.nsh") or die("Cannot open EFI startup script");
+print(S <<EOF
+fs0:\\efi\\grub\\grub.efi
+EOF
+);
+close(S);
+
+system("mkdir $mnt/boot") == 0 or die("Cannot create boot directory");
+if (-f "$PHOBOS_PROJECT_PATH/source/phobos/kernel/build/DEBUG/kernel") {
+	system("cp $PHOBOS_PROJECT_PATH/source/phobos/kernel/build/DEBUG/kernel $mnt/boot") == 0 or
+		die("Cannot copy kernel image");
+}
+system("umount $mnt");
+system("losetup -d /dev/loop0");
+
+system("rm -rf $mnt");
+print("All done\n");
+</file>

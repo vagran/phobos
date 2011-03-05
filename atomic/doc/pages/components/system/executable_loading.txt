@@ -1,9 +1,0 @@
----//$Id$//
-
-====== Executable image loading ======
-
-There are two major types of user-space process executable images in PhobOS. 
-
-^ PhobOS process user space memory layout ^
-| {{components:system:process_mem_layout.png|PhobOS process memory layout}} |
-

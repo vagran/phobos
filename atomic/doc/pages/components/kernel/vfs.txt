@@ -1,8 +1,0 @@
----//$Id$//
-
-====== Virtual File System ======
-Files names in a path are separated by '/' character. All characters except '/' and '\0' can be used in files names.
-
-One global object ''vfs'' of class ''VFS'' represents whole system virtual file system hierarchy.
-
-Each node of the VFS is represented by ''VFS::Node'' class object. The tree in ''vfs'' object is not constructed completely during initialization. The nodes are added there only when the system attempts to access some file in the VFS. During the attempt processing, VFS requests necessary information from underlying device file system and updates its tree.

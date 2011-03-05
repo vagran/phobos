@@ -1,5 +1,0 @@
----//$Id$//
-
-====== Block devices ======
-
-All blocks devices classes are derived from ''BlkDevice'' class. It has ''Push()'' method which must be used to post requests for all data transfer operations. ''Pull()'' method must be called when taking back a buffer from the device. Data buffers are described by ''Device::IOBuf'' structure.

@@ -1,17 +1,15 @@
 ---//$Id$//
-====== PhobOS ======
+====== PhobOS Atomic ======
 
-PhobOS – object-oriented operating system completely written in C++. During its design author attempted to get the best ideas from Linux, FreeBSD and Windows design and implement them using object-oriented programming principles. The system is designed to support only one architecture - x86 PC. Another idea is to implement support only for the most recent hardware and system software (BIOS and firmware) standards and do not support obsolete legacy devices, interface and specifications. When the choice is made between performance (several CPU cycles) and code quality and portability the second case is chosen. Many original ideas were used in the system concept development (e.g. the most magic and tricky area - [[components:kernel:syscalls|kernel system calls]] interface).
+PhobOS Atomic -- object-oriented orthogonally persistent operating system, successor of PhobOS Root operating system. It is completely written in C++. Main features and ideas:
+  * PC platform is the main hardware set for which PhobOS is designed. Only 64-bits systems are supported. Full SMP support is implemented.
+  * PhobOS design is focused on nowadays and future technologies. So it has very limited or almost none support of legacy devices and interfaces.
+  * PhobOS implements orthogonal persistence -- it stores all its state before and restores after reboot. Probably there will be implemented snapshotting mechanism which will make the system fault tolerant -- even after power failure it will be able to recover its state which existed a few moments before the failure.
+  * PhobOS has global address space -- every object in the system has its own unique linear address which can be visible either to its process only or shared between other processes. Persistence feature is applied to whole PhobOS global address space.
+  * PhobOS doesn't have filesystem in its traditional meaning. Disk partitions are used to store image of global address space (something similar to UNIX swap partitions) with transparent compression. Everything is stored in memory objects. All objects are managed by reference counters -- the object is preserved until someone references him. The object is destroyed when last reference is closed. Circular references are resolved automatically. However PhobOS still could have files -- objects which could contain some binary data (e.g. executable image in ELF format) and are registered in some namespace. Namespaces allow retrieve registered objects by its path in the namespace. Support for traditional filesystems exists -- disk partition with some filesystem could be mounted in PhobOS global address space -- it is represented as a namespace with objects corresponding to files in mounted filesystem.
 
-There are used some [[misc:third_party|third parties' components]] in the system. Mostly they are open source libraries modified to fit in PhobOS system concept.
+For more implementation details see [[product:phobos:architecture|architecture overview page]].
 
-====== Components ======
+Information about PhobOS development environment can be found on [[project:dev_env|the corresponding page]].
 
-  * [[components:kernel:kernel]]
-  * [[components:system:system]]
-
-====== Other information ======
-  * [[misc:build_process|PhobOS build process]]
-
-====== Project diaries ======
-The project development history was briefly logged in [[diary|project diaries]].
+Project management system is available [[http://trac2.xp-dev.com/phobos/login|there]].
