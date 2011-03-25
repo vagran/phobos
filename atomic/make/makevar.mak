@@ -60,9 +60,9 @@ NAT_INCLUDE_DIRS = /usr/include
 NAT_INCLUDE_FLAGS = $(foreach dir,$(NAT_INCLUDE_DIRS),-I$(dir))
 
 # kernel physical load address
-export KERNEL_LOAD_ADDRESS =	0x10000000
+export KERNEL_LOAD_ADDRESS = 0x100000
 # kernel virtual mapping address
-export KERNEL_ADDRESS =	0x10000000
+export KERNEL_ADDRESS =	0x78000000
 
 MFS_IMAGE_NAME = mfs_image
 MFS_IMAGE = $(PHOBOS_ROOT)/mfs/image/$(TARGET)/$(MFS_IMAGE_NAME)

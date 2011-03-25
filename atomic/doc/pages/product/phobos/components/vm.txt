@@ -2,5 +2,33 @@
 
 ====== PhobOS virtual memory subsystem ======
 
+VM subsystem is one of the most important subsystems in the PhobOS OS. Actually it is a fundamental component which has a central position around which the whole system is built.
+
+===== Virtual address space distribution =====
+
+The lower 2GB is a space for all executable binaries linking. So all executables are built with an assumption that all sections and symbols will be located in lower 2GB of VM space. This is required to allow compiler to use 32 bits offsets when referencing program symbols. The kernel binary is mapped to the top of the lowest 2GB and stay there constantly for all processes.
+
 ^  PhobOS virtual memory model  ^
 |{{:product:phobos:components:memory_model.png|PhobOS virtual memory model}}|
+
+===== VM model main objects =====
+
+The following objects are fundamental bricks of PhobOS VM subsystem model.
+
+==== Page ====
+
+Page object represents physical memory page. In PhobOS it is always has 4KB size.
+
+==== VMObject ====
+
+VMObject represents some data object which could be mapped to some region of virtual address space.
+
+==== Map ====
+
+Map describes some region of virtual address space. Maps could be organized to hierarchy so that any map could have any numbers of submaps.
+
+==== Map entry ====
+
+Map entry represents some region in a map.
+
+

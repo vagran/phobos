@@ -17,6 +17,8 @@ Only [[http://en.wikipedia.org/wiki/Extensible_Firmware_Interface|EFI]]((Extensi
 
 The PhobOS kernel supports its own boot specification which is created based on Multiboot specification with EFI-specific changes. Separate bootloader is used which is an EFI application with gzipped PhobOS ELF kernel in its payload. It loads the kernel and EFI system tables among with boot arguments.
 
+Two versions of bootloader compiled - one for 32-bit EFI and another one for 64-bit. Both enter kernel in 64-bits mode.
+
 ===== Disks =====
 
 PhobOS system partition type GUID is **57c427d2-4f46-45dd-9e15-237a36f4a1ec**.

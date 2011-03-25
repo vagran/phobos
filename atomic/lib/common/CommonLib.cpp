@@ -251,7 +251,7 @@ snprintf(char *buf, int bufSize, const char *fmt,...)
 {
 	va_list va;
 	va_start(va, fmt);
-	int len = kvprintf(fmt, 0, buf, 10, va, bufSize);
+	int len = kvprintf(fmt, 0, buf, 10, va, bufSize ? bufSize - 1 : 0);
 	if (buf && bufSize) {
 		buf[len] = 0;
 	}
@@ -307,7 +307,8 @@ ksprintn(char *nbuf, u64 num, int base, int *lenp, int upper)
 }
 
 int
-kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap, int maxOut)
+kvprintf(const char *fmt, PutcFunc func, void *arg, int radix, va_list ap,
+	int maxOut)
 {
 
 #define PCHAR(c) { \
